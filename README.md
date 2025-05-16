@@ -40,3 +40,7 @@ pip install -r requirements.txt
 ```bash
 fastapi dev main.py
 ```
+
+## Logs
+
+Evaluation outputs are written to `logs/evaluation_log.jsonl` (one JSON record per line).
