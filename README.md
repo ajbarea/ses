@@ -35,9 +35,7 @@ python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-## Running the FastAPI
-
-### Run Server
+## Running the FastAPI Server
 
 ```bash
 fastapi dev main.py
