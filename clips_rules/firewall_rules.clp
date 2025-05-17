@@ -20,6 +20,42 @@
     (assert (score (value -30) (type penalty)))
 )
 
+;; Rule: smb-port-open
+;; Purpose: Detect when Windows file sharing (SMB) port 445 is open, which is common and needed for local network functionality.
+(defrule smb-port-open
+    "Check for SMB port 445"
+    (open-port (number 445))
+    (not (high-risk-smb-detected))
+    =>
+    (assert (finding
+        (rule-name "smb_port_open")
+        (level "info")
+        (description "SMB port 445 is open, which is common for Windows file sharing.")
+        (details 445)
+        (recommendation "Ensure this port is not exposed to the internet and is properly firewalled.")
+    ))
+    (assert (high-risk-smb-detected))
+    ;; No score penalty for a standard Windows service
+)
+
+;; Rule: smb-port-with-public-firewall-off
+;; Purpose: Detect the higher risk scenario of SMB port open with public firewall disabled.
+(defrule smb-port-with-public-firewall-off
+    "Check for SMB port with public firewall off"
+    (open-port (number 445))
+    (firewall (public "OFF"))
+    =>
+    (assert (finding
+        (rule-name "smb_port_risky")
+        (level "warning")
+        (description "SMB port 445 is open with public firewall disabled.")
+        (details 445)
+        (recommendation "Enable public firewall profile and restrict SMB access to trusted networks only.")
+    ))
+    (assert (score (value -15) (type penalty)))
+    (assert (high-risk-smb-detected))
+)
+
 ;; Rule: firewall-public-disabled
 ;; Purpose: Check if public firewall profile is disabled.
 (defrule firewall-public-disabled
@@ -80,5 +116,5 @@
         (description "All firewall profiles are enabled.")
         (recommendation "Continue monitoring firewall status.")
     ))
-    (assert (score (value 5) (type penalty)))
+    (assert (score (value 15) (type penalty)))
 )

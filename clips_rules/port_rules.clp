@@ -6,10 +6,10 @@
 ;;; Section: Open Ports Rules ;;;
 
 ;; Rule: high-risk-port-open
-;; Purpose: Check for high-risk ports (telnet, ftp, etc.) and warn if open.
+;; Purpose: Check for high-risk ports (telnet, ftp, smtp) and warn if open.
 (defrule high-risk-port-open
-    "Check for high-risk ports (telnet, ftp, etc.)"
-    (open-port (number ?port&:(or (= ?port 21) (= ?port 23) (= ?port 25) (= ?port 445) (= ?port 3389))))
+    "Check for high-risk ports (telnet, ftp, smtp)"
+    (open-port (number ?port&:(or (= ?port 21) (= ?port 23) (= ?port 25) (= ?port 3389))))
     =>
     (assert (finding
         (rule-name "high_risk_port_open")
@@ -40,9 +40,9 @@
 )
 
 ;; Rule: many-ports-open
-;; Purpose: Detect when too many ports are open.
+;; Purpose: Detect when more than 20 ports are open.
 (defrule many-ports-open
-    "Check if too many ports are open"
+    "Check if more than 20 ports are open"
     (not (excessive-ports-checked))
     =>
     (bind ?count 0)
@@ -50,11 +50,11 @@
         (bind ?count (+ ?count 1))
     )
     
-    (if (> ?count 10) then
+    (if (> ?count 20) then
         (assert (finding
             (rule-name "many_ports_open")
             (level "warning")
-            (description (str-cat "Large number of open ports (" ?count ")."))
+            (description (str-cat "Large number of open ports (" ?count "). Threshold is 20."))
             (details ?count)
             (recommendation "Review and close unnecessary ports.")
         ))
