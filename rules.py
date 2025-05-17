@@ -29,6 +29,15 @@ RULE_DESCRIPTIONS = {
     },
 }
 
+# Check if PyCLIPS is available
+CLIPS_AVAILABLE = False
+try:
+    import clips
+
+    CLIPS_AVAILABLE = True
+except ImportError:
+    CLIPS_AVAILABLE = False
+
 
 def calculate_score(findings: list, base_score: int = 100) -> int:
     """Compute the final security score after applying penalties.
@@ -48,20 +57,14 @@ def calculate_score(findings: list, base_score: int = 100) -> int:
     return max(0, min(100, score))
 
 
-def evaluate(metrics: dict) -> dict:
-    """Assess provided metrics against rules and assemble an evaluation report.
+def _evaluate_legacy(metrics: dict) -> dict:
+    """Original rule-based evaluation using hardcoded Python rules.
 
     Args:
         metrics (dict): System metrics with keys like 'patch', 'ports', 'services'.
 
     Returns:
-        dict: Evaluation report including:
-            - timestamp (UTC ISO8601 string)
-            - score (0–100)
-            - grade (textual rating)
-            - summary (concise findings overview)
-            - findings (detailed rule violations)
-            - metrics (raw input data)
+        dict: Evaluation report with findings and score.
     """
     findings = []
     if metrics["patch"]["status"] != "up-to-date":
@@ -106,7 +109,6 @@ def evaluate(metrics: dict) -> dict:
     )
 
     return {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
         "score": score,
         "grade": grade,
         "summary": (
@@ -115,5 +117,58 @@ def evaluate(metrics: dict) -> dict:
             else "; ".join(f["description"] for f in findings)
         ),
         "findings": findings,
-        "metrics": metrics,
     }
+
+
+def _evaluate_clips(metrics: dict) -> dict:
+    """Evaluate security using the CLIPS expert system.
+
+    Args:
+        metrics (dict): System metrics with keys like 'patch', 'ports', 'services'.
+
+    Returns:
+        dict: Evaluation report with findings, score, and explanations.
+    """
+    try:
+        from clips_evaluator import SecurityExpertSystem
+
+        expert_system = SecurityExpertSystem()
+        result = expert_system.evaluate(metrics)
+        return result
+    except (ImportError, Exception) as e:
+        print(f"Error using CLIPS evaluator: {e}")
+        return _evaluate_legacy(metrics)
+
+
+def evaluate(metrics: dict, use_clips: bool = None) -> dict:
+    """Assess provided metrics against rules and assemble an evaluation report.
+
+    Args:
+        metrics (dict): System metrics with keys like 'patch', 'ports', 'services'.
+        use_clips (bool, optional): Whether to use the CLIPS expert system.
+            Defaults to None (auto-detect based on availability).
+
+    Returns:
+        dict: Evaluation report including:
+            - timestamp (UTC ISO8601 string)
+            - score (0–100)
+            - grade (textual rating)
+            - summary (concise findings overview)
+            - findings (detailed rule violations)
+            - metrics (raw input data)
+    """
+    # Determine whether to use CLIPS
+    if use_clips is None:
+        use_clips = CLIPS_AVAILABLE
+
+    # Run the appropriate evaluation engine
+    if use_clips and CLIPS_AVAILABLE:
+        result = _evaluate_clips(metrics)
+    else:
+        result = _evaluate_legacy(metrics)
+
+    # Add timestamp and metrics to the result
+    result["timestamp"] = datetime.now(timezone.utc).isoformat()
+    result["metrics"] = metrics
+
+    return result
