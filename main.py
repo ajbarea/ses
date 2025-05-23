@@ -1,9 +1,7 @@
-"""Main application for the Security Evaluation Service (SES).
-Provides FastAPI endpoints to:
-    * Fetch system metrics
-    * Evaluate security based on predefined rules
+"""Security Evaluation Service (SES) REST API.
 
-Evaluation results are persisted to 'logs/evaluation_log.jsonl' (JSON Lines).
+Provides endpoints for system security metric collection and evaluation.
+Logs evaluation results in JSONL format for historical tracking.
 """
 
 from fastapi import FastAPI
@@ -23,28 +21,23 @@ app = FastAPI()
 
 @app.get("/")
 async def root():
-    """Health check endpoint returning a simple status message.
+    """Simple health check endpoint.
 
     Returns:
-        Dict[str, str]: Verification message with key 'message'.
+        dict: Status message indicating service availability
     """
     return {"message": "Hello World"}
 
 
 @app.get("/metrics")
 async def metrics():
-    """Retrieve raw system metrics.
+    """Collect current system security metrics.
 
-    This endpoint fetches various system security metrics such as:
-        * Windows patch status
-        * Listening TCP ports
-        * Running services
-        * Firewall profile states
-        * Installed antivirus products
-        * Local password policy
+    Gathers data about patches, ports, services, firewall,
+    antivirus, and password policies.
 
     Returns:
-        Dict[str, Any]: A mapping of metric names to their values.
+        dict: Collected security metrics by category
     """
     return {
         "patch": get_patch_status(),
@@ -58,22 +51,14 @@ async def metrics():
 
 @app.get("/evaluate")
 async def evaluate_security():
-    """Execute security evaluation and log results.
+    """Perform security evaluation and persist results.
 
-    This endpoint:
-        1. Collects current system metrics.
-        2. Applies configured security rules.
-        3. Appends the evaluation report as a JSON record to 'logs/evaluation_log.jsonl'.
-        4. Returns the evaluation report including:
-            - timestamp
-            - score (0–100)
-            - grade (e.g., 'Excellent', 'Good', 'Fair', 'Poor', 'Critical Risk')
-            - summary of findings
-            - detailed findings list
-            - raw metrics
+    Collects metrics, evaluates security posture, and logs the report.
+    Results are appended to logs/evaluation_log.jsonl in JSONL format.
 
     Returns:
-        Dict[str, Any]: Full security evaluation report.
+        dict: Evaluation report containing score, grade, findings,
+              and supporting details
     """
     metrics_data = {
         "patch": get_patch_status(),

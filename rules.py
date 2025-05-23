@@ -1,22 +1,23 @@
-"""Security evaluation rules module.
+"""Security evaluation rule engine.
 
-Defines rule checks for system metrics, calculates penalties, and generates an
-evaluation report with score, grade, summary, and detailed findings.
+Implements both traditional Python-based and CLIPS-based security assessment.
+Provides configurable rule definitions, scoring logic, and report generation
+for system security metrics evaluation.
 """
 
 from datetime import datetime, timezone
 
-# Severity level → penalty point mapping.
+# Penalty points by finding severity level
 SEVERITY_SCORES = {
     "critical": -30,
     "warning": -10,
     "info": -5,
 }
 
-# Maximum number of running services before issuing an informational finding.
+# Alert threshold for excessive running services
 SERVICE_COUNT_THRESHOLD = 300
 
-# Human-readable descriptions and severity for each rule.
+# Rule definitions with severity levels and descriptions
 RULE_DESCRIPTIONS = {
     "patch_status": {
         "description": "System patches are not up-to-date.",
@@ -29,7 +30,7 @@ RULE_DESCRIPTIONS = {
     },
 }
 
-# Check if PyCLIPS is available
+# Detect CLIPS expert system availability
 CLIPS_AVAILABLE = False
 try:
     import clips
@@ -40,14 +41,17 @@ except ImportError:
 
 
 def calculate_score(findings: list, base_score: int = 100) -> int:
-    """Compute the final security score after applying penalties.
+    """Calculate final security score by applying severity-based penalties.
+
+    Applies configured penalty points for each finding based on severity level.
+    Ensures final score remains within valid range (0-100).
 
     Args:
-        findings (list): List of dicts each containing a 'level' key.
-        base_score (int): Initial score before deductions.
+        findings: List of finding dictionaries with severity levels
+        base_score: Starting score before penalties (default: 100)
 
     Returns:
-        int: Adjusted score, clamped between 0 and 100.
+        Final security score between 0 and 100
     """
     score = base_score
     for finding in findings:
@@ -58,13 +62,16 @@ def calculate_score(findings: list, base_score: int = 100) -> int:
 
 
 def _evaluate_legacy(metrics: dict) -> dict:
-    """Original rule-based evaluation using hardcoded Python rules.
+    """Evaluate security using built-in Python rule engine.
+
+    Applies predefined rules to system metrics, generates findings,
+    and calculates overall security score without CLIPS dependency.
 
     Args:
-        metrics (dict): System metrics with keys like 'patch', 'ports', 'services'.
+        metrics: System security metrics by category
 
     Returns:
-        dict: Evaluation report with findings and score.
+        Evaluation report with findings and calculated score
     """
     findings = []
     if metrics["patch"]["status"] != "up-to-date":
@@ -121,13 +128,16 @@ def _evaluate_legacy(metrics: dict) -> dict:
 
 
 def _evaluate_clips(metrics: dict) -> dict:
-    """Evaluate security using the CLIPS expert system.
+    """Evaluate security using CLIPS expert system engine.
+
+    Attempts CLIPS-based evaluation with fallback to legacy engine
+    if CLIPS initialization fails.
 
     Args:
-        metrics (dict): System metrics with keys like 'patch', 'ports', 'services'.
+        metrics: System security metrics by category
 
     Returns:
-        dict: Evaluation report with findings, score, and explanations.
+        Enhanced evaluation report with findings, score, and rule explanations
     """
     try:
         from clips_evaluator import SecurityExpertSystem
@@ -141,21 +151,19 @@ def _evaluate_clips(metrics: dict) -> dict:
 
 
 def evaluate(metrics: dict, use_clips: bool = None) -> dict:
-    """Assess provided metrics against rules and assemble an evaluation report.
+    """Perform security evaluation using preferred rule engine.
+
+    Primary evaluation interface that:
+    1. Selects appropriate rule engine (CLIPS or legacy)
+    2. Executes evaluation against provided metrics
+    3. Enriches results with metadata (timestamp, raw metrics)
 
     Args:
-        metrics (dict): System metrics with keys like 'patch', 'ports', 'services'.
-        use_clips (bool, optional): Whether to use the CLIPS expert system.
-            Defaults to None (auto-detect based on availability).
+        metrics: System security metrics by category
+        use_clips: Force CLIPS engine selection (default: auto-detect)
 
     Returns:
-        dict: Evaluation report including:
-            - timestamp (UTC ISO8601 string)
-            - score (0–100)
-            - grade (textual rating)
-            - summary (concise findings overview)
-            - findings (detailed rule violations)
-            - metrics (raw input data)
+        Complete evaluation report with all supporting data
     """
     # Determine whether to use CLIPS
     if use_clips is None:
