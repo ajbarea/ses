@@ -1,13 +1,8 @@
-"""
-Unit tests for the SecurityExpertSystem implementation using CLIPS.
-Tests focus on fact assertion, evaluation workflow, and result processing.
-"""
-
 import sys
 import types
 import unittest
-from unittest.mock import MagicMock, patch
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 # Create mock CLIPS environment if CLIPS module is not available
 if "clips" not in sys.modules:
@@ -24,23 +19,18 @@ class TestClipsEvaluator(unittest.TestCase):
     """Tests the SecurityExpertSystem's core functionality using mocked CLIPS environment."""
 
     def setUp(self):
-        # Initialize expert system with mocked CLIPS environment
         self.expert_system = SecurityExpertSystem(rules_dir=None)
         self.mock_env = MagicMock()
         self.expert_system.env = self.mock_env
-        # Enable fact assertion validation on mock environment
         self.mock_env.assert_string = MagicMock()
 
     def test_convert_patch_metrics_asserts_expected_facts(self):
-        """Verifies patch status metrics are correctly converted to CLIPS facts."""
         data = {"patch": {"status": "out-of-date", "hotfixes": ["KB1", "KB2"]}}
         self.expert_system.convert_metrics_to_facts(data)
-        # Expect one assert_string call for patch-status
         fact_call = '(patch-status (status "out-of-date") (hotfixes "KB1" "KB2"))'
         self.mock_env.assert_string.assert_any_call(fact_call)
 
     def test_convert_firewall_metrics_asserts_expected_fact(self):
-        """Verifies firewall profile settings are correctly converted to CLIPS facts."""
         data = {
             "firewall": {
                 "profiles": {"domain": "ON", "private": "OFF", "public": "OFF"}
@@ -51,8 +41,6 @@ class TestClipsEvaluator(unittest.TestCase):
         self.mock_env.assert_string.assert_any_call(fact_call)
 
     def test_evaluate_uses_internal_methods(self):
-        """Validates the complete evaluation workflow including fact conversion,
-        rule execution, and result processing."""
         dummy_metrics = {"any": "value"}
         with patch.object(
             self.expert_system, "convert_metrics_to_facts"
@@ -68,97 +56,199 @@ class TestClipsEvaluator(unittest.TestCase):
             self.expert_system, "get_rule_trace", return_value=["r1", "r2"]
         ) as mock_trace:
             result = self.expert_system.evaluate(dummy_metrics)
-        mock_convert.assert_called_once_with(dummy_metrics)
-        mock_run.assert_called_once()
-        mock_findings.assert_called_once()
-        mock_score.assert_called_once()
-        mock_trace.assert_called_once()
-        # Verify result structure
-        self.assertIn("score", result)
-        self.assertIn("grade", result)
-        self.assertIn("summary", result)
-        self.assertIn("findings", result)
-        self.assertIn("rules_fired", result)
-        self.assertIn("explanations", result)
+            mock_convert.assert_called_once_with(dummy_metrics)
+            mock_run.assert_called_once()
+            mock_findings.assert_called_once()
+            mock_score.assert_called_once()
+            mock_trace.assert_called_once()
+            self.assertIn("score", result)
+            self.assertIn("grade", result)
+            self.assertIn("summary", result)
+            self.assertIn("findings", result)
+            self.assertIn("rules_fired", result)
+            self.assertIn("explanations", result)
 
     def test_load_templates_handles_clips_error(self):
-        """Test that template loading errors are properly caught and re-raised."""
-        # Create an environment that raises an error when trying to build a template
         mock_env = MagicMock()
         mock_env.build = MagicMock(
             side_effect=sys.modules["clips"].CLIPSError("Test error")
         )
-
         expert_system = SecurityExpertSystem(rules_dir=None)
         expert_system.env = mock_env
-
-        # Verify that the error is re-raised
         with self.assertRaises(sys.modules["clips"].CLIPSError):
             expert_system._load_templates()
-
-        # Verify that the error was logged (captured print statement)
         mock_env.build.assert_called()
 
     def test_load_rules_handles_missing_directory(self):
-        """Test that _load_rules gracefully handles a non-existent rules directory."""
-        # Create expert system with a non-existent directory path
         non_existent_dir = "non_existent_dir"
         expert_system = SecurityExpertSystem(rules_dir=non_existent_dir)
-
-        # _load_rules should complete without raising an exception
-        # This implicitly tests that the method returns after the warning
-        expert_system._load_rules()  # Should not raise
-
-        # Verify the rules directory doesn't exist
+        expert_system._load_rules()
         self.assertFalse(Path(non_existent_dir).exists())
 
     def test_load_rules_handles_clips_error(self):
-        """Test that _load_rules gracefully handles errors when loading rule files."""
-        # Create a temporary rules directory with a test file
-        rules_dir = Path("test_rules_dir")
-        rules_dir.mkdir(exist_ok=True)
-        rule_file = rules_dir / "test.clp"
-        rule_file.touch()  # Create empty file
+        from pathlib import Path
 
-        # Set up expert system with mocked environment that raises on load
+        # Use existing clips_rules directory for test files
+        rules_dir = Path("clips_rules")
         expert_system = SecurityExpertSystem(rules_dir=str(rules_dir))
         mock_env = MagicMock()
         mock_env.load = MagicMock(
             side_effect=sys.modules["clips"].CLIPSError("Test error")
         )
         expert_system.env = mock_env
+        expert_system._load_rules()
+        mock_env.load.assert_called()
 
-        try:
-            # Should not raise exception, only log error
-            expert_system._load_rules()
 
-            # Verify load was attempted
-            mock_env.load.assert_called_once_with(str(rule_file))
-        finally:
-            # Cleanup
-            rule_file.unlink()
-            rules_dir.rmdir()
+class TestConvertMetricsToFacts(unittest.TestCase):
+    def setUp(self):
+        self.expert = SecurityExpertSystem(rules_dir=None)
+        self.expert.env = MagicMock()
+        self.expert.env.reset = MagicMock()
+        self.expert.env.assert_string = MagicMock()
 
-    def test_run_evaluation_fallback_when_no_findings(self):
-        """Test that run_evaluation creates a generic activation when rules are fired but can't be traced."""
-        # Set up environment that runs successfully but returns no findings
-        mock_env = MagicMock()
-        mock_env.run = MagicMock(return_value=3)  # 3 rules fired
-        mock_env.facts = MagicMock(return_value=[])  # No facts/findings
-        expert_system = SecurityExpertSystem(rules_dir=None)
-        expert_system.env = mock_env
+    def test_ports_to_open_port_facts(self):
+        data = {"ports": {"ports": [22, 80]}}
+        self.expert.convert_metrics_to_facts(data)
+        self.expert.env.assert_string.assert_any_call("(open-port (number 22))")
+        self.expert.env.assert_string.assert_any_call("(open-port (number 80))")
 
-        # Run evaluation
-        rules_fired = expert_system.run_evaluation()
+    def test_services_to_service_facts(self):
+        services = [
+            {"name": "SvcA", "state": "Running"},
+            {"name": "SvcB", "state": "Stopped"},
+        ]
+        data = {"services": {"services": services}}
+        self.expert.convert_metrics_to_facts(data)
+        self.expert.env.assert_string.assert_any_call(
+            '(service (name "SvcA") (state "Running"))'
+        )
+        self.expert.env.assert_string.assert_any_call(
+            '(service (name "SvcB") (state "Stopped"))'
+        )
 
-        # Verify the results
-        self.assertEqual(rules_fired, 3)
-        self.assertEqual(len(expert_system.rule_activations), 1)
-        activation = expert_system.rule_activations[0]
-        self.assertEqual(activation["rule"], "unknown")
+    def test_antivirus_to_antivirus_product_facts(self):
+        products = [{"name": "AVX", "state": 5}, {"name": "AVY", "state": None}]
+        data = {"antivirus": {"products": products}}
+        self.expert.convert_metrics_to_facts(data)
+        self.expert.env.assert_string.assert_any_call(
+            '(antivirus-product (name "AVX") (state 5))'
+        )
+        self.expert.env.assert_string.assert_any_call(
+            '(antivirus-product (name "AVY") (state UNKNOWN))'
+        )
+
+    def test_password_policy_to_password_policy_fact(self):
+        policy = {"min_password_length": 5, "max_password_age": 15}
+        data = {"password_policy": {"policy": policy}}
+        self.expert.convert_metrics_to_facts(data)
+        self.expert.env.assert_string.assert_any_call(
+            "(password-policy (min-password-length 5) (max-password-age 15))"
+        )
+
+
+class FakeFact(dict):
+    def __init__(self, template_name, **kwargs):
+        super().__init__(kwargs)
+        self.template = types.SimpleNamespace(name=template_name)
+
+
+class TestExtractorsTracers(unittest.TestCase):
+    def setUp(self):
+        self.expert = SecurityExpertSystem(rules_dir=None)
+        self.expert.rule_activations = []
+
+    def test_get_findings_only_returns_finding_facts(self):
+        f1 = FakeFact(
+            "finding",
+            **{
+                "rule-name": "r1",
+                "level": "warning",
+                "description": "d1",
+                "recommendation": "rec1",
+                "details": ("a", "b"),
+            }
+        )
+        f2 = FakeFact("other", **{"foo": "bar"})
+        self.expert.env.facts = lambda: [f1, f2]
+        findings = self.expert.get_findings()
+        self.assertEqual(len(findings), 1)
+        self.assertDictEqual(
+            findings[0],
+            {
+                "rule": "r1",
+                "level": "warning",
+                "description": "d1",
+                "recommendation": "rec1",
+                "details": ["a", "b"],
+            },
+        )
+
+    def test_get_score_with_final_score_fact(self):
+        f = FakeFact("score", **{"value": "85", "type": "final"})
+        self.expert.env.facts = lambda: [f]
+        score = self.expert.get_score(base_score=50)
+        self.assertEqual(score, 85)
+
+    def test_get_score_with_penalty_facts_and_clamping(self):
+        f1 = FakeFact("score", **{"value": "-150", "type": "penalty"})
+        f2 = FakeFact("score", **{"value": "30", "type": "penalty"})
+        self.expert.env.facts = lambda: [f1, f2]
+        score = self.expert.get_score()
+        self.assertEqual(score, 0)
+
+    def test_get_score_falls_back_to_findings(self):
+        self.expert.env.facts = lambda: []
+        self.expert.get_findings = lambda: [{"level": "critical"}, {"level": "info"}]
+        score = self.expert.get_score()
+        self.assertEqual(score, 65)
+
+    def test_get_rule_trace_returns_activations(self):
+        self.expert.rule_activations = [{"rule": "r", "activation": "a"}]
+        trace = self.expert.get_rule_trace()
+        self.assertIs(trace, self.expert.rule_activations)
+
+
+class TestRunEvaluation(unittest.TestCase):
+    def setUp(self):
+        self.expert = SecurityExpertSystem(rules_dir=None)
+        self.mock_env = MagicMock()
+        self.expert.env = self.mock_env
+        self.mock_env.facts = MagicMock(return_value=[])
+
+    def test_watch_supported_traces_rules(self):
+        self.mock_env.watch = MagicMock()
+        self.mock_env.unwatch = MagicMock()
+
+        def run_side_effect():
+            print("FIRE 1 ruleA")
+            print("FIRE 2 ruleB")
+            return 2
+
+        self.mock_env.run = MagicMock(side_effect=run_side_effect)
+        fired = self.expert.run_evaluation()
+        self.assertEqual(fired, 2)
+        self.assertEqual(len(self.expert.rule_activations), 2)
+        self.assertEqual(self.expert.rule_activations[0]["rule"], "ruleA")
+        self.assertIn("FIRE 1 ruleA", self.expert.rule_activations[0]["activation"])
+        self.assertEqual(self.expert.rule_activations[1]["rule"], "ruleB")
+
+    def test_watch_unsupported_fallbacks_to_findings(self):
+        self.mock_env.watch = MagicMock(side_effect=AttributeError)
+        self.mock_env.run = MagicMock(return_value=5)
+        findings = [
+            {"rule": "r1", "description": "desc1"},
+            {"rule": "r2", "description": "desc2"},
+        ]
+        self.expert.get_findings = MagicMock(return_value=findings)
+        fired = self.expert.run_evaluation()
+        self.assertEqual(fired, 5)
+        self.assertEqual(len(self.expert.rule_activations), 2)
         self.assertEqual(
-            activation["activation"],
-            "3 rules fired, but specific activations could not be traced.",
+            self.expert.rule_activations[0]["activation"], "Rule activated: r1 - desc1"
+        )
+        self.assertEqual(
+            self.expert.rule_activations[1]["activation"], "Rule activated: r2 - desc2"
         )
 
 

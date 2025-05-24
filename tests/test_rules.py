@@ -1,16 +1,106 @@
 import unittest
 from unittest.mock import patch
-from datetime import datetime
+import types
+import sys
 import time
+from datetime import datetime
 
 import rules
 from rules import (
-    calculate_score,
+    _evaluate_clips,
     _evaluate_legacy,
     evaluate,
+    CLIPS_AVAILABLE,
+    calculate_score,
     SERVICE_COUNT_THRESHOLD,
     RULE_DESCRIPTIONS,
 )
+
+
+class TestEvaluateClips(unittest.TestCase):
+    """Unit tests for the _evaluate_clips function in rules.py."""
+
+    def setUp(self):
+        self.metrics = {"key": "value"}
+
+    def test_evaluate_clips_success(self):
+        fake_result = {"score": 75, "findings": []}
+        fake_module = types.ModuleType("clips_evaluator")
+
+        class FakeExpert:
+            def evaluate(self, metrics):
+                return fake_result
+
+        fake_module.SecurityExpertSystem = FakeExpert
+        with patch.dict(sys.modules, {"clips_evaluator": fake_module}):
+            result = _evaluate_clips(self.metrics)
+            self.assertIs(result, fake_result)
+
+    def test_evaluate_clips_import_error_fallback(self):
+        fake_module = types.ModuleType("clips_evaluator")
+        with patch.dict(sys.modules, {"clips_evaluator": fake_module}):
+            with patch("rules._evaluate_legacy") as mock_legacy:
+                mock_legacy.return_value = {"fallback": True}
+                result = _evaluate_clips(self.metrics)
+                mock_legacy.assert_called_once_with(self.metrics)
+                self.assertEqual(result, {"fallback": True})
+
+    def test_evaluate_clips_exception_in_evaluate_fallback(self):
+        fake_module = types.ModuleType("clips_evaluator")
+
+        class BadExpert:
+            def evaluate(self, metrics):
+                raise RuntimeError("evaluation error")
+
+        fake_module.SecurityExpertSystem = BadExpert
+        with patch.dict(sys.modules, {"clips_evaluator": fake_module}):
+            with patch("rules._evaluate_legacy") as mock_legacy:
+                mock_legacy.return_value = {"fallback2": True}
+                result = _evaluate_clips(self.metrics)
+                mock_legacy.assert_called_once_with(self.metrics)
+                self.assertEqual(result, {"fallback2": True})
+
+
+class TestEvaluation(unittest.TestCase):
+    """Unit tests for evaluate wrapper in rules.py."""
+
+    @patch("rules._evaluate_legacy")
+    def test_standard_evaluation_output(self, mock_legacy):
+        dummy = {"x": 1}
+        mock_legacy.return_value = {
+            "score": 100,
+            "grade": "Excellent",
+            "summary": "",
+            "findings": [],
+        }
+        result = evaluate(dummy, use_clips=False)
+        self.assertIn("score", result)
+        self.assertIn("grade", result)
+        self.assertIn("summary", result)
+        self.assertIsInstance(result["score"], (int, float))
+        self.assertIsInstance(result.get("findings"), list)
+        mock_legacy.assert_called_once_with(dummy)
+
+    @unittest.skipIf(
+        not CLIPS_AVAILABLE, "Skipping CLIPS tests: PyCLIPS package required"
+    )
+    @patch("rules._evaluate_clips")
+    def test_clips_evaluation_output(self, mock_clips):
+        DUMMY_METRICS = {"patch": {"hotfixes": ["KB1"], "status": "up-to-date"}}
+        mock_clips.return_value = {
+            "score": 95,
+            "grade": "Good",
+            "summary": "Test",
+            "findings": [],
+            "rules_fired": 1,
+        }
+        result = evaluate(DUMMY_METRICS, use_clips=True)
+        self.assertIn("score", result)
+        self.assertIn("grade", result)
+        self.assertIn("summary", result)
+        self.assertIsInstance(result.get("findings"), list)
+        self.assertIn("rules_fired", result)
+        mock_clips.assert_called_once_with(DUMMY_METRICS)
 
 
 class TestCalculateScore(unittest.TestCase):
@@ -21,12 +111,11 @@ class TestCalculateScore(unittest.TestCase):
             {"level": "info"},
             {"level": "unknown"},
         ]
-        # critical=-30, warning=-10, info=-5, unknown defaults to -5 → total -50 → score 50
         score = calculate_score(findings, base_score=100)
         self.assertEqual(score, 50)
 
     def test_clamping_below_zero(self):
-        findings = [{"level": "critical"}] * 5  # -150 → clamped to 0
+        findings = [{"level": "critical"}] * 5
         self.assertEqual(calculate_score(findings), 0)
 
     def test_no_findings_stays_at_base(self):
@@ -90,9 +179,7 @@ class TestEvaluateLegacyRules(unittest.TestCase):
             "services": {"services": [None] * (SERVICE_COUNT_THRESHOLD + 1)},
         }
         result = _evaluate_legacy(metrics)
-        # penalties: -30 -10 -5 = -45 → score 55 → Poor
         self.assertEqual(result["grade"], "Poor")
-        # summary should be joined descriptions
         self.assertIn(";", result["summary"])
         for f in result["findings"]:
             self.assertIn(
@@ -110,15 +197,12 @@ class TestEvaluateWrapper(unittest.TestCase):
             "findings": [],
             "summary": "",
         }
-        # force CLIPS unavailable
         with patch.object(rules, "CLIPS_AVAILABLE", False):
             before = time.time()
             result = evaluate(dummy, use_clips=None)
             after = time.time()
-
         mock_legacy.assert_called_once_with(dummy)
         self.assertIn("timestamp", result)
-        # timestamp should be around now
         ts = datetime.fromisoformat(result["timestamp"])
         self.assertTrue(before <= ts.replace(tzinfo=None).timestamp() <= after)
         self.assertEqual(result["metrics"], dummy)
