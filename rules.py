@@ -36,9 +36,8 @@ try:
     import clips
 
     CLIPS_AVAILABLE = True
-# pragma: no cover
-except ImportError:
-    CLIPS_AVAILABLE = False  # pragma: no cover
+except ImportError:  # pragma: no cover
+    CLIPS_AVAILABLE = False
 
 
 def calculate_score(findings: list, base_score: int = 100) -> int:

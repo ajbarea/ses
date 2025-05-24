@@ -288,6 +288,28 @@ class TestRunEvaluation(unittest.TestCase):
         self.assertEqual(entry["rule"], "unknown")
         self.assertIn("4 rules fired", entry["activation"])
 
+    def test_unwatch_raises_error_fallbacks_to_findings(self):
+        """If unwatch raises an exception, fallback to findings trace"""
+        # Simulate watch supported and unwatch raising AttributeError
+        self.mock_env.watch = MagicMock()
+        self.mock_env.unwatch = MagicMock(side_effect=AttributeError)
+
+        # env.run outputs a FIRE line but will not be processed due to unwatch error
+        def run_side_effect():
+            print("FIRE 1 ruleZ")
+            return 1
+
+        self.mock_env.run = MagicMock(side_effect=run_side_effect)
+        # Provide fallback findings
+        findings = [{"rule": "rZ", "description": "descZ"}]
+        self.expert.get_findings = MagicMock(return_value=findings)
+        fired = self.expert.run_evaluation()
+        self.assertEqual(fired, 1)
+        # Fallback should use findings activation since unwatch broke
+        self.assertEqual(
+            self.expert.rule_activations[0]["activation"], "Rule activated: rZ - descZ"
+        )
+
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
