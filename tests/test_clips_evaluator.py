@@ -7,6 +7,7 @@ import sys
 import types
 import unittest
 from unittest.mock import MagicMock, patch
+from pathlib import Path
 
 # Create mock CLIPS environment if CLIPS module is not available
 if "clips" not in sys.modules:
@@ -79,6 +80,86 @@ class TestClipsEvaluator(unittest.TestCase):
         self.assertIn("findings", result)
         self.assertIn("rules_fired", result)
         self.assertIn("explanations", result)
+
+    def test_load_templates_handles_clips_error(self):
+        """Test that template loading errors are properly caught and re-raised."""
+        # Create an environment that raises an error when trying to build a template
+        mock_env = MagicMock()
+        mock_env.build = MagicMock(
+            side_effect=sys.modules["clips"].CLIPSError("Test error")
+        )
+
+        expert_system = SecurityExpertSystem(rules_dir=None)
+        expert_system.env = mock_env
+
+        # Verify that the error is re-raised
+        with self.assertRaises(sys.modules["clips"].CLIPSError):
+            expert_system._load_templates()
+
+        # Verify that the error was logged (captured print statement)
+        mock_env.build.assert_called()
+
+    def test_load_rules_handles_missing_directory(self):
+        """Test that _load_rules gracefully handles a non-existent rules directory."""
+        # Create expert system with a non-existent directory path
+        non_existent_dir = "non_existent_dir"
+        expert_system = SecurityExpertSystem(rules_dir=non_existent_dir)
+
+        # _load_rules should complete without raising an exception
+        # This implicitly tests that the method returns after the warning
+        expert_system._load_rules()  # Should not raise
+
+        # Verify the rules directory doesn't exist
+        self.assertFalse(Path(non_existent_dir).exists())
+
+    def test_load_rules_handles_clips_error(self):
+        """Test that _load_rules gracefully handles errors when loading rule files."""
+        # Create a temporary rules directory with a test file
+        rules_dir = Path("test_rules_dir")
+        rules_dir.mkdir(exist_ok=True)
+        rule_file = rules_dir / "test.clp"
+        rule_file.touch()  # Create empty file
+
+        # Set up expert system with mocked environment that raises on load
+        expert_system = SecurityExpertSystem(rules_dir=str(rules_dir))
+        mock_env = MagicMock()
+        mock_env.load = MagicMock(
+            side_effect=sys.modules["clips"].CLIPSError("Test error")
+        )
+        expert_system.env = mock_env
+
+        try:
+            # Should not raise exception, only log error
+            expert_system._load_rules()
+
+            # Verify load was attempted
+            mock_env.load.assert_called_once_with(str(rule_file))
+        finally:
+            # Cleanup
+            rule_file.unlink()
+            rules_dir.rmdir()
+
+    def test_run_evaluation_fallback_when_no_findings(self):
+        """Test that run_evaluation creates a generic activation when rules are fired but can't be traced."""
+        # Set up environment that runs successfully but returns no findings
+        mock_env = MagicMock()
+        mock_env.run = MagicMock(return_value=3)  # 3 rules fired
+        mock_env.facts = MagicMock(return_value=[])  # No facts/findings
+        expert_system = SecurityExpertSystem(rules_dir=None)
+        expert_system.env = mock_env
+
+        # Run evaluation
+        rules_fired = expert_system.run_evaluation()
+
+        # Verify the results
+        self.assertEqual(rules_fired, 3)
+        self.assertEqual(len(expert_system.rule_activations), 1)
+        activation = expert_system.rule_activations[0]
+        self.assertEqual(activation["rule"], "unknown")
+        self.assertEqual(
+            activation["activation"],
+            "3 rules fired, but specific activations could not be traced.",
+        )
 
 
 if __name__ == "__main__":
