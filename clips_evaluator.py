@@ -160,7 +160,8 @@ class SecurityExpertSystem:
         # Convert antivirus metrics
         if "antivirus" in metrics and "products" in metrics["antivirus"]:
             for product in metrics["antivirus"]["products"]:
-                state = product.get("state", "UNKNOWN")
+                raw = product.get("state")
+                state = raw if raw is not None else "UNKNOWN"
                 self.env.assert_string(
                     f"(antivirus-product (name \"{product['name']}\") (state {state}))"
                 )

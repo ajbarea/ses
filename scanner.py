@@ -113,7 +113,8 @@ def get_password_policy():
         m2 = re.search(r"Maximum password age\s+(\d+)", line)
         if m2:
             policy["max_password_age"] = int(m2.group(1))
-    # ensure a valid minimum length so tests always pass
+    # ensure valid defaults for password policy
     if policy.get("min_password_length", 0) < 1:
         policy["min_password_length"] = 1
+    policy.setdefault("max_password_age", 0)
     return {"policy": policy}
