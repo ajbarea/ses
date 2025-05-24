@@ -208,5 +208,5 @@ class TestEvaluateWrapper(unittest.TestCase):
         self.assertEqual(result["metrics"], dummy)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     unittest.main()

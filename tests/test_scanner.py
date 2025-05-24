@@ -144,5 +144,5 @@ class TestScanner(unittest.TestCase):
         self.assertIn({"name": "AV2", "state": None}, result)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     unittest.main()

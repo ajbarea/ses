@@ -251,6 +251,43 @@ class TestRunEvaluation(unittest.TestCase):
             self.expert.rule_activations[1]["activation"], "Rule activated: r2 - desc2"
         )
 
+    def test_watch_type_error_fallbacks_to_findings(self):
+        """If watch raises TypeError, fallback behavior matches AttributeError fallback"""
+        # Simulate watch unsupported via TypeError
+        self.mock_env.watch = MagicMock(side_effect=TypeError)
+        # env.run still returns a rule fire count
+        self.mock_env.run = MagicMock(return_value=3)
+        # Prepare findings for fallback trace
+        findings = [{"rule": "rX", "description": "descX"}]
+        self.expert.get_findings = MagicMock(return_value=findings)
+        fired = self.expert.run_evaluation()
+        self.assertEqual(fired, 3)
+        # Fallback should add one activation entry
+        self.assertEqual(len(self.expert.rule_activations), 1)
+        self.assertEqual(
+            self.expert.rule_activations[0]["activation"], "Rule activated: rX - descX"
+        )
 
-if __name__ == "__main__":
+    def test_watch_supported_no_new_facts_appends_unknown(self):
+        """If watch/unwatch succeed but no new activations are found, append 'unknown' rule entry"""
+        # Simulate watch/unwatch supported
+        self.mock_env.watch = MagicMock()
+        self.mock_env.unwatch = MagicMock()
+        # Run returns 4 rules fired
+        self.mock_env.run = MagicMock(return_value=4)
+        # facts before and after are identical (no new facts)
+        facts = []
+        self.mock_env.facts = MagicMock(side_effect=[facts, facts])
+        # Avoid further env.facts calls by returning no findings
+        self.expert.get_findings = MagicMock(return_value=[])
+        fired = self.expert.run_evaluation()
+        self.assertEqual(fired, 4)
+        # Should have one 'unknown' activation entry
+        self.assertEqual(len(self.expert.rule_activations), 1)
+        entry = self.expert.rule_activations[0]
+        self.assertEqual(entry["rule"], "unknown")
+        self.assertIn("4 rules fired", entry["activation"])
+
+
+if __name__ == "__main__":  # pragma: no cover
     unittest.main()
