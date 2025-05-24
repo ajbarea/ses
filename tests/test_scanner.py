@@ -6,6 +6,7 @@ Tests focus on firewall status and password policy parsing.
 
 from unittest.mock import patch
 import unittest
+import platform
 import types
 import psutil
 from scanner import (
@@ -18,6 +19,10 @@ from scanner import (
 )
 
 
+@unittest.skipIf(
+    platform.system() != "Windows",
+    "Skipping Windows-specific tests on non-Windows platforms",
+)
 class TestScanner(unittest.TestCase):
     @patch("scanner.subprocess.check_output")
     def test_firewall_profiles_dict(self, mock_check_output):

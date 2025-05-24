@@ -5,12 +5,34 @@ Provides standardized metric collection for patches, services, firewall,
 antivirus, and password policies.
 """
 
-import wmi
 import psutil
 import subprocess
 import re
+import types
 
-c = wmi.WMI()
+# Attempt to import Windows-specific WMI library; disable if unavailable
+try:
+    import wmi
+
+    c = wmi.WMI()
+except ImportError:
+    # Define a dummy WMI client with stub methods for non-Windows environments
+    class DummyWMIClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def Win32_QuickFixEngineering(self):
+            return []
+
+        def Win32_Service(self):
+            return []
+
+        def AntiVirusProduct(self):
+            return []
+
+    # Create a dummy wmi module namespace
+    wmi = types.SimpleNamespace(WMI=DummyWMIClient)
+    c = DummyWMIClient()
 
 
 def get_patch_status():
