@@ -217,6 +217,39 @@ class TestEvaluateLegacyRules(unittest.TestCase):
         result = _evaluate_legacy(metrics)
         self.assertEqual(result["grade"], "Critical Risk")
 
+    def test_fair_grade_threshold(self):
+        """Check 'Fair' grade when score is between 60 and 79 with no critical findings."""
+        metrics = {
+            "patch": {"status": "up-to-date", "hotfixes": []},
+            "ports": {"ports": []},
+            "services": {"services": []},
+        }
+        with patch("src.rules.calculate_score", return_value=70):
+            result = _evaluate_legacy(metrics)
+            self.assertEqual(result["grade"], "Fair")
+
+    def test_poor_grade_threshold(self):
+        """Check 'Poor' grade when score is between 40 and 59 with no critical findings."""
+        metrics = {
+            "patch": {"status": "up-to-date", "hotfixes": []},
+            "ports": {"ports": []},
+            "services": {"services": []},
+        }
+        with patch("src.rules.calculate_score", return_value=50):
+            result = _evaluate_legacy(metrics)
+            self.assertEqual(result["grade"], "Poor")
+
+    def test_default_critical_risk_threshold(self):
+        """Check 'Critical Risk' grade when score is below 40 with no critical findings."""
+        metrics = {
+            "patch": {"status": "up-to-date", "hotfixes": []},
+            "ports": {"ports": []},
+            "services": {"services": []},
+        }
+        with patch("src.rules.calculate_score", return_value=30):
+            result = _evaluate_legacy(metrics)
+            self.assertEqual(result["grade"], "Critical Risk")
+
 
 class TestEvaluateWrapper(unittest.TestCase):
     @patch("src.rules._evaluate_legacy")
