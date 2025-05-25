@@ -1,5 +1,9 @@
 # SES - Security Evaluation System
 
+[![codecov](https://codecov.io/gh/ajbarea/ses/graph/badge.svg?token=3PfdAPHO7K)](https://codecov.io/gh/ajbarea/ses) [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=ajbarea_ses&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=ajbarea_ses)
+
+## Introduction
+
 A Windows security assessment tool that collects system metrics, evaluates them against security rules, and generates reports with findings and recommendations.
 
 ## Features
@@ -17,6 +21,12 @@ A Windows security assessment tool that collects system metrics, evaluates them 
 - Provides security score, grade, and detailed findings
 - Exposes API endpoints via FastAPI
 - Logs evaluations for historical tracking
+
+## System Architecture
+
+The following diagram illustrates the architecture of the SES application:
+
+![System Architecture Diagram](https://www.mermaidchart.com/raw/0e79dd72-8d03-4177-8504-0c572454a15d?theme=light&version=v0.1&format=svg)
 
 ## Environment Setup
 

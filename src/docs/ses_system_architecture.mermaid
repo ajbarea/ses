@@ -1,0 +1,45 @@
+graph TD
+    User[User/Client]
+
+    subgraph SES_Application [SES - Security Evaluation System]
+        direction LR
+        APIServer[FastAPI Server - main.py]
+        
+        subgraph EvaluationPipeline [Evaluation Pipeline]
+            direction TB
+            MetricCollector[Metric Collector - src/scanner.py]
+            SecurityEvaluator[Security Evaluator - src/rules.py]
+            BasicRules[Basic Rule Engine - src/rules.py]
+            ClipsExpertSystem[CLIPS Expert System - src/clips_evaluator.py]
+            ClipsRulesDB[(CLIPS Rules: src/clips_rules/*.clp)]
+        end
+
+        EvaluationLogger[Evaluation Logger - main.py]
+    end
+
+    WindowsSystem[(Target Windows System)]
+    LogFile[Log File - logs/evaluation_log.jsonl]
+    TestSuite[Test Suite - tests/]
+
+    User -- "HTTP Requests" --> APIServer
+    
+    APIServer -- "/metrics" --> MetricCollector
+    APIServer -- "/evaluate" --> SecurityEvaluator
+
+    SecurityEvaluator -- "Gets metrics from" --> MetricCollector
+    MetricCollector -- "Scans" --> WindowsSystem
+    
+    SecurityEvaluator -- "Uses (if no PyCLIPS)" --> BasicRules
+    SecurityEvaluator -- "Uses (if PyCLIPS)" --> ClipsExpertSystem
+    
+    ClipsExpertSystem -- "Loads rules from" --> ClipsRulesDB
+    
+    BasicRules -- "Results" --> SecurityEvaluator
+    ClipsExpertSystem -- "Results" --> SecurityEvaluator
+    
+    SecurityEvaluator -- "Evaluation" --> APIServer
+    APIServer -- "Logs via" --> EvaluationLogger
+    EvaluationLogger -- "Writes to" --> LogFile
+    APIServer -- "HTTP Response" --> User
+
+    TestSuite -. "Verifies" .-> SES_Application
