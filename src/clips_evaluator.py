@@ -31,7 +31,7 @@ class SecurityExpertSystem:
         self.env = clips.Environment()
 
         if rules_dir is None:
-            rules_dir = Path(__file__).parent.parent / "clips_rules"
+            rules_dir = Path(__file__).parent / "clips_rules"
 
         self.rules_dir = Path(rules_dir)
         self._load_templates()
