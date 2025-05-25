@@ -178,7 +178,6 @@ class SecurityExpertSystem:
     def run_evaluation(self):
         """Run the CLIPS inference engine and track rule activations."""
         self.rule_activations = []
-        before_facts = set(str(fact) for fact in self.env.facts())
         # Capture rule activations if watch supported
         captured = io.StringIO()
         with redirect_stdout(captured):
@@ -197,7 +196,7 @@ class SecurityExpertSystem:
                 # Fallback to findings trace on error
                 pass
         if not self.rule_activations:
-            self._process_fallback(rules_fired, before_facts)
+            self._process_fallback(rules_fired)
         return rules_fired
 
     def _parse_watch_activations(self, output: str):
@@ -213,7 +212,7 @@ class SecurityExpertSystem:
                         }
                     )
 
-    def _process_fallback(self, rules_fired: int, before_facts: set):
+    def _process_fallback(self, rules_fired: int):
         """Fallback tracing when watch output is unavailable or empty."""
         # Generate trace from findings
         for finding in self.get_findings():
