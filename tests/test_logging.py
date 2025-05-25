@@ -280,6 +280,64 @@ class TestLoggingConfig(unittest.TestCase):
                     handler.close()
                     logging.getLogger().removeHandler(handler)
 
+    def test_structured_json_formatter_with_record_extra(self):
+        """Test that the JSON formatter correctly handles record.extra attribute."""
+        formatter = StructuredJsonFormatter()
 
-if __name__ == "__main__":
+        # Create a log record
+        record = logging.LogRecord(
+            name="test_logger",
+            level=logging.INFO,
+            pathname="test_path",
+            lineno=42,
+            msg="Test message with extra attribute",
+            args=(),
+            exc_info=None,
+        )
+
+        # Add an 'extra' attribute to the record (this is what we're testing)
+        record.extra = {"transaction_id": "txn-123", "correlation_id": "corr-456"}
+
+        # Format the record
+        formatted = formatter.format(record)
+
+        # Parse the JSON result
+        log_entry = json.loads(formatted)
+
+        # Check that fields from record.extra were included
+        self.assertEqual(log_entry["transaction_id"], "txn-123")
+        self.assertEqual(log_entry["correlation_id"], "corr-456")
+
+    def test_setup_logging_removes_existing_handlers(self):
+        """Test that setup_logging removes existing handlers to avoid duplicates."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            log_file = Path(tmp_dir) / "handlers.log"
+
+            # Add a test handler to the root logger before setup_logging
+            root_logger = logging.getLogger()
+            test_handler = logging.StreamHandler(StringIO())
+            root_logger.addHandler(test_handler)
+
+            # Count handlers before setup_logging
+            handler_count_before = len(root_logger.handlers)
+            self.assertGreaterEqual(handler_count_before, 1)
+            self.assertIn(test_handler, root_logger.handlers)
+
+            # Call setup_logging
+            setup_logging(log_file=str(log_file))
+
+            # Verify the test handler was removed
+            self.assertNotIn(test_handler, root_logger.handlers)
+
+            # Should have exactly 2 handlers (console and file)
+            self.assertEqual(len(root_logger.handlers), 2)
+
+            # Close file handlers before temporary directory cleanup
+            for handler in list(logging.getLogger().handlers):
+                if isinstance(handler, logging.FileHandler):
+                    handler.close()
+                    logging.getLogger().removeHandler(handler)
+
+
+if __name__ == "__main__":  # pragma: no cover
     unittest.main()
