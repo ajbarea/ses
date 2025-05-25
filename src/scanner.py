@@ -15,16 +15,22 @@ except ImportError:
     # Define a dummy WMI client with stub methods for non-Windows environments
     # This allows the application to run without WMI, returning empty/default data.
     class DummyWMIClient:
+        """Dummy WMI client stub for non-Windows environments."""
+
         def __init__(self, *args, **kwargs):
+            # No real WMI client available on this platform; stub initialization.
             pass
 
         def win32_quick_fix_engineering(self):  # pragma: no cover
+            # Stubbed: non-Windows environment provides no hotfix info.
             return []
 
         def win32_service(self):  # pragma: no cover
+            # Stubbed: non-Windows environment provides no service info.
             return []
 
         def anti_virus_product(self):  # pragma: no cover
+            # Stubbed: non-Windows environment provides no antivirus info.
             return []
 
     # Create a dummy wmi module namespace

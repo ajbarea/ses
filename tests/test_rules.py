@@ -190,12 +190,32 @@ class TestEvaluateLegacyRules(unittest.TestCase):
             "services": {"services": [None] * (SERVICE_COUNT_THRESHOLD + 1)},
         }
         result = _evaluate_legacy(metrics)
-        self.assertEqual(result["grade"], "Poor")
+        self.assertEqual(result["grade"], "Critical Risk")
         self.assertIn(";", result["summary"])
         for f in result["findings"]:
             self.assertIn(
                 f["description"], [d["description"] for d in RULE_DESCRIPTIONS.values()]
             )
+
+    def test_good_grade_assignment(self):
+        """Check 'Good' grade assignment when only warning and info findings exist."""
+        metrics = {
+            "patch": {"status": "up-to-date", "hotfixes": []},
+            "ports": {"ports": [22]},
+            "services": {"services": [None] * (SERVICE_COUNT_THRESHOLD + 1)},
+        }
+        result = _evaluate_legacy(metrics)
+        self.assertEqual(result["grade"], "Good")
+
+    def test_critical_risk_grade_assignment(self):
+        """Check 'Critical Risk' grade assignment when all findings present."""
+        metrics = {
+            "patch": {"status": "out-of-date", "hotfixes": []},
+            "ports": {"ports": [22]},
+            "services": {"services": [None] * (SERVICE_COUNT_THRESHOLD + 1)},
+        }
+        result = _evaluate_legacy(metrics)
+        self.assertEqual(result["grade"], "Critical Risk")
 
 
 class TestEvaluateWrapper(unittest.TestCase):

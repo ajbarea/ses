@@ -1,6 +1,7 @@
 """Security rule engine. Scores metrics, creates findings, and assigns a grade."""
 
 from datetime import datetime, timezone
+from typing import Optional
 from src.logging_config import get_logger
 
 # Penalty points associated with different finding severity levels.
@@ -109,16 +110,21 @@ def _evaluate_legacy(metrics: dict) -> dict:
         )
 
     score = calculate_score(findings)
-    if score >= 90:
-        grade = "Excellent"
-    elif score >= 80:
-        grade = "Good"
-    elif score >= 60:
-        grade = "Fair"
-    elif score >= 40:
-        grade = "Poor"
-    else:
+    # If any critical finding exists, override to Critical Risk
+    if any(f.get("level") == "critical" for f in findings):
         grade = "Critical Risk"
+    else:
+        # Assign grade based on score thresholds
+        if score >= 90:
+            grade = "Excellent"
+        elif score >= 80:
+            grade = "Good"
+        elif score >= 60:
+            grade = "Fair"
+        elif score >= 40:
+            grade = "Poor"
+        else:
+            grade = "Critical Risk"
 
     return {
         "score": score,
@@ -160,7 +166,7 @@ def _evaluate_clips(metrics: dict) -> dict:
         return _evaluate_legacy(metrics)
 
 
-def evaluate(metrics: dict, use_clips: bool = None) -> dict:
+def evaluate(metrics: dict, use_clips: Optional[bool] = None) -> dict:
     """Evaluate system metrics, returning security findings, score, and grade.
 
     This is the main interface for security evaluation. It selects either the

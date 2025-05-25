@@ -3,7 +3,7 @@
 import clips
 from pathlib import Path
 import io
-import sys
+from contextlib import redirect_stdout
 from src.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -177,78 +177,59 @@ class SecurityExpertSystem:
 
     def run_evaluation(self):
         """Run the CLIPS inference engine and track rule activations."""
-        # Set up rule tracking
         self.rule_activations = []
-
-        # Check facts before evaluation
         before_facts = set(str(fact) for fact in self.env.facts())
-
-        try:
-            # Try to use watch functionality if available
-            original_stdout = sys.stdout
-            captured_output = io.StringIO()
-            sys.stdout = captured_output
-
+        # Capture rule activations if watch supported
+        captured = io.StringIO()
+        with redirect_stdout(captured):
             try:
-                # This may raise AttributeError if watch is not supported
                 self.env.watch("rules")
                 watch_supported = True
             except (AttributeError, TypeError):
                 watch_supported = False
-
-            # Run the inference engine
             rules_fired = self.env.run()
-
-            if watch_supported:
-                try:
-                    # Disable watching if it was enabled
-                    self.env.unwatch("rules")
-
-                    # Process the captured output to extract rule activations
-                    output = captured_output.getvalue()
-                    for line in output.splitlines():
-                        if "FIRE" in line:
-                            # Extract rule name from activation line
-                            parts = line.split()
-                            if len(parts) >= 3:
-                                rule_name = parts[2]
-                                self.rule_activations.append(
-                                    {"rule": rule_name, "activation": line.strip()}
-                                )
-                except (AttributeError, TypeError):
-                    pass
-        finally:
-            # Always restore stdout if we changed it
-            if "original_stdout" in locals():
-                sys.stdout = original_stdout
-
-        # If watch wasn't supported, use facts comparison as fallback mechanism
+        # Only process watch output if unwatch and parsing succeed
+        if watch_supported:
+            try:
+                self.env.unwatch("rules")
+                self._parse_watch_activations(captured.getvalue())
+            except (AttributeError, TypeError):
+                # Fallback to findings trace on error
+                pass
         if not self.rule_activations:
-            # Capture facts after running
-            after_facts = set(str(fact) for fact in self.env.facts())
-
-            # New facts (especially findings) can help trace rules
-            new_facts = after_facts - before_facts
-
-            # Get findings and create basic rule trace
-            for finding in self.get_findings():
-                self.rule_activations.append(
-                    {
-                        "rule": finding.get("rule", "unknown"),
-                        "activation": f"Rule activated: {finding.get('rule', 'unknown')} - {finding.get('description', '')}",
-                    }
-                )
-
-            if not self.rule_activations:
-                # If no findings, just report that rules were fired
-                self.rule_activations.append(
-                    {
-                        "rule": "unknown",
-                        "activation": f"{rules_fired} rules fired, but specific activations could not be traced.",
-                    }
-                )
-
+            self._process_fallback(rules_fired, before_facts)
         return rules_fired
+
+    def _parse_watch_activations(self, output: str):
+        """Extract activations from captured watch output."""
+        for line in output.splitlines():
+            if "FIRE" in line:
+                parts = line.split()
+                if len(parts) >= 3:
+                    self.rule_activations.append(
+                        {
+                            "rule": parts[2],
+                            "activation": line.strip(),
+                        }
+                    )
+
+    def _process_fallback(self, rules_fired: int, before_facts: set):
+        """Fallback tracing when watch output is unavailable or empty."""
+        # Generate trace from findings
+        for finding in self.get_findings():
+            self.rule_activations.append(
+                {
+                    "rule": finding.get("rule", "unknown"),
+                    "activation": f"Rule activated: {finding.get('rule', 'unknown')} - {finding.get('description', '')}",
+                }
+            )
+        if not self.rule_activations:
+            self.rule_activations.append(
+                {
+                    "rule": "unknown",
+                    "activation": f"{rules_fired} rules fired, but specific activations could not be traced.",
+                }
+            )
 
     def get_findings(self):
         """Extract 'finding' facts from the environment."""
