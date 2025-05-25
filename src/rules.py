@@ -5,7 +5,7 @@ Provides configurable rule definitions, scoring logic, and report generation
 for system security metrics evaluation.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from src.logging_config import get_logger
 
 # Penalty points by finding severity level
@@ -179,7 +179,9 @@ def evaluate(metrics: dict, use_clips: bool = None) -> dict:
         result = _evaluate_legacy(metrics)
 
     # Add timestamp and metrics to the result
-    result["timestamp"] = datetime.now().isoformat()
+    result["timestamp"] = datetime.now(
+        timezone.utc
+    ).isoformat()
     result["metrics"] = metrics
 
     return result

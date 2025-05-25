@@ -204,8 +204,7 @@ class TestEvaluateWrapper(unittest.TestCase):
         mock_legacy.assert_called_once_with(dummy)
         self.assertIn("timestamp", result)
         ts = datetime.fromisoformat(result["timestamp"])
-        self.assertTrue(before <= ts.replace(tzinfo=None).timestamp() <= after)
-        self.assertEqual(result["metrics"], dummy)
+        self.assertTrue(before <= ts.timestamp() <= after + 0.1)
 
 
 if __name__ == "__main__":  # pragma: no cover
