@@ -152,10 +152,7 @@ def _evaluate_clips(metrics: dict) -> dict:
         expert_system = SecurityExpertSystem()
         result = expert_system.evaluate(metrics)
         return result
-    except (
-        ImportError,
-        Exception,
-    ) as e:  # Catches CLIPS import errors or runtime issues
+    except Exception as e:  # Catches CLIPS import errors or runtime issues
         logger.error(
             f"Error using CLIPS evaluator: {e}. Falling back to legacy evaluator."
         )

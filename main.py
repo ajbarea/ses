@@ -47,6 +47,7 @@ async def root():
 @app.get("/metrics")
 async def metrics():
     """Return current system security metrics."""
+    logger.info("Metrics endpoint called")
     return {
         "patch": get_patch_status(),
         "ports": get_open_ports(),
@@ -60,6 +61,7 @@ async def metrics():
 @app.get("/evaluate")
 async def evaluate_security():
     """Collect and evaluate security metrics, then log and return the results."""
+    logger.info("Evaluation endpoint called")
     metrics_data = {
         "patch": get_patch_status(),
         "ports": get_open_ports(),

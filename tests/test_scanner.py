@@ -43,7 +43,7 @@ class TestScanner(unittest.TestCase):
     def test_domain_in_profiles(self, mock_check_output):
         """Ensure domain profile is correctly extracted."""
         # Mock netsh output with single profile
-        mock_output = "Domain Profile Settings:\n" "State                 OFF\n"
+        mock_output = "Domain Profile Settings:\nState                 OFF\n"
         mock_check_output.return_value = mock_output
         profiles = get_firewall_status().get("profiles")
         self.assertIn("domain", profiles)

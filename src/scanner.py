@@ -18,13 +18,13 @@ except ImportError:
         def __init__(self, *args, **kwargs):
             pass
 
-        def Win32_QuickFixEngineering(self):  # pragma: no cover
+        def win32_quick_fix_engineering(self):  # pragma: no cover
             return []
 
-        def Win32_Service(self):  # pragma: no cover
+        def win32_service(self):  # pragma: no cover
             return []
 
-        def AntiVirusProduct(self):  # pragma: no cover
+        def anti_virus_product(self):  # pragma: no cover
             return []
 
     # Create a dummy wmi module namespace
