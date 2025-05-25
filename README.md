@@ -66,7 +66,7 @@ pip install -r requirements.txt
 ## Running the FastAPI Server
 
 ```bash
-fastapi dev main.py
+uvicorn main:app --reload --reload-exclude logs/
 ```
 
 ### API Endpoints
