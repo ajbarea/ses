@@ -20,6 +20,12 @@ class TestLoggingConfig(unittest.TestCase):
 
     def setUp(self):
         """Prepare for tests by saving original logging state."""
+        # Add a dummy handler to ensure the handler removal loop in setUp
+        # and handler addition loop in tearDown are always entered.
+        # This dummy handler will be part of self.original_handlers.
+        self._dummy_handler_for_setup = logging.NullHandler()
+        logging.getLogger().addHandler(self._dummy_handler_for_setup)
+
         # Save original root logger handlers to restore after tests
         self.original_handlers = logging.getLogger().handlers.copy()
         self.original_level = logging.getLogger().level
