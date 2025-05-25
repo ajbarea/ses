@@ -6,6 +6,7 @@ for system security metrics evaluation.
 """
 
 from datetime import datetime
+from logging_config import get_logger
 
 # Penalty points by finding severity level
 SEVERITY_SCORES = {
@@ -38,6 +39,8 @@ try:
     CLIPS_AVAILABLE = True
 except ImportError:  # pragma: no cover
     CLIPS_AVAILABLE = False
+
+logger = get_logger(__name__)
 
 
 def calculate_score(findings: list, base_score: int = 100) -> int:
@@ -146,7 +149,7 @@ def _evaluate_clips(metrics: dict) -> dict:
         result = expert_system.evaluate(metrics)
         return result
     except (ImportError, Exception) as e:
-        print(f"Error using CLIPS evaluator: {e}")
+        logger.error(f"Error using CLIPS evaluator: {e}")
         return _evaluate_legacy(metrics)
 
 

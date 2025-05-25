@@ -5,7 +5,10 @@ Logs evaluation results in JSONL format for historical tracking.
 """
 
 from fastapi import FastAPI
+from logging_config import setup_logging, get_logger
+from pathlib import Path
 import json
+import os
 from scanner import (
     get_patch_status,
     get_open_ports,
@@ -15,6 +18,24 @@ from scanner import (
     get_password_policy,
 )
 from rules import evaluate
+import logging
+
+setup_logging(
+    log_level=os.getenv("LOG_LEVEL", "INFO"),
+    json_format=os.getenv("JSON_LOG_FORMAT", "False").lower() == "true",
+    log_file=os.getenv("LOG_FILE"),
+)
+logger = get_logger(__name__)
+
+# Ensure logs directory exists
+Path("logs").mkdir(parents=True, exist_ok=True)
+
+# Set up a separate logger to write evaluation JSONL
+eval_logger = get_logger("evaluation")
+eval_handler = logging.FileHandler("logs/evaluation_log.jsonl")
+eval_handler.setFormatter(logging.Formatter("%(message)s"))
+eval_logger.addHandler(eval_handler)
+
 
 app = FastAPI()
 
@@ -26,6 +47,7 @@ async def root():
     Returns:
         dict: Status message indicating service availability
     """
+    logger.info("Health check endpoint called")
     return {"message": "Hello World"}
 
 
@@ -69,8 +91,7 @@ async def evaluate_security():
         "password_policy": get_password_policy(),
     }
     result = evaluate(metrics_data)
-    # log evaluation as one JSON record per line
-    with open("logs/evaluation_log.jsonl", "a", encoding="utf-8") as logf:
-        json.dump(result, logf)
-        logf.write("\n")
+    logger.info("Starting security evaluation")
+    # Append evaluation result as JSONL via dedicated evaluation logger
+    eval_logger.info(json.dumps(result))
     return result

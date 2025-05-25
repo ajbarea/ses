@@ -9,6 +9,9 @@ import clips
 from pathlib import Path
 import io
 import sys
+from logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 class SecurityExpertSystem:
@@ -93,7 +96,7 @@ class SecurityExpertSystem:
    (slot type (default penalty)))"""
             )
         except clips.CLIPSError as e:
-            print(f"Error loading template: {e}")
+            logger.error(f"Error loading template: {e}")
             raise
 
     def _load_rules(self):
@@ -104,15 +107,15 @@ class SecurityExpertSystem:
         """
         # Load all .clp files in the rules directory
         if not self.rules_dir.exists():
-            print(f"Warning: Rules directory {self.rules_dir} does not exist.")
+            logger.warning(f"Rules directory {self.rules_dir} does not exist.")
             return
 
         for rule_file in self.rules_dir.glob("*.clp"):
             try:
                 self.env.load(str(rule_file))
-                print(f"Loaded rules from {rule_file}")
+                logger.info(f"Loaded rules from {rule_file}")
             except clips.CLIPSError as e:
-                print(f"Error loading {rule_file}: {e}")
+                logger.error(f"Error loading {rule_file}: {e}")
 
     def convert_metrics_to_facts(self, metrics):
         """Convert system metrics dictionary to CLIPS facts.
