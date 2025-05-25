@@ -109,15 +109,16 @@ def _evaluate_legacy(metrics: dict) -> dict:
         )
 
     score = calculate_score(findings)
-    grade = (
-        "Excellent"
-        if score >= 90
-        else (
-            "Good"
-            if score >= 80
-            else "Fair" if score >= 60 else "Poor" if score >= 40 else "Critical Risk"
-        )
-    )
+    if score >= 90:
+        grade = "Excellent"
+    elif score >= 80:
+        grade = "Good"
+    elif score >= 60:
+        grade = "Fair"
+    elif score >= 40:
+        grade = "Poor"
+    else:
+        grade = "Critical Risk"
 
     return {
         "score": score,
