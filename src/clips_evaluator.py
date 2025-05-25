@@ -1,9 +1,4 @@
-"""CLIPS-based security evaluation engine.
-
-Implements a rule-based expert system for security assessment using PyCLIPS.
-Converts system metrics to CLIPS facts, applies security rules, and generates
-detailed evaluation results with scores and recommendations.
-"""
+"""CLIPS-based rule engine for security metrics evaluation."""
 
 import clips
 from pathlib import Path
@@ -15,11 +10,7 @@ logger = get_logger(__name__)
 
 
 class SecurityExpertSystem:
-    """Expert system for security metric evaluation using CLIPS rule engine.
-
-    Manages CLIPS environment lifecycle, fact assertion, rule execution,
-    and result extraction for security assessments.
-    """
+    """Manages a CLIPS environment to process system metrics and derive security findings."""
 
     def __init__(self, rules_dir=None):
         """Initialize CLIPS environment and load security rules.
@@ -38,11 +29,7 @@ class SecurityExpertSystem:
         self._load_rules()
 
     def _load_templates(self):
-        """Load fact templates for security metrics into CLIPS environment.
-
-        Defines structured templates for system metrics, findings, and scoring.
-        Handles template loading errors individually to prevent cascade failures.
-        """
+        """Define CLIPS templates for security metrics and findings."""
         # Define templates for system metrics - one at a time to avoid syntax errors
         try:
             self.env.build(
@@ -100,11 +87,7 @@ class SecurityExpertSystem:
             raise
 
     def _load_rules(self):
-        """Load security evaluation rules from .clp files.
-
-        Processes all CLIPS rule files in rules directory sequentially.
-        Reports loading status for each file.
-        """
+        """Load CLIPS rule files from the specified directory."""
         # Load all .clp files in the rules directory
         if not self.rules_dir.exists():
             logger.warning(f"Rules directory {self.rules_dir} does not exist.")
@@ -118,14 +101,7 @@ class SecurityExpertSystem:
                 logger.error(f"Error loading {rule_file}: {e}")
 
     def convert_metrics_to_facts(self, metrics):
-        """Convert system metrics dictionary to CLIPS facts.
-
-        Translates Python data structures into CLIPS fact assertions
-        for each security metric category (patches, ports, services, etc).
-
-        Args:
-            metrics (dict): Security metrics organized by category
-        """
+        """Assert CLIPS facts based on provided security metrics."""
         # Reset the environment for a new evaluation
         self.env.reset()
 
@@ -178,14 +154,7 @@ class SecurityExpertSystem:
             )
 
     def run_evaluation(self):
-        """Execute CLIPS inference engine and track rule activations.
-
-        Captures rule execution trace if supported by CLIPS implementation.
-        Falls back to fact comparison for rule tracking if necessary.
-
-        Returns:
-            int: Count of rules activated during evaluation
-        """
+        """Run the CLIPS inference engine and track rule activations."""
         # Set up rule tracking
         self.rule_activations = []
 
@@ -260,14 +229,7 @@ class SecurityExpertSystem:
         return rules_fired
 
     def get_findings(self):
-        """Extract security findings from CLIPS fact base.
-
-        Collects all finding facts with their associated metadata
-        (rule name, severity level, description, recommendations).
-
-        Returns:
-            list: Collection of finding dictionaries
-        """
+        """Extract 'finding' facts from the environment."""
         findings = []
         for finding in self.env.facts():
             # Only process finding facts
@@ -289,17 +251,7 @@ class SecurityExpertSystem:
         return findings
 
     def get_score(self, base_score=100):
-        """Calculate final security score from penalties and bonuses.
-
-        Processes score facts or calculates based on finding severity
-        if no explicit score facts exist. Ensures score stays in 0-100 range.
-
-        Args:
-            base_score (int, optional): Starting score before adjustments. Defaults to 100.
-
-        Returns:
-            int: Final security score between 0 and 100
-        """
+        """Compute final security score from collected facts."""
         # Check if a score fact exists
         score = base_score
         for score_fact in self.env.facts():
@@ -325,26 +277,11 @@ class SecurityExpertSystem:
         return max(0, min(100, score))
 
     def get_rule_trace(self):
-        """Retrieve explanation trace of activated security rules.
-
-        Returns:
-            list: Sequence of rule activations with explanatory context
-        """
+        """Return explanations of activated rules."""
         return self.rule_activations
 
     def evaluate(self, metrics):
-        """Perform complete security evaluation workflow.
-
-        Executes full assessment cycle: fact assertion, rule evaluation,
-        finding collection, and score calculation with explanations.
-
-        Args:
-            metrics (dict): System security metrics to evaluate
-
-        Returns:
-            dict: Complete evaluation results including score, grade, findings,
-                 and rule explanations
-        """
+        """Run the full CLIPS evaluation and return the results."""
         # Convert metrics to CLIPS facts
         self.convert_metrics_to_facts(metrics)
 

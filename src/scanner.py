@@ -1,22 +1,19 @@
-"""Windows security metric collection module.
-
-Collects system security data through WMI and command-line utilities.
-Provides standardized metric collection for patches, services, firewall,
-antivirus, and password policies.
-"""
+"""Collects Windows system metrics such as patches, ports, services, firewall, antivirus status,
+and password policies for security evaluation."""
 
 import psutil
 import subprocess
 import re
 import types
 
-# Attempt to import Windows-specific WMI library; disable if unavailable
+# Attempt to import Windows-specific WMI library; create a dummy if unavailable
 try:
     import wmi
 
     c = wmi.WMI()
 except ImportError:
     # Define a dummy WMI client with stub methods for non-Windows environments
+    # This allows the application to run without WMI, returning empty/default data.
     class DummyWMIClient:
         def __init__(self, *args, **kwargs):
             pass
@@ -31,27 +28,19 @@ except ImportError:
             return []
 
     # Create a dummy wmi module namespace
-    wmi = types.SimpleNamespace(WMI=DummyWMIClient)
+    wmi = types.SimpleNamespace(WMI=DummyWMIClient)  # Mock the wmi module
     c = DummyWMIClient()
 
 
 def get_patch_status():
-    """Get Windows update status and installed hotfixes.
-
-    Returns:
-        dict: Status ('up-to-date'|'out-of-date') and list of hotfix IDs
-    """
+    """Return patch and hotfix status."""
     hotfixes = [h.HotFixID for h in c.Win32_QuickFixEngineering()]
     status = "up-to-date" if hotfixes else "out-of-date"
     return {"hotfixes": hotfixes, "status": status}
 
 
 def get_open_ports():
-    """Get TCP ports in LISTENING state.
-
-    Returns:
-        dict: List of active listening port numbers
-    """
+    """Return a list of open TCP ports in LISTEN state."""
     ports = sorted(
         {
             conn.laddr.port
@@ -63,23 +52,13 @@ def get_open_ports():
 
 
 def get_running_services():
-    """Get Windows services and their current states.
-
-    Returns:
-        dict: List of services with name and runtime state
-    """
+    """Return a list of running services with their states."""
     services = [{"name": s.Name, "state": s.State} for s in c.Win32_Service()]
     return {"services": services}
 
 
 def get_firewall_status():
-    """Get Windows Firewall status for all profiles.
-
-    Parses 'netsh' output to determine ON/OFF state for each profile.
-
-    Returns:
-        dict: Status ('ON'|'OFF') for domain, private, and public profiles
-    """
+    """Return the on/off status of Windows Firewall profiles."""
     output = subprocess.check_output(
         "netsh advfirewall show allprofiles state", shell=True, text=True
     )
@@ -87,11 +66,11 @@ def get_firewall_status():
     current = None
     for line in output.splitlines():
         stripped = line.strip()
-        # Match profile section headers (Domain/Private/Public Profile Settings:)
+        # Match profile section headers (e.g., "Domain Profile Settings:")
         m_hdr = re.match(r"^(Domain|Private|Public) Profile Settings:", stripped)
         if m_hdr:
             current = m_hdr.group(1).lower()
-        # Match profile state line (State ON/OFF)
+        # Match profile state line (e.g., "State ON") within a profile section
         elif current:
             m_state = re.match(r"^State\s+(ON|OFF)", stripped)
             if m_state:
@@ -101,11 +80,7 @@ def get_firewall_status():
 
 
 def get_antivirus_status():
-    """Get installed antivirus products from SecurityCenter2.
-
-    Returns:
-        dict: List of detected products with name and state code
-    """
+    """Return a list of installed antivirus products and their states."""
     sec = wmi.WMI(namespace="root\\SecurityCenter2")
     products = []
     for av in sec.AntiVirusProduct():
@@ -116,27 +91,24 @@ def get_antivirus_status():
 
 
 def get_password_policy():
-    """Get local password policy settings.
-
-    Parses 'net accounts' output for password length and age requirements.
-    Ensures minimum password length is at least 1 for validation.
-
-    Returns:
-        dict: Minimum length and maximum age settings
-    """
+    """Return local password policy settings (min length, max age)."""
     output = subprocess.check_output("net accounts", shell=True, text=True)
     policy = {}
     for line in output.splitlines():
-        # extract minimum password length
-        m = re.search(r"Minimum password length\s+(\d+)", line)
+        # Extract minimum password length (e.g., "Minimum password length 8")
+        m = re.search(r"Minimum password length\s+(\d+|None)", line, re.IGNORECASE)
         if m:
-            policy["min_password_length"] = int(m.group(1))
-        # extract maximum password age
-        m2 = re.search(r"Maximum password age\s+(\d+)", line)
-        if m2:
-            policy["max_password_age"] = int(m2.group(1))
-    # ensure valid defaults for password policy
+            length_str = m.group(1)
+            policy["min_password_length"] = (
+                0 if length_str.lower() == "none" else int(length_str)
+            )
+        if "Maximum password age" in line:
+            parts = line.split()
+            policy["max_password_age"] = int(parts[-1])
+
+    # Ensure min_password_length is at least 1 for sensible policy evaluation.
     if policy.get("min_password_length", 0) < 1:
         policy["min_password_length"] = 1
+    # Default max_password_age to 0 (no expiration) if not found.
     policy.setdefault("max_password_age", 0)
     return {"policy": policy}

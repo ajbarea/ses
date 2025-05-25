@@ -18,12 +18,13 @@ from src.rules import (
 
 
 class TestEvaluateClips(unittest.TestCase):
-    """Unit tests for the _evaluate_clips function in rules.py."""
+    """Unit tests for _evaluate_clips function."""
 
     def setUp(self):
         self.metrics = {"key": "value"}
 
     def test_evaluate_clips_success(self):
+        """Verify CLIPS evaluation success scenario."""
         fake_result = {"score": 75, "findings": []}
         fake_module = types.ModuleType("src.clips_evaluator")
 
@@ -37,6 +38,7 @@ class TestEvaluateClips(unittest.TestCase):
             self.assertIs(result, fake_result)
 
     def test_evaluate_clips_import_error_fallback(self):
+        """Check fallback when CLIPS import fails."""
         fake_module = types.ModuleType("src.clips_evaluator")
         with patch.dict(sys.modules, {"src.clips_evaluator": fake_module}):
             with patch("src.rules._evaluate_legacy") as mock_legacy:
@@ -46,6 +48,7 @@ class TestEvaluateClips(unittest.TestCase):
                 self.assertEqual(result, {"fallback": True})
 
     def test_evaluate_clips_exception_in_evaluate_fallback(self):
+        """Check fallback when CLIPS evaluation raises errors."""
         fake_module = types.ModuleType("src.clips_evaluator")
 
         class BadExpert:
@@ -62,10 +65,11 @@ class TestEvaluateClips(unittest.TestCase):
 
 
 class TestEvaluation(unittest.TestCase):
-    """Unit tests for evaluate wrapper in rules.py."""
+    """Unit tests for the evaluate wrapper."""
 
     @patch("src.rules._evaluate_legacy")
     def test_standard_evaluation_output(self, mock_legacy):
+        """Check overall structure of evaluation output."""
         dummy = {"x": 1}
         mock_legacy.return_value = {
             "score": 100,
@@ -105,6 +109,7 @@ class TestEvaluation(unittest.TestCase):
 
 class TestCalculateScore(unittest.TestCase):
     def test_penalty_application_and_defaults(self):
+        """Check penalty application and default severity deduction."""
         findings = [
             {"level": "critical"},
             {"level": "warning"},
@@ -115,15 +120,18 @@ class TestCalculateScore(unittest.TestCase):
         self.assertEqual(score, 50)
 
     def test_clamping_below_zero(self):
+        """Ensure score does not drop below 0."""
         findings = [{"level": "critical"}] * 5
         self.assertEqual(calculate_score(findings), 0)
 
     def test_no_findings_stays_at_base(self):
+        """Verify score remains at base if no findings."""
         self.assertEqual(calculate_score([], base_score=100), 100)
 
 
 class TestEvaluateLegacyRules(unittest.TestCase):
     def test_patch_status_rule_fired(self):
+        """Check 'patch_status' rule triggers appropriately."""
         metrics = {
             "patch": {"status": "out-of-date", "hotfixes": []},
             "ports": {"ports": []},
@@ -141,6 +149,7 @@ class TestEvaluateLegacyRules(unittest.TestCase):
         )
 
     def test_open_ports_rule_fired(self):
+        """Check 'open_ports' rule triggers when open ports exist."""
         metrics = {
             "patch": {"status": "up-to-date", "hotfixes": ["KB"]},
             "ports": {"ports": [22, 80]},
@@ -159,6 +168,7 @@ class TestEvaluateLegacyRules(unittest.TestCase):
         self.assertIn(22, details)
 
     def test_service_count_rule_fired(self):
+        """Check 'service_count' rule triggers above threshold."""
         metrics = {
             "patch": {"status": "up-to-date", "hotfixes": ["KB"]},
             "ports": {"ports": []},
@@ -173,6 +183,7 @@ class TestEvaluateLegacyRules(unittest.TestCase):
         )
 
     def test_grade_boundaries_and_summary(self):
+        """Check correct grade assignment and summary generation."""
         metrics = {
             "patch": {"status": "out-of-date", "hotfixes": []},
             "ports": {"ports": [1]},
@@ -190,6 +201,7 @@ class TestEvaluateLegacyRules(unittest.TestCase):
 class TestEvaluateWrapper(unittest.TestCase):
     @patch("src.rules._evaluate_legacy")
     def test_auto_detect_falls_back_to_legacy_and_injects_metadata(self, mock_legacy):
+        """Check fallback to legacy engine and metadata injection."""
         dummy = {"x": 1}
         mock_legacy.return_value = {
             "score": 80,

@@ -1,8 +1,5 @@
-"""Security Evaluation Service (SES) REST API.
-
-Provides endpoints for system security metric collection and evaluation.
-Logs evaluation results in JSONL format for historical tracking.
-"""
+"""Main entrypoint for the Security Evaluation Service. Defines REST endpoints for health,
+metrics, and security evaluations."""
 
 from fastapi import FastAPI
 from src.logging_config import setup_logging, get_logger
@@ -29,11 +26,9 @@ setup_logging(
 )
 logger = get_logger(__name__)
 
-# Ensure logs directory exists
-Path("logs").mkdir(parents=True, exist_ok=True)
+Path("logs").mkdir(parents=True, exist_ok=True)  # Ensure logs directory exists
 
-# Set up a separate logger to write evaluation JSONL
-eval_logger = get_logger("evaluation")
+eval_logger = get_logger("evaluation")  # Logger for evaluation results
 eval_handler = logging.FileHandler("logs/evaluation_log.jsonl")
 eval_handler.setFormatter(logging.Formatter("%(message)s"))
 eval_logger.addHandler(eval_handler)
@@ -44,25 +39,14 @@ app = FastAPI()
 
 @app.get("/")
 async def root():
-    """Simple health check endpoint.
-
-    Returns:
-        dict: Status message indicating service availability
-    """
+    """Return a simple health check message."""
     logger.info("Health check endpoint called")
     return {"message": "Hello World"}
 
 
 @app.get("/metrics")
 async def metrics():
-    """Collect current system security metrics.
-
-    Gathers data about patches, ports, services, firewall,
-    antivirus, and password policies.
-
-    Returns:
-        dict: Collected security metrics by category
-    """
+    """Return current system security metrics."""
     return {
         "patch": get_patch_status(),
         "ports": get_open_ports(),
@@ -75,15 +59,7 @@ async def metrics():
 
 @app.get("/evaluate")
 async def evaluate_security():
-    """Perform security evaluation and persist results.
-
-    Collects metrics, evaluates security posture, and logs the report.
-    Results are appended to logs/evaluation_log.jsonl in JSONL format.
-
-    Returns:
-        dict: Evaluation report containing score, grade, findings,
-              and supporting details
-    """
+    """Collect and evaluate security metrics, then log and return the results."""
     metrics_data = {
         "patch": get_patch_status(),
         "ports": get_open_ports(),
@@ -94,6 +70,5 @@ async def evaluate_security():
     }
     result = evaluate(metrics_data)
     logger.info("Starting security evaluation")
-    # Append evaluation result as JSONL via dedicated evaluation logger
-    eval_logger.info(json.dumps(result))
+    eval_logger.info(json.dumps(result))  # Log evaluation result as JSONL
     return result

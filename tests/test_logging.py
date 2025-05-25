@@ -1,7 +1,6 @@
 """
-Tests for the logging configuration module.
-
-Validates the logging setup, structured JSON formatter, and logger retrieval functionality.
+Tests for the logging configuration module. Checks setup, structured JSON formatting,
+and logger retrieval.
 """
 
 import sys
@@ -16,10 +15,10 @@ from src.logging_config import setup_logging, get_logger, StructuredJsonFormatte
 
 
 class TestLoggingConfig(unittest.TestCase):
-    """Test cases for logging configuration functionality."""
+    """Test logging configuration functionality."""
 
     def setUp(self):
-        """Prepare for tests by saving original logging state."""
+        """Save original logging state."""
         # Add a dummy handler to ensure the handler removal loop in setUp
         # and handler addition loop in tearDown are always entered.
         # This dummy handler will be part of self.original_handlers.
@@ -36,7 +35,7 @@ class TestLoggingConfig(unittest.TestCase):
             root_logger.removeHandler(handler)
 
     def tearDown(self):
-        """Clean up after tests by restoring original logging state."""
+        """Restore original logging state."""
         # Restore original root logger handlers and level
         root_logger = logging.getLogger()
         for handler in root_logger.handlers[:]:
@@ -48,7 +47,7 @@ class TestLoggingConfig(unittest.TestCase):
         root_logger.setLevel(self.original_level)
 
     def test_structured_json_formatter(self):
-        """Test that the JSON formatter correctly formats log records."""
+        """Verify JSON formatter output."""
         formatter = StructuredJsonFormatter()
 
         # Create a log record
@@ -75,7 +74,7 @@ class TestLoggingConfig(unittest.TestCase):
         self.assertIn("timestamp", log_entry)
 
     def test_setup_logging_default(self):
-        """Test logging setup with default parameters."""
+        """Check default logging setup."""
         with tempfile.TemporaryDirectory() as tmp_dir:
             log_file = Path(tmp_dir) / "test.log"
             setup_logging(log_file=str(log_file))
@@ -102,7 +101,7 @@ class TestLoggingConfig(unittest.TestCase):
                     logging.getLogger().removeHandler(handler)
 
     def test_setup_logging_custom_level(self):
-        """Test logging setup with custom log level."""
+        """Check custom log level setup."""
         with tempfile.TemporaryDirectory() as tmp_dir:
             log_file = Path(tmp_dir) / "debug.log"
             setup_logging(log_level="DEBUG", log_file=str(log_file))
@@ -117,7 +116,7 @@ class TestLoggingConfig(unittest.TestCase):
                     logging.getLogger().removeHandler(handler)
 
     def test_setup_logging_json_format(self):
-        """Test logging setup with JSON formatting."""
+        """Check JSON formatting setup."""
         with tempfile.TemporaryDirectory() as tmp_dir:
             log_file = Path(tmp_dir) / "json.log"
             setup_logging(json_format=True, log_file=str(log_file))
@@ -133,12 +132,12 @@ class TestLoggingConfig(unittest.TestCase):
                     logging.getLogger().removeHandler(handler)
 
     def test_get_logger(self):
-        """Test that get_logger returns a logger with the correct name."""
+        """Check logger retrieval by name."""
         logger = get_logger("test.namespace")
         self.assertEqual(logger.name, "test.namespace")
 
     def test_logging_output(self):
-        """Test that logging produces expected output."""
+        """Verify overall logging output."""
         # Setup logging with StringIO to capture output
         string_io = StringIO()
         handler = logging.StreamHandler(string_io)
@@ -158,7 +157,7 @@ class TestLoggingConfig(unittest.TestCase):
         self.assertEqual(output, f"INFO - {test_message}")
 
     def test_structured_json_formatter_with_exception(self):
-        """Test that the JSON formatter correctly formats log records with exceptions."""
+        """Verify exception details in JSON."""
         formatter = StructuredJsonFormatter()
 
         # Create an exception
@@ -189,7 +188,7 @@ class TestLoggingConfig(unittest.TestCase):
         self.assertIn("ValueError: Test exception", log_entry["exception"])
 
     def test_structured_json_formatter_with_extra_fields(self):
-        """Test that the JSON formatter correctly includes extra fields."""
+        """Check handling of extra fields."""
         formatter = StructuredJsonFormatter()
 
         # Create a log record with extra attribute
@@ -217,7 +216,7 @@ class TestLoggingConfig(unittest.TestCase):
         self.assertEqual(log_entry["user_id"], "user-789")
 
     def test_setup_logging_default_file_path(self):
-        """Test logging setup with default log file path (None)."""
+        """Check default log file creation."""
         # Save original directory and create a temporary working directory
         original_dir = os.getcwd()
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -247,7 +246,7 @@ class TestLoggingConfig(unittest.TestCase):
                 os.chdir(original_dir)
 
     def test_setup_logging_creates_parent_dirs(self):
-        """Test that setup_logging creates parent directories for log files."""
+        """Check parent directories creation for logs."""
         with tempfile.TemporaryDirectory() as tmp_dir:
             # Create a multi-level path that doesn't exist yet
             nested_log_path = Path(tmp_dir) / "nested" / "dirs" / "logs" / "test.log"
@@ -266,7 +265,7 @@ class TestLoggingConfig(unittest.TestCase):
                     logging.getLogger().removeHandler(handler)
 
     def test_third_party_logger_levels(self):
-        """Test that third-party loggers are set to appropriate levels."""
+        """Verify reduced verbosity of third-party loggers."""
         with tempfile.TemporaryDirectory() as tmp_dir:
             log_file = Path(tmp_dir) / "third_party.log"
             setup_logging(log_file=str(log_file))
@@ -287,7 +286,7 @@ class TestLoggingConfig(unittest.TestCase):
                     logging.getLogger().removeHandler(handler)
 
     def test_structured_json_formatter_with_record_extra(self):
-        """Test that the JSON formatter correctly handles record.extra attribute."""
+        """Check additional record attributes."""
         formatter = StructuredJsonFormatter()
 
         # Create a log record
@@ -315,7 +314,7 @@ class TestLoggingConfig(unittest.TestCase):
         self.assertEqual(log_entry["correlation_id"], "corr-456")
 
     def test_setup_logging_removes_existing_handlers(self):
-        """Test that setup_logging removes existing handlers to avoid duplicates."""
+        """Ensure existing handlers are replaced."""
         with tempfile.TemporaryDirectory() as tmp_dir:
             log_file = Path(tmp_dir) / "handlers.log"
 
