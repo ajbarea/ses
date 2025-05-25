@@ -12,7 +12,7 @@ if "clips" not in sys.modules:
     )
     sys.modules["clips"] = clips_module
 
-from clips_evaluator import SecurityExpertSystem
+from src.clips_evaluator import SecurityExpertSystem
 
 
 class TestClipsEvaluator(unittest.TestCase):

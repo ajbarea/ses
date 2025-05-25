@@ -6,7 +6,7 @@ for system security metrics evaluation.
 """
 
 from datetime import datetime
-from logging_config import get_logger
+from src.logging_config import get_logger
 
 # Penalty points by finding severity level
 SEVERITY_SCORES = {
@@ -143,7 +143,7 @@ def _evaluate_clips(metrics: dict) -> dict:
         Enhanced evaluation report with findings, score, and rule explanations
     """
     try:
-        from clips_evaluator import SecurityExpertSystem
+        from src.clips_evaluator import SecurityExpertSystem
 
         expert_system = SecurityExpertSystem()
         result = expert_system.evaluate(metrics)

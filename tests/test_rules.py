@@ -5,8 +5,8 @@ import sys
 import time
 from datetime import datetime
 
-import rules
-from rules import (
+from src import rules
+from src.rules import (
     _evaluate_clips,
     _evaluate_legacy,
     evaluate,
@@ -25,36 +25,36 @@ class TestEvaluateClips(unittest.TestCase):
 
     def test_evaluate_clips_success(self):
         fake_result = {"score": 75, "findings": []}
-        fake_module = types.ModuleType("clips_evaluator")
+        fake_module = types.ModuleType("src.clips_evaluator")
 
         class FakeExpert:
             def evaluate(self, metrics):
                 return fake_result
 
         fake_module.SecurityExpertSystem = FakeExpert
-        with patch.dict(sys.modules, {"clips_evaluator": fake_module}):
+        with patch.dict(sys.modules, {"src.clips_evaluator": fake_module}):
             result = _evaluate_clips(self.metrics)
             self.assertIs(result, fake_result)
 
     def test_evaluate_clips_import_error_fallback(self):
-        fake_module = types.ModuleType("clips_evaluator")
-        with patch.dict(sys.modules, {"clips_evaluator": fake_module}):
-            with patch("rules._evaluate_legacy") as mock_legacy:
+        fake_module = types.ModuleType("src.clips_evaluator")
+        with patch.dict(sys.modules, {"src.clips_evaluator": fake_module}):
+            with patch("src.rules._evaluate_legacy") as mock_legacy:
                 mock_legacy.return_value = {"fallback": True}
                 result = _evaluate_clips(self.metrics)
                 mock_legacy.assert_called_once_with(self.metrics)
                 self.assertEqual(result, {"fallback": True})
 
     def test_evaluate_clips_exception_in_evaluate_fallback(self):
-        fake_module = types.ModuleType("clips_evaluator")
+        fake_module = types.ModuleType("src.clips_evaluator")
 
         class BadExpert:
             def evaluate(self, metrics):
                 raise RuntimeError("evaluation error")
 
         fake_module.SecurityExpertSystem = BadExpert
-        with patch.dict(sys.modules, {"clips_evaluator": fake_module}):
-            with patch("rules._evaluate_legacy") as mock_legacy:
+        with patch.dict(sys.modules, {"src.clips_evaluator": fake_module}):
+            with patch("src.rules._evaluate_legacy") as mock_legacy:
                 mock_legacy.return_value = {"fallback2": True}
                 result = _evaluate_clips(self.metrics)
                 mock_legacy.assert_called_once_with(self.metrics)
@@ -64,7 +64,7 @@ class TestEvaluateClips(unittest.TestCase):
 class TestEvaluation(unittest.TestCase):
     """Unit tests for evaluate wrapper in rules.py."""
 
-    @patch("rules._evaluate_legacy")
+    @patch("src.rules._evaluate_legacy")
     def test_standard_evaluation_output(self, mock_legacy):
         dummy = {"x": 1}
         mock_legacy.return_value = {
@@ -84,7 +84,7 @@ class TestEvaluation(unittest.TestCase):
     @unittest.skipIf(
         not CLIPS_AVAILABLE, "Skipping CLIPS tests: PyCLIPS package required"
     )
-    @patch("rules._evaluate_clips")
+    @patch("src.rules._evaluate_clips")
     def test_clips_evaluation_output(self, mock_clips):
         DUMMY_METRICS = {"patch": {"hotfixes": ["KB1"], "status": "up-to-date"}}
         mock_clips.return_value = {
@@ -188,7 +188,7 @@ class TestEvaluateLegacyRules(unittest.TestCase):
 
 
 class TestEvaluateWrapper(unittest.TestCase):
-    @patch("rules._evaluate_legacy")
+    @patch("src.rules._evaluate_legacy")
     def test_auto_detect_falls_back_to_legacy_and_injects_metadata(self, mock_legacy):
         dummy = {"x": 1}
         mock_legacy.return_value = {

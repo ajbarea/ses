@@ -1,0 +1,10 @@
+[tool.uvicorn]
+reload-exclude = [
+    "logs/",
+    "*.log", 
+    "__pycache__/",
+    ".pytest_cache/",
+    ".git/",
+    "*.db",
+    "*.sqlite"
+]

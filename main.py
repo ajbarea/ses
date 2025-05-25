@@ -5,20 +5,22 @@ Logs evaluation results in JSONL format for historical tracking.
 """
 
 from fastapi import FastAPI
-from logging_config import setup_logging, get_logger
+from src.logging_config import setup_logging, get_logger
 from pathlib import Path
 import json
 import os
-from scanner import (
-    get_patch_status,
-    get_open_ports,
-    get_running_services,
-    get_firewall_status,
-    get_antivirus_status,
-    get_password_policy,
-)
-from rules import evaluate
+
+from src.rules import evaluate
 import logging
+
+from src.scanner import (
+    get_antivirus_status,
+    get_firewall_status,
+    get_open_ports,
+    get_password_policy,
+    get_patch_status,
+    get_running_services,
+)
 
 setup_logging(
     log_level=os.getenv("LOG_LEVEL", "INFO"),

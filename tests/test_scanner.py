@@ -9,13 +9,14 @@ import unittest
 import platform
 import types
 import psutil
-from scanner import (
+
+from src.scanner import (
+    get_antivirus_status,
     get_firewall_status,
+    get_open_ports,
     get_password_policy,
     get_patch_status,
-    get_open_ports,
     get_running_services,
-    get_antivirus_status,
 )
 
 
@@ -24,7 +25,7 @@ from scanner import (
     "Skipping Windows-specific tests on non-Windows platforms",
 )
 class TestScanner(unittest.TestCase):
-    @patch("scanner.subprocess.check_output")
+    @patch("src.scanner.subprocess.check_output")
     def test_firewall_profiles_dict(self, mock_check_output):
         """Verifies firewall status parsing returns correctly structured profile dictionary.
         Tests parsing of multi-profile netsh output format."""
@@ -41,7 +42,7 @@ class TestScanner(unittest.TestCase):
         profiles = get_firewall_status().get("profiles")
         self.assertIsInstance(profiles, dict)
 
-    @patch("scanner.subprocess.check_output")
+    @patch("src.scanner.subprocess.check_output")
     def test_domain_in_profiles(self, mock_check_output):
         """Verifies domain profile is correctly extracted from firewall settings.
         Tests minimal netsh output containing only domain profile."""
@@ -51,7 +52,7 @@ class TestScanner(unittest.TestCase):
         profiles = get_firewall_status().get("profiles")
         self.assertIn("domain", profiles)
 
-    @patch("scanner.subprocess.check_output")
+    @patch("src.scanner.subprocess.check_output")
     def test_min_password_length(self, mock_check_output):
         """Validates password length policy parsing and minimum value enforcement.
         Tests fallback behavior when policy value is missing or invalid."""
@@ -61,7 +62,7 @@ class TestScanner(unittest.TestCase):
         policy = get_password_policy().get("policy")
         self.assertGreaterEqual(policy.get("min_password_length", 0), 1)
 
-    @patch("scanner.subprocess.check_output")
+    @patch("src.scanner.subprocess.check_output")
     def test_password_policy_parsing(self, mock_check_output):
         """Parse valid net accounts output for min length and max age."""
         mock_output = (
@@ -73,7 +74,7 @@ class TestScanner(unittest.TestCase):
         self.assertEqual(policy["min_password_length"], 7)
         self.assertEqual(policy["max_password_age"], 42)
 
-    @patch("scanner.subprocess.check_output")
+    @patch("src.scanner.subprocess.check_output")
     def test_password_policy_defaults_when_missing(self, mock_check_output):
         """Missing settings yield defaults: min=1 and max age=0."""
         mock_output = "Some irrelevant setting         0\n"
@@ -82,7 +83,7 @@ class TestScanner(unittest.TestCase):
         self.assertEqual(policy["min_password_length"], 1)
         self.assertEqual(policy["max_password_age"], 0)
 
-    @patch("scanner.c.Win32_QuickFixEngineering")
+    @patch("src.scanner.c.Win32_QuickFixEngineering")
     def test_patch_status_out_of_date_no_hotfixes(self, mock_wql):
         """No hotfixes → status 'out-of-date' and empty list."""
         mock_wql.return_value = []
@@ -90,7 +91,7 @@ class TestScanner(unittest.TestCase):
         self.assertEqual(result["status"], "out-of-date")
         self.assertEqual(result["hotfixes"], [])
 
-    @patch("scanner.c.Win32_QuickFixEngineering")
+    @patch("src.scanner.c.Win32_QuickFixEngineering")
     def test_patch_status_up_to_date_with_hotfixes(self, mock_wql):
         """Hotfixes present → status 'up-to-date' and list returned."""
         fake = types.SimpleNamespace(HotFixID="KB123")
@@ -99,7 +100,7 @@ class TestScanner(unittest.TestCase):
         self.assertEqual(result["status"], "up-to-date")
         self.assertEqual(result["hotfixes"], ["KB123"])
 
-    @patch("scanner.psutil.net_connections")
+    @patch("src.scanner.psutil.net_connections")
     def test_open_ports_filters_listening(self, mock_net):
         """Only LISTENING connections are returned."""
         addr1 = types.SimpleNamespace(port=80)
@@ -111,7 +112,7 @@ class TestScanner(unittest.TestCase):
         self.assertIn(80, ports)
         self.assertNotIn(22, ports)
 
-    @patch("scanner.c.Win32_Service")
+    @patch("src.scanner.c.Win32_Service")
     def test_running_services_returns_list(self, mock_services):
         """Services list transformed into dict entries with name & state."""
         svc1 = types.SimpleNamespace(Name="SvcA", State="Running")
@@ -123,7 +124,7 @@ class TestScanner(unittest.TestCase):
         self.assertCountEqual(names, ["SvcA", "SvcB"])
         self.assertCountEqual(states, ["Running", "Stopped"])
 
-    @patch("scanner.wmi.WMI")
+    @patch("src.scanner.wmi.WMI")
     def test_antivirus_status_empty_list(self, mock_wmi):
         """No antivirus products → empty list."""
         sec = types.SimpleNamespace(AntiVirusProduct=lambda: [])
@@ -131,7 +132,7 @@ class TestScanner(unittest.TestCase):
         result = get_antivirus_status()
         self.assertEqual(result["products"], [])
 
-    @patch("scanner.wmi.WMI")
+    @patch("src.scanner.wmi.WMI")
     def test_antivirus_status_with_products(self, mock_wmi):
         """Detect multiple AV products with name and state."""
         av1 = types.SimpleNamespace(displayName="AV1", productState=123)
