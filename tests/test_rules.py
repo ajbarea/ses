@@ -220,6 +220,27 @@ class TestEvaluateWrapper(unittest.TestCase):
         # to account for system-specific timing variations.
         self.assertTrue(before - 0.1 <= ts.timestamp() <= after + 0.1)
 
+    @patch("src.rules._evaluate_legacy")
+    @patch("src.rules.logger")
+    def test_clips_requested_not_available_falls_back_and_warns(
+        self, mock_logger, mock_legacy
+    ):
+        """Check fallback to legacy and warning when use_clips=True but CLIPS is not available."""
+        dummy = {"x": 1}
+        mock_legacy.return_value = {
+            "score": 80,
+            "grade": "Good",
+            "findings": [],
+            "summary": "",
+        }
+        with patch.object(rules, "CLIPS_AVAILABLE", False):
+            evaluate(dummy, use_clips=True)
+
+        mock_legacy.assert_called_once_with(dummy)
+        mock_logger.warning.assert_called_once_with(
+            "CLIPS evaluation requested but CLIPS is not available. Falling back to legacy."
+        )
+
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
