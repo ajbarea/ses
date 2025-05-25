@@ -68,6 +68,81 @@ class TestClipsEvaluator(unittest.TestCase):
             self.assertIn("rules_fired", result)
             self.assertIn("explanations", result)
 
+    def test_evaluate_grade_excellent(self):
+        """Test grade assignment for Excellent score."""
+        dummy_metrics = {"any": "value"}
+        with patch.object(self.expert_system, "convert_metrics_to_facts"), patch.object(
+            self.expert_system, "run_evaluation", return_value=0
+        ), patch.object(
+            self.expert_system, "get_findings", return_value=[]
+        ), patch.object(
+            self.expert_system, "get_score", return_value=95
+        ), patch.object(
+            self.expert_system, "get_rule_trace", return_value=[]
+        ):
+            result = self.expert_system.evaluate(dummy_metrics)
+            self.assertEqual(result["grade"], "Excellent")
+
+    def test_evaluate_grade_good(self):
+        """Test grade assignment for Good score."""
+        dummy_metrics = {"any": "value"}
+        with patch.object(self.expert_system, "convert_metrics_to_facts"), patch.object(
+            self.expert_system, "run_evaluation", return_value=0
+        ), patch.object(
+            self.expert_system, "get_findings", return_value=[]
+        ), patch.object(
+            self.expert_system, "get_score", return_value=85
+        ), patch.object(
+            self.expert_system, "get_rule_trace", return_value=[]
+        ):
+            result = self.expert_system.evaluate(dummy_metrics)
+            self.assertEqual(result["grade"], "Good")
+
+    def test_evaluate_grade_fair(self):
+        """Test grade assignment for Fair score."""
+        dummy_metrics = {"any": "value"}
+        with patch.object(self.expert_system, "convert_metrics_to_facts"), patch.object(
+            self.expert_system, "run_evaluation", return_value=0
+        ), patch.object(
+            self.expert_system, "get_findings", return_value=[]
+        ), patch.object(
+            self.expert_system, "get_score", return_value=75
+        ), patch.object(
+            self.expert_system, "get_rule_trace", return_value=[]
+        ):
+            result = self.expert_system.evaluate(dummy_metrics)
+            self.assertEqual(result["grade"], "Fair")
+
+    def test_evaluate_grade_poor(self):
+        """Test grade assignment for Poor score."""
+        dummy_metrics = {"any": "value"}
+        with patch.object(self.expert_system, "convert_metrics_to_facts"), patch.object(
+            self.expert_system, "run_evaluation", return_value=0
+        ), patch.object(
+            self.expert_system, "get_findings", return_value=[]
+        ), patch.object(
+            self.expert_system, "get_score", return_value=55
+        ), patch.object(
+            self.expert_system, "get_rule_trace", return_value=[]
+        ):
+            result = self.expert_system.evaluate(dummy_metrics)
+            self.assertEqual(result["grade"], "Poor")
+
+    def test_evaluate_grade_critical_risk(self):
+        """Test grade assignment for Critical Risk score."""
+        dummy_metrics = {"any": "value"}
+        with patch.object(self.expert_system, "convert_metrics_to_facts"), patch.object(
+            self.expert_system, "run_evaluation", return_value=0
+        ), patch.object(
+            self.expert_system, "get_findings", return_value=[]
+        ), patch.object(
+            self.expert_system, "get_score", return_value=35
+        ), patch.object(
+            self.expert_system, "get_rule_trace", return_value=[]
+        ):
+            result = self.expert_system.evaluate(dummy_metrics)
+            self.assertEqual(result["grade"], "Critical Risk")
+
     def test_load_templates_handles_clips_error(self):
         mock_env = MagicMock()
         mock_env.build = MagicMock(
