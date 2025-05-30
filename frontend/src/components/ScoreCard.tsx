@@ -2,8 +2,8 @@ export default function ScoreCard({
   score,
   grade,
 }: {
-  score: number;
-  grade: string;
+  readonly score: number;
+  readonly grade: string;
 }) {
   // map custom grade strings to Tailwind color classes
   const gradeColor = (() => {

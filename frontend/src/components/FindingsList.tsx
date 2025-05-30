@@ -6,7 +6,7 @@ interface Finding {
   [key: string]: any;
 }
 
-function FindingItem({ f }: { f: Finding }) {
+function FindingItem({ f }: { readonly f: Finding }) {
   const [open, setOpen] = useState(false);
   const isLong = f.description.length > 100;
   const displayed =
@@ -27,13 +27,17 @@ function FindingItem({ f }: { f: Finding }) {
   );
 }
 
-export default function FindingsList({ findings }: { findings: Finding[] }) {
+export default function FindingsList({
+  findings,
+}: {
+  readonly findings: readonly Finding[];
+}) {
   return (
     <div>
       <h3 className="font-medium">Findings ({findings.length}):</h3>
       <ul className="list-disc list-inside">
-        {findings.map((f, i) => (
-          <FindingItem key={i} f={f} />
+        {findings.map((f) => (
+          <FindingItem key={f.rule} f={f} />
         ))}
       </ul>
     </div>
