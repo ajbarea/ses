@@ -34,6 +34,7 @@ The following diagram illustrates the architecture of the SES application:
 
 ```bash
 # Create a new virtual environment
+cd backend
 python -m venv .venv
 
 # Activate the virtual environment
@@ -116,6 +117,5 @@ Create new `.clp` files in the `clips_rules` directory. For example:
 Run the test suite with:
 
 ```bash
-cd tests
 python -m unittest discover
 ```

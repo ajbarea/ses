@@ -59,7 +59,20 @@ def get_open_ports():
 
 def get_running_services():
     """Return a list of running services with their states."""
-    services = [{"name": s.Name, "state": s.State} for s in c.Win32_Service()]
+    try:
+        # pure-Python via psutil on Windows
+        services = [
+            {"name": s.name(), "state": s.status()}
+            for s in psutil.win_service_iter()
+            if s.status() == "running"
+        ]
+    except Exception:
+        # fallback to WMI
+        services = [
+            {"name": s.Name, "state": s.State}
+            for s in c.Win32_Service()
+            if s.State == "Running"
+        ]
     return {"services": services}
 
 

@@ -1,17 +1,17 @@
 {
     "terminal.integrated.env.windows": {
-        "PYTHONPATH": "${workspaceFolder}"
+        "PYTHONPATH": "${workspaceFolder}/backend"
     },
     "terminal.integrated.env.linux": {
-        "PYTHONPATH": "${workspaceFolder}"
+        "PYTHONPATH": "${workspaceFolder}/backend"
     },
     "terminal.integrated.env.osx": {
-        "PYTHONPATH": "${workspaceFolder}"
+        "PYTHONPATH": "${workspaceFolder}/backend"
     },
     "python.testing.unittestArgs": [
         "-v",
         "-s",
-        "./tests",
+        "./backend",
         "-p",
         "test_*.py"
     ],

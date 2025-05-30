@@ -107,17 +107,36 @@ class TestScanner(unittest.TestCase):
         self.assertIn(80, ports)
         self.assertNotIn(22, ports)
 
-    @patch("src.scanner.c.Win32_Service")
-    def test_running_services_returns_list(self, mock_services):
-        """Verify services list is transformed with name and state."""
-        svc1 = types.SimpleNamespace(Name="SvcA", State="Running")
-        svc2 = types.SimpleNamespace(Name="SvcB", State="Stopped")
-        mock_services.return_value = [svc1, svc2]
+    @patch("src.scanner.psutil.win_service_iter")
+    def test_running_services_filters_running(self, mock_iter):
+        """psutil path should only return services whose status() == "running"."""
+        svc1 = types.SimpleNamespace(name=lambda: "SvcA", status=lambda: "running")
+        svc2 = types.SimpleNamespace(name=lambda: "SvcB", status=lambda: "stopped")
+        mock_iter.return_value = [svc1, svc2]
+
         out = get_running_services()["services"]
         names = [s["name"] for s in out]
         states = [s["state"] for s in out]
-        self.assertCountEqual(names, ["SvcA", "SvcB"])
-        self.assertCountEqual(states, ["Running", "Stopped"])
+
+        # only SvcA/running survives the filter
+        self.assertCountEqual(names, ["SvcA"])
+        self.assertCountEqual(states, ["running"])
+
+    @patch("src.scanner.psutil.win_service_iter", side_effect=Exception)
+    @patch("src.scanner.c.Win32_Service")
+    def test_running_services_fallback_to_wmi(self, mock_services, mock_iter):
+        """When psutil fails, fallback to WMI and still only return running services."""
+        svc1 = types.SimpleNamespace(Name="SvcA", State="Running")
+        svc2 = types.SimpleNamespace(Name="SvcB", State="Stopped")
+        mock_services.return_value = [svc1, svc2]
+
+        out = get_running_services()["services"]
+        names = [s["name"] for s in out]
+        states = [s["state"] for s in out]
+
+        # only the Running service should be returned
+        self.assertCountEqual(names, ["SvcA"])
+        self.assertCountEqual(states, ["Running"])
 
     @patch("src.scanner.wmi.WMI")
     def test_antivirus_status_empty_list(self, mock_wmi):
