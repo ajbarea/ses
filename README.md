@@ -39,7 +39,7 @@ python -m venv .venv
 
 # Activate the virtual environment
 # For Windows
-source .venv/Scripts/activate  
+source .venv/Scripts/activate
 # For Unix/MacOS
 source .venv/bin/activate
 ```
@@ -48,7 +48,7 @@ source .venv/bin/activate
 
 ```bash
 # Check which Python is being used (should point to your .venv Python)
-which python  
+which python
 
 # Verify Python version
 python --version
@@ -69,6 +69,18 @@ pip install -r requirements.txt
 ```bash
 uvicorn main:app --reload --reload-exclude logs/
 ```
+
+## Running the Frontend
+
+Open a new terminal, navigate to the `frontend` folder, install dependencies (if you haven’t yet), and start the dev server:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The frontend will be available at <http://localhost:3000>
 
 ### API Endpoints
 
