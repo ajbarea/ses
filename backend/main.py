@@ -2,6 +2,7 @@
 metrics, and security evaluations."""
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from src.logging_config import setup_logging, get_logger
 from pathlib import Path
 import json
@@ -35,6 +36,13 @@ eval_logger.addHandler(eval_handler)
 
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/")
