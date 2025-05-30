@@ -4,6 +4,7 @@ import { useState } from "react";
 import ScoreCard from "../components/ScoreCard";
 import FindingsList from "../components/FindingsList";
 import TraceList from "../components/TraceList";
+import { PulseLoader } from "react-spinners";
 
 interface Finding {
   rule: string;
@@ -46,9 +47,13 @@ export default function Home() {
       <button
         onClick={runEvaluation}
         disabled={loading}
-        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
       >
-        {loading ? "Running..." : "Run Security Evaluation"}
+        {loading ? (
+          <PulseLoader size={8} color="#fff" />
+        ) : (
+          "Run Security Evaluation"
+        )}
       </button>
 
       {error && <p className="mt-4 text-red-500">Error: {error}</p>}
