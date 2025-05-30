@@ -164,7 +164,7 @@ class TestClipsEvaluator(unittest.TestCase):
         from pathlib import Path
 
         # Use existing clips_rules directory for test files
-        rules_dir = Path("backend/src") / "clips_rules"
+        rules_dir = Path("src") / "clips_rules"
         expert_system = SecurityExpertSystem(rules_dir=str(rules_dir))
         mock_env = MagicMock()
         mock_env.load = MagicMock(
