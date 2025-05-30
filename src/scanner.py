@@ -21,15 +21,15 @@ except ImportError:
             # No real WMI client available on this platform; stub initialization.
             pass
 
-        def win32_quick_fix_engineering(self):  # pragma: no cover
+        def Win32_QuickFixEngineering(self):  # pragma: no cover
             # Stubbed: non-Windows environment provides no hotfix info.
             return []
 
-        def win32_service(self):  # pragma: no cover
+        def Win32_Service(self):  # pragma: no cover
             # Stubbed: non-Windows environment provides no service info.
             return []
 
-        def anti_virus_product(self):  # pragma: no cover
+        def AntiVirusProduct(self):  # pragma: no cover
             # Stubbed: non-Windows environment provides no antivirus info.
             return []
 
