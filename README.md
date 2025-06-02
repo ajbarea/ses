@@ -72,12 +72,18 @@ uvicorn main:app --reload --reload-exclude logs/
 
 ## Running the Frontend
 
-Open a new terminal, navigate to the `frontend` folder, install dependencies (if you haven’t yet), and start the dev server:
+Open a new terminal, navigate to the `frontend` folder, install dependencies, and start the dev server:
 
 ```bash
 cd frontend
 npm install
 npm run dev
+```
+
+Create a `.env.local` file in `frontend/` to set the frontend API endpoint:
+
+```text
+NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
 The frontend will be available at <http://localhost:3000>
@@ -90,7 +96,7 @@ The frontend will be available at <http://localhost:3000>
 
 ### Viewing the API Documentation
 
-- Swagger UI: <http://127.0.0.1:8000/docs>
+- Swagger UI: <http://localhost:8000/docs>
 
 ## Logs
 
