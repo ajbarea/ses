@@ -3,10 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev --turbopack -p 3000",
     "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "start": "next start -p 3000",
+    "lint": "next lint",
+    "build:backend": "cd ../backend && chmod +x build_backend.sh && ./build_backend.sh && cd ../frontend",
+    "electron:dev": "npm run build:backend && concurrently \"npm:dev\" \"wait-on http://localhost:3000 && cross-env ELECTRON_START_URL=http://localhost:3000 electron .\"",
+    "electron:build": "npm run build:backend && npm run build && cross-env NODE_ENV=production electron-builder",
+    "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
     "lightningcss": "^1.30.1",
@@ -24,6 +28,54 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "typescript": "^5"
+    "typescript": "^5",
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
+    "electron": "^31.0.2",
+    "electron-builder": "^24.13.3",
+    "wait-on": "^7.2.0"
+  },
+  "main": "main.js",
+  "build": {
+    "appId": "com.example.sesapp",
+    "productName": "SES Application",
+    "files": [
+      "main.js",
+      "preload.js",
+      "package.json",
+      "packed_backend_info.json",
+      {
+        "from": ".next",
+        "to": ".next",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "extraResources": [
+      {
+        "from": "../backend/dist/ses_backend",
+        "to": "dist_backend",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "asarUnpack": [
+      "**/dist_backend/**",
+      "**/.next/server/pages/**"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg"
+    },
+    "linux": {
+      "target": "AppImage"
+    },
+    "directories": {
+      "output": "dist_electron"
+    }
   }
 }

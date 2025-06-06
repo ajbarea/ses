@@ -1,6 +1,6 @@
-fastapi[standard]
+PyInstaller==6.9.0
+fastapi
 uvicorn[standard]
-wmi
+wmi ; platform_system=="Windows"
 psutil
 clipspy
-coverage

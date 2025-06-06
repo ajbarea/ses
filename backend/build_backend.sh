@@ -1,0 +1,48 @@
+#!/bin/bash
+echo "--- Starting Backend Build ---"
+set -e
+cd "$(dirname "$0")"
+
+echo "Removing old backend build artifacts..."
+rm -rf dist build
+rm -f ../frontend/packed_backend_info.json || true
+
+echo "Creating/reusing virtual environment .venv_backend_build..."
+if [ ! -d ".venv_backend_build" ]; then
+  python3 -m venv .venv_backend_build
+fi
+source .venv_backend_build/bin/activate
+
+echo "Installing/updating dependencies from requirements.txt..."
+pip install --upgrade pip
+pip install -r requirements.txt
+
+echo "Running PyInstaller to build the backend executable..."
+PYINSTALLER_WMI_ARG=""
+current_os_lower=$(uname -s | tr '[:upper:]' '[:lower:]')
+if [[ "$current_os_lower" == "cygwin"* || "$current_os_lower" == "mingw"* || "$current_os_lower" == "msys_nt"* || "$current_os_lower" == "windows_nt" ]] ; then
+    echo "BUILD_INFO: Detected Windows-like system. Adding WMI hidden import for PyInstaller."
+    PYINSTALLER_WMI_ARG="--hidden-import=wmi"
+else
+    echo "BUILD_INFO: Detected non-Windows system. WMI hidden import not added."
+fi
+
+pyinstaller --noconfirm --onedir --name ses_backend main.py \
+     --add-data "src/clips_rules:src/clips_rules" \
+     --hidden-import="uvicorn.logging" --hidden-import="uvicorn.loops" --hidden-import="uvicorn.loops.auto" \
+     --hidden-import="uvicorn.protocols" --hidden-import="uvicorn.protocols.http" --hidden-import="uvicorn.protocols.http.auto" \
+     --hidden-import="uvicorn.protocols.websockets" --hidden-import="uvicorn.protocols.websockets.auto" \
+     --hidden-import="uvicorn.lifespan" --hidden-import="uvicorn.lifespan.on" \
+     --hidden-import="fastapi.applications" --hidden-import="starlette.routing" \
+     --hidden-import="starlette.middleware.cors" --hidden-import="starlette.applications" \
+     --hidden-import="appdirs" --hidden-import="psutil" \
+     --hidden-import="pydantic.v1" --hidden-import="json" --hidden-import="asyncio" \
+     --hidden-import="logging.config" --hidden-import="pathlib" \
+     ${PYINSTALLER_WMI_ARG}
+
+deactivate
+echo "PyInstaller build process complete. Backend executable should be in backend/dist/ses_backend/"
+
+echo "{\"executableName\": \"ses_backend\"}" > ../frontend/packed_backend_info.json
+echo "Created packed_backend_info.json in frontend directory with executableName: ses_backend"
+echo "--- Backend Build Finished Successfully ---"
