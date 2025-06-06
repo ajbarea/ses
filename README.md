@@ -144,8 +144,8 @@ python -m unittest discover
 
 ```bash
 cd backend
-python -m venv .venv_build
-source .venv_build/bin/activate
+python -m venv .venv_backend_build
+source .venv_backend_build/Scripts/activate
 
 # update pip and install deps
 pip install --upgrade pip

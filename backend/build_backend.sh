@@ -37,7 +37,8 @@ else
 fi
 
 pyinstaller --noconfirm --onedir --name ses_backend main.py \
-     --add-data "src/clips_rules:src/clips_rules" \
+     --paths src \
+     --add-data "src:src" \
      --hidden-import="uvicorn.logging" --hidden-import="uvicorn.loops" --hidden-import="uvicorn.loops.auto" \
      --hidden-import="uvicorn.protocols" --hidden-import="uvicorn.protocols.http" --hidden-import="uvicorn.protocols.http.auto" \
      --hidden-import="uvicorn.protocols.websockets" --hidden-import="uvicorn.protocols.websockets.auto" \
