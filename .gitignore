@@ -2,3 +2,13 @@ __pycache__/
 logs/
 CODE_REVIEW.md
 backend/.coverage
+backend/build/ses_backend/
+dist/
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/dist_electron/
+backend/.venv_backend_build/
+backend/dist/
+backend/ses_backend.spec
+frontend/packed_backend_info.json

@@ -4,10 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack -p 3000",
-    "build": "next build",
+    "build": "next build && next export",
     "start": "next start -p 3000",
     "lint": "next lint",
-    "build:backend": "cd ../backend && chmod +x build_backend.sh && ./build_backend.sh && cd ../frontend",
+    "build:backend": "cd ../backend && bash build_backend.sh && cd ../frontend",
     "electron:dev": "npm run build:backend && concurrently \"npm:dev\" \"wait-on http://localhost:3000 && cross-env ELECTRON_START_URL=http://localhost:3000 electron .\"",
     "electron:build": "npm run build:backend && npm run build && cross-env NODE_ENV=production electron-builder",
     "postinstall": "electron-builder install-app-deps"
@@ -45,8 +45,8 @@
       "package.json",
       "packed_backend_info.json",
       {
-        "from": ".next",
-        "to": ".next",
+        "from": "out",
+        "to": "out",
         "filter": [
           "**/*"
         ]

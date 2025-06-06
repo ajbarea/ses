@@ -11,7 +11,16 @@ echo "Creating/reusing virtual environment .venv_backend_build..."
 if [ ! -d ".venv_backend_build" ]; then
   python3 -m venv .venv_backend_build
 fi
-source .venv_backend_build/bin/activate
+
+# activate venv (Linux/macOS vs. Windows)
+if [ -f ".venv_backend_build/bin/activate" ]; then
+    . .venv_backend_build/bin/activate
+elif [ -f ".venv_backend_build/Scripts/activate" ]; then
+    . .venv_backend_build/Scripts/activate
+else
+    echo "Cannot find virtualenv activation script"
+    exit 1
+fi
 
 echo "Installing/updating dependencies from requirements.txt..."
 pip install --upgrade pip
