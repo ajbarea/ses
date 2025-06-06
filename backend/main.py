@@ -82,3 +82,15 @@ async def evaluate_security():
     logger.info("Starting security evaluation")
     eval_logger.info(json.dumps(result))  # Log evaluation result as JSONL
     return result
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    # start the FastAPI app on 0.0.0.0:8000
+    uvicorn.run(
+        app, host="127.0.0.1", port=8000, log_level=os.getenv("LOG_LEVEL", "info")
+    )
+    # optional: open the browser automatically
+    # import webbrowser
+    # webbrowser.open("http://localhost:3000")

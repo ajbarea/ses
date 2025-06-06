@@ -1,15 +1,17 @@
 {
   "name": "frontend",
   "version": "0.1.0",
+  "description": "Frontend for SES Application",
+  "author": "AJ Barea",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack -p 3000",
-    "build": "next build && next export",
+    "build": "next build",
     "start": "next start -p 3000",
     "lint": "next lint",
     "build:backend": "cd ../backend && bash build_backend.sh && cd ../frontend",
     "electron:dev": "npm run build:backend && concurrently \"npm:dev\" \"wait-on http://localhost:3000 && cross-env ELECTRON_START_URL=http://localhost:3000 electron .\"",
-    "electron:build": "npm run build:backend && npm run build && cross-env NODE_ENV=production electron-builder",
+    "electron:build": "npm run build:backend && npm run build && cross-env NODE_ENV=production CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win",
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
@@ -66,7 +68,8 @@
       "**/.next/server/pages/**"
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "sign": null
     },
     "mac": {
       "target": "dmg"
