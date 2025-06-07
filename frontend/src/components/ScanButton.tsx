@@ -25,12 +25,17 @@ export default function ScanButton({
 
   const buttonClasses = variant === "primary" ? primaryClasses : textClasses;
 
-  const buttonContent =
-    loading && variant === "primary" ? (
-      <PulseLoader size={8} color="#fff" />
-    ) : loading ? (
-      loadingText
-    ) : (
+  // Extract nested ternary operations completely
+  let buttonContent;
+  if (loading) {
+    buttonContent =
+      variant === "primary" ? (
+        <PulseLoader size={8} color="#fff" />
+      ) : (
+        loadingText
+      );
+  } else {
+    buttonContent = (
       <div className="flex items-center justify-center">
         {icon && variant === "primary" && (
           <img
@@ -42,6 +47,7 @@ export default function ScanButton({
         <span>{children}</span>
       </div>
     );
+  }
 
   return (
     <button onClick={onClick} disabled={loading} className={buttonClasses}>
