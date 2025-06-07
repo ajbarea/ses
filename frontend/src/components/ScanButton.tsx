@@ -25,26 +25,27 @@ export default function ScanButton({
 
   const buttonClasses = variant === "primary" ? primaryClasses : textClasses;
 
+  const buttonContent =
+    loading && variant === "primary" ? (
+      <PulseLoader size={8} color="#fff" />
+    ) : loading ? (
+      loadingText
+    ) : (
+      <div className="flex items-center justify-center">
+        {icon && variant === "primary" && (
+          <img
+            src={icon}
+            alt="Button Icon"
+            className="w-9 h-9 mr-3 flex-shrink-0"
+          />
+        )}
+        <span>{children}</span>
+      </div>
+    );
+
   return (
     <button onClick={onClick} disabled={loading} className={buttonClasses}>
-      {loading ? (
-        variant === "primary" ? (
-          <PulseLoader size={8} color="#fff" />
-        ) : (
-          loadingText
-        )
-      ) : (
-        <div className="flex items-center justify-center">
-          {icon && variant === "primary" && (
-            <img
-              src={icon}
-              alt="Button Icon"
-              className="w-9 h-9 mr-3 flex-shrink-0"
-            />
-          )}
-          <span>{children}</span>
-        </div>
-      )}
+      {buttonContent}
     </button>
   );
 }
