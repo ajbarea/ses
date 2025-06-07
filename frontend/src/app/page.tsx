@@ -45,16 +45,23 @@ export default function Home() {
   };
 
   return (
-    <div className="p-8">
+    <div className="flex flex-col items-center p-8">
       <button
         onClick={runEvaluation}
         disabled={loading}
-        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+        className="w-52 h-16 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center px-4 text-lg font-semibold shadow-lg my-10"
       >
         {loading ? (
           <PulseLoader size={8} color="#fff" />
         ) : (
-          "Run Security Evaluation"
+          <>
+            <img
+              src="./shield.svg"
+              alt="Security Shield Icon"
+              className="w-8 h-8 mr-2"
+            />
+            Run Security Evaluation
+          </>
         )}
       </button>
 
