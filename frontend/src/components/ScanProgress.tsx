@@ -1,8 +1,8 @@
 import React from "react";
 
 interface ScanProgressProps {
-  progress: number;
-  loading: boolean;
+  readonly progress: number;
+  readonly loading: boolean;
 }
 
 export default function ScanProgress({ progress, loading }: ScanProgressProps) {

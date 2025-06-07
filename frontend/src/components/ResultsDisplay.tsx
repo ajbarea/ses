@@ -19,7 +19,7 @@ interface EvalResult {
   metrics: Record<string, any>;
 }
 
-export default function ResultsDisplay({ result }: { result: EvalResult }) {
+export default function ResultsDisplay({ result }: { readonly result: EvalResult }) {
   const [activeTab, setActiveTab] = useState<"findings" | "trace" | "metrics">(
     "findings"
   );

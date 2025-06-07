@@ -1,7 +1,7 @@
 // frontend/src/app/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import ScanButton from "../components/ScanButton";
 import ScanProgress from "../components/ScanProgress";
 import ResultsDisplay from "../components/ResultsDisplay";

@@ -2,12 +2,12 @@ import { ReactNode } from "react";
 import { PulseLoader } from "react-spinners";
 
 interface ScanButtonProps {
-  onClick: () => void;
-  loading: boolean;
-  variant?: "primary" | "text";
-  children?: ReactNode;
-  icon?: string;
-  loadingText?: string;
+  readonly onClick: () => void;
+  readonly loading: boolean;
+  readonly variant?: "primary" | "text";
+  readonly children?: ReactNode;
+  readonly icon?: string;
+  readonly loadingText?: string;
 }
 
 export default function ScanButton({
