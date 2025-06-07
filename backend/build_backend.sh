@@ -48,6 +48,7 @@ pyinstaller --noconfirm --onedir --name ses_backend main.py \
      --hidden-import="appdirs" --hidden-import="psutil" \
      --hidden-import="pydantic.v1" --hidden-import="json" --hidden-import="asyncio" \
      --hidden-import="logging.config" --hidden-import="pathlib" \
+     --hidden-import="clips" --collect-binaries clipspy \
      ${PYINSTALLER_WMI_ARG}
 
 deactivate
