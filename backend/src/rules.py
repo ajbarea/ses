@@ -4,6 +4,8 @@ from datetime import datetime, timezone
 from typing import Optional
 from src.logging_config import get_logger
 
+logger = get_logger(__name__)
+
 # Penalty points associated with different finding severity levels.
 SEVERITY_SCORES = {
     "critical": -30,
@@ -33,12 +35,19 @@ try:
     import clips
 
     CLIPS_AVAILABLE = True
-except ImportError:  # pragma: no cover
+    logger.info("CLIPS module successfully imported")
+except ImportError as e:  # pragma: no cover
     CLIPS_AVAILABLE = False  # CLIPS is not installed or importable.
+    logger.warning(f"CLIPS import error: {e}")
+except Exception:  # pragma: no cover
+    CLIPS_AVAILABLE = False
+# Log the CLIPS availability status for debugging
+logger.info(
+    f"CLIPS availability: {'AVAILABLE' if CLIPS_AVAILABLE else 'NOT AVAILABLE'}"
+)
 
-logger = get_logger(__name__)
 
-
+# Function to calculate the final security score based on findings.
 def calculate_score(findings: list, base_score: int = 100) -> int:
     """Calculate the final security score by applying penalties for each finding.
 
@@ -135,6 +144,8 @@ def _evaluate_legacy(metrics: dict) -> dict:
             else "; ".join(f["description"] for f in findings)
         ),
         "findings": findings,
+        "rules_fired": len(findings),
+        "explanations": [],
     }
 
 

@@ -137,3 +137,40 @@ Run the test suite with:
 ```bash
 python -m unittest discover
 ```
+
+## Build
+
+### 1. Backend
+
+```bash
+cd backend
+python -m venv .venv_backend_build
+source .venv_backend_build/Scripts/activate
+
+# update pip and install deps
+pip install --upgrade pip
+pip install -r requirements.txt
+
+# exit venv
+deactivate
+```
+
+### 2. Frontend & Electron
+
+```bash
+cd frontend
+
+# install web dependencies
+npm install
+
+# build React/Next output and package Electron app
+npm run electron:build
+```
+
+### 3. Verify Output
+
+After a successful run you’ll find:
+
+- `backend/dist/` – compiled backend artifacts
+- `frontend/out/` – Next.js static export
+- `frontend/dist_electron/` – Electron installer per-OS
