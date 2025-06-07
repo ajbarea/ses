@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const url = require("url");
-const { app, dialog, BrowserWindow } = require("electron");
+const { app, dialog, BrowserWindow, ipcMain } = require("electron");
 const { spawn } = require("child_process");
 let backendProcess = null;
 let mainWindow = null;
@@ -104,18 +104,40 @@ function startBackend() {
   );
 
   if (fs.existsSync(backendExecutablePath)) {
+    console.log(
+      "[Electron] Starting backend process from:",
+      backendExecutablePath
+    );
+
+    // Add environment variable to help with debugging
+    const envVars = { ...process.env, SES_ELECTRON_PACKAGED: "1" };
+
     backendProcess = spawn(backendExecutablePath, [], {
       stdio: "pipe",
       windowsHide: true,
+      env: envVars,
     });
     const currentPid = backendProcess.pid;
 
-    backendProcess.stdout.on("data", (d) =>
-      console.log("[Backend STDOUT]", d.toString().trim())
-    );
-    backendProcess.stderr.on("data", (d) =>
-      console.error("[Backend STDERR]", d.toString().trim())
-    );
+    backendProcess.stdout.on("data", (d) => {
+      const output = d.toString().trim();
+      console.log("[Backend STDOUT]", output);
+      // Log CLIPS-related messages more prominently
+      if (output.includes("CLIPS")) {
+        console.log("[Backend CLIPS]", output);
+      }
+    });
+
+    backendProcess.stderr.on("data", (d) => {
+      const error = d.toString().trim();
+      console.error("[Backend STDERR]", error);
+      // Send critical errors to renderer
+      if (error.includes("CLIPS") || error.includes("critical")) {
+        if (mainWindow) {
+          mainWindow.webContents.send("backend-error", error);
+        }
+      }
+    });
 
     backendProcess.on("close", (code) => {
       console.log(

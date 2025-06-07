@@ -5,10 +5,12 @@ export default function TraceList({
   readonly explanations: readonly { rule: string; activation: string }[];
   readonly metrics: Record<string, any>;
 }) {
+  const isClipsAvailable = explanations && explanations.length > 0;
+
   return (
     <div>
       <h3 className="font-medium">Rule Trace:</h3>
-      {explanations.length > 0 ? (
+      {isClipsAvailable ? (
         <ul className="list-decimal list-inside">
           {explanations.map((e) => (
             <li key={e.rule}>
@@ -17,9 +19,15 @@ export default function TraceList({
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-gray-500">
-          No rule trace information available.
-        </p>
+        <div>
+          <p className="text-sm text-gray-500">
+            No rule trace information available.
+          </p>
+          <p className="text-xs text-amber-600 mt-1">
+            CLIPS rule engine might not be available in this build. The system
+            is using the basic rule engine instead.
+          </p>
+        </div>
       )}
 
       {metrics && (
