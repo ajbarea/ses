@@ -16,7 +16,7 @@ function createWindow() {
   });
 
   let loadUrl;
-  if (process.env.NODE_ENV === "production") {
+  if (app.isPackaged) {
     // now load the static export
     loadUrl = `file://${path.join(app.getAppPath(), "out/index.html")}`;
   } else {
@@ -33,7 +33,7 @@ function createWindow() {
     }
   });
 
-  if (process.env.NODE_ENV !== "production") {
+  if (!app.isPackaged) {
     mainWindow.webContents.openDevTools();
   }
 
@@ -55,10 +55,9 @@ function startBackend() {
     app.getAppPath(),
     "packed_backend_info.json"
   );
-  let actualInfoPath =
-    process.env.NODE_ENV === "production"
-      ? prodBackendInfoPath
-      : devBackendInfoPath;
+  let actualInfoPath = app.isPackaged
+    ? prodBackendInfoPath
+    : devBackendInfoPath;
 
   if (fs.existsSync(actualInfoPath)) {
     try {
@@ -90,10 +89,9 @@ function startBackend() {
     "../../backend/dist/ses_backend"
   );
 
-  const resourcesBaseDir =
-    process.env.NODE_ENV === "production"
-      ? prodResourcesBaseDir
-      : devResourcesBaseDir;
+  const resourcesBaseDir = app.isPackaged
+    ? prodResourcesBaseDir
+    : devResourcesBaseDir;
   let backendExecutablePath = path.join(resourcesBaseDir, executableName);
 
   if (process.platform === "win32") {

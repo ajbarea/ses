@@ -135,6 +135,8 @@ def _evaluate_legacy(metrics: dict) -> dict:
             else "; ".join(f["description"] for f in findings)
         ),
         "findings": findings,
+        "rules_fired": len(findings),
+        "explanations": [],
     }
 
 

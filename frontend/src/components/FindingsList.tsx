@@ -23,6 +23,12 @@ function FindingItem({ f }: { readonly f: Finding }) {
           {open ? "Show less" : "Show more"}
         </button>
       )}
+      {f.details && (
+        <span className="ml-2 text-xs text-gray-600">
+          (Details:{" "}
+          {Array.isArray(f.details) ? f.details.join(", ") : String(f.details)})
+        </span>
+      )}
     </li>
   );
 }

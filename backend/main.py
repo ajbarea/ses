@@ -91,6 +91,3 @@ if __name__ == "__main__":
     uvicorn.run(
         app, host="127.0.0.1", port=8000, log_level=os.getenv("LOG_LEVEL", "info")
     )
-    # optional: open the browser automatically
-    # import webbrowser
-    # webbrowser.open("http://localhost:3000")
