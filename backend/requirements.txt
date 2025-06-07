@@ -4,3 +4,4 @@ uvicorn[standard]
 wmi ; platform_system=="Windows"
 psutil
 clipspy
+coverage
