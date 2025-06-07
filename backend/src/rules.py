@@ -46,9 +46,8 @@ logger.info(
     f"CLIPS availability: {'AVAILABLE' if CLIPS_AVAILABLE else 'NOT AVAILABLE'}"
 )
 
-logger = get_logger(__name__)
 
-
+# Function to calculate the final security score based on findings.
 def calculate_score(findings: list, base_score: int = 100) -> int:
     """Calculate the final security score by applying penalties for each finding.
 
