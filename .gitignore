@@ -11,4 +11,3 @@ frontend/dist_electron/
 backend/.venv_backend_build/
 backend/dist/
 backend/ses_backend.spec
-frontend/packed_backend_info.json

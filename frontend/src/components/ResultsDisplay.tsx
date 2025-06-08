@@ -19,7 +19,11 @@ interface EvalResult {
   metrics: Record<string, any>;
 }
 
-export default function ResultsDisplay({ result }: { readonly result: EvalResult }) {
+export default function ResultsDisplay({
+  result,
+}: {
+  readonly result: EvalResult;
+}) {
   const [activeTab, setActiveTab] = useState<"findings" | "trace" | "metrics">(
     "findings"
   );
@@ -108,11 +112,15 @@ export default function ResultsDisplay({ result }: { readonly result: EvalResult
 
       <div className="mt-4">
         {activeTab === "findings" && (
-          <FindingsList findings={result.findings} />
+          <div className="p-3 bg-gray-100 rounded text-sm overflow-x-auto text-gray-800">
+            <FindingsList findings={result.findings} />
+          </div>
         )}
 
         {activeTab === "trace" && (
-          <TraceList explanations={result.explanations} />
+          <div className="p-3 bg-gray-100 rounded text-sm overflow-x-auto text-gray-800">
+            <TraceList explanations={result.explanations} />
+          </div>
         )}
 
         {activeTab === "metrics" && (
