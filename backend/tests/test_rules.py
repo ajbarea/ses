@@ -329,6 +329,40 @@ class TestEvaluateLegacyRules(unittest.TestCase):
             )
         )
 
+    def test_firewall_domain_disabled(self):
+        metrics = {
+            "patch": {"status": "up-to-date", "hotfixes": []},
+            "ports": {"ports": []},
+            "services": {"services": []},
+            "firewall": {
+                "profiles": {"domain": "OFF", "private": "ON", "public": "ON"}
+            },
+        }
+        result = _evaluate_legacy(metrics)
+        self.assertTrue(
+            any(
+                f["rule"] == "firewall_domain_disabled" and f["level"] == "warning"
+                for f in result["findings"]
+            )
+        )
+
+    def test_firewall_private_disabled(self):
+        metrics = {
+            "patch": {"status": "up-to-date", "hotfixes": []},
+            "ports": {"ports": []},
+            "services": {"services": []},
+            "firewall": {
+                "profiles": {"domain": "ON", "private": "OFF", "public": "ON"}
+            },
+        }
+        result = _evaluate_legacy(metrics)
+        self.assertTrue(
+            any(
+                f["rule"] == "firewall_private_disabled" and f["level"] == "warning"
+                for f in result["findings"]
+            )
+        )
+
 
 class TestEvaluateWrapper(unittest.TestCase):
     @patch("src.rules._evaluate_legacy")

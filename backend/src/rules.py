@@ -22,10 +22,37 @@ RULE_DESCRIPTIONS = {
         "description": "System patches are not up-to-date.",
         "level": "critical",
     },
-    "open_ports": {"description": "Open TCP ports found.", "level": "warning"},
+    "open_ports": {
+        "description": "Open TCP ports found.",
+        "level": "warning",
+    },
     "service_count": {
         "description": "Number of running services exceeds threshold",
         "level": "info",
+    },
+    "firewall_all_disabled": {
+        "description": "All firewall profiles are disabled.",
+        "level": "critical",
+    },
+    "firewall_public_disabled": {
+        "description": "Public firewall profile is disabled.",
+        "level": "warning",
+    },
+    "firewall_domain_disabled": {
+        "description": "Domain firewall profile is disabled.",
+        "level": "warning",
+    },
+    "firewall_private_disabled": {
+        "description": "Private firewall profile is disabled.",
+        "level": "warning",
+    },
+    "firewall_all_enabled": {
+        "description": "All firewall profiles are enabled.",
+        "level": "info",
+    },
+    "antivirus_not_detected": {
+        "description": "No antivirus products detected.",
+        "level": "critical",
     },
 }
 
@@ -73,6 +100,126 @@ def calculate_score(findings: list, base_score: int = 100) -> int:
     return max(0, min(100, score))  # Ensure score is within 0-100 range
 
 
+def _collect_patch_findings(metrics):
+    findings = []
+    if metrics["patch"]["status"] != "up-to-date":
+        findings.append(
+            {
+                "rule": "patch_status",
+                "level": "critical",
+                "description": RULE_DESCRIPTIONS["patch_status"]["description"],
+            }
+        )
+    return findings
+
+
+def _collect_ports_findings(metrics):
+    ports = metrics["ports"]["ports"]
+    if ports:
+        return [
+            {
+                "rule": "open_ports",
+                "level": "warning",
+                "description": RULE_DESCRIPTIONS["open_ports"]["description"],
+                "details": ports,
+            }
+        ]
+    return []
+
+
+def _collect_service_count_findings(metrics):
+    count = len(metrics["services"]["services"])
+    if count > SERVICE_COUNT_THRESHOLD:
+        return [
+            {
+                "rule": "service_count",
+                "level": RULE_DESCRIPTIONS["service_count"]["level"],
+                "description": RULE_DESCRIPTIONS["service_count"]["description"],
+                "details": count,
+            }
+        ]
+    return []
+
+
+def _collect_firewall_findings(metrics):
+    findings = []
+    profiles = metrics.get("firewall", {}).get("profiles", {})
+    d, p, u = profiles.get("domain"), profiles.get("private"), profiles.get("public")
+
+    if all(v == "OFF" for v in (d, p, u)):
+        key = "firewall_all_disabled"
+        findings.append(
+            {
+                "rule": key,
+                "level": RULE_DESCRIPTIONS[key]["level"],
+                "description": RULE_DESCRIPTIONS[key]["description"],
+            }
+        )
+        return findings
+
+    for prof in ("public", "domain", "private"):
+        if profiles.get(prof) == "OFF":
+            key = f"firewall_{prof}_disabled"
+            findings.append(
+                {
+                    "rule": key,
+                    "level": RULE_DESCRIPTIONS[key]["level"],
+                    "description": RULE_DESCRIPTIONS[key]["description"],
+                }
+            )
+
+    if all(v == "ON" for v in (d, p, u)):
+        key = "firewall_all_enabled"
+        findings.append(
+            {
+                "rule": key,
+                "level": RULE_DESCRIPTIONS[key]["level"],
+                "description": RULE_DESCRIPTIONS[key]["description"],
+            }
+        )
+
+    return findings
+
+
+def _collect_antivirus_findings(metrics):
+    findings = []
+    products = metrics.get("antivirus", {}).get("products", [])
+    if not products:
+        key = "antivirus_not_detected"
+        findings.append(
+            {
+                "rule": key,
+                "level": RULE_DESCRIPTIONS[key]["level"],
+                "description": RULE_DESCRIPTIONS[key]["description"],
+            }
+        )
+    else:
+        for p in products:
+            if p.get("state") is None:
+                findings.append(
+                    {
+                        "rule": f"antivirus_{p['name']}_unknown",
+                        "level": "warning",
+                        "description": f"Antivirus product {p['name']} state unknown.",
+                    }
+                )
+    return findings
+
+
+def _assign_grade(score, findings):
+    if any(f["level"] == "critical" for f in findings):
+        return "Critical Risk"
+    if score >= 90:
+        return "Excellent"
+    if score >= 80:
+        return "Good"
+    if score >= 60:
+        return "Fair"
+    if score >= 40:
+        return "Poor"
+    return "Critical Risk"
+
+
 def _evaluate_legacy(metrics: dict) -> dict:
     """Evaluate metrics with a Python-based rule set, returning findings and a score.
 
@@ -88,135 +235,25 @@ def _evaluate_legacy(metrics: dict) -> dict:
         'grade', 'summary', and a list of 'findings'.
     """
     findings = []
-    if metrics["patch"]["status"] != "up-to-date":
-        findings.append(
-            {
-                "rule": "patch_status",
-                "level": "critical",
-                "description": RULE_DESCRIPTIONS["patch_status"]["description"],
-            }
-        )
-    if len(metrics["ports"]["ports"]) > 0:
-        findings.append(
-            {
-                "rule": "open_ports",
-                "level": "warning",
-                "description": RULE_DESCRIPTIONS["open_ports"]["description"],
-                "details": metrics["ports"]["ports"],
-            }
-        )
-
-    # Check if the number of running services exceeds the configured threshold.
-    service_count = len(metrics["services"]["services"])
-    if service_count > SERVICE_COUNT_THRESHOLD:
-        findings.append(
-            {
-                "rule": "service_count",
-                "level": RULE_DESCRIPTIONS["service_count"]["level"],
-                "description": RULE_DESCRIPTIONS["service_count"]["description"],
-                "details": service_count,
-            }
-        )
-
-    if "firewall" in metrics:
-        profiles = metrics["firewall"].get("profiles", {})
-        domain = profiles.get("domain")
-        private = profiles.get("private")
-        public = profiles.get("public")
-
-        # all profiles off = critical
-        if domain == "OFF" and private == "OFF" and public == "OFF":
-            findings.append(
-                {
-                    "rule": "firewall_all_disabled",
-                    "level": "critical",
-                    "description": "All firewall profiles are disabled.",
-                }
-            )
-        else:
-            # individual profile warnings
-            if public == "OFF":
-                findings.append(
-                    {
-                        "rule": "firewall_public_disabled",
-                        "level": "warning",
-                        "description": "Public firewall profile is disabled.",
-                    }
-                )
-            if domain == "OFF":
-                findings.append(
-                    {
-                        "rule": "firewall_domain_disabled",
-                        "level": "warning",
-                        "description": "Domain firewall profile is disabled.",
-                    }
-                )
-            if private == "OFF":
-                findings.append(
-                    {
-                        "rule": "firewall_private_disabled",
-                        "level": "warning",
-                        "description": "Private firewall profile is disabled.",
-                    }
-                )
-            # all profiles on = info
-            if domain == "ON" and private == "ON" and public == "ON":
-                findings.append(
-                    {
-                        "rule": "firewall_all_enabled",
-                        "level": "info",
-                        "description": "All firewall profiles are enabled.",
-                    }
-                )
-
+    findings.extend(_collect_patch_findings(metrics))
+    findings.extend(_collect_ports_findings(metrics))
+    findings.extend(_collect_service_count_findings(metrics))
+    findings.extend(_collect_firewall_findings(metrics))
     if "antivirus" in metrics:
-        products = metrics["antivirus"].get("products", [])
-        # none detected = critical
-        if not products:
-            findings.append(
-                {
-                    "rule": "antivirus_not_detected",
-                    "level": "critical",
-                    "description": "No antivirus products detected.",
-                }
-            )
-        else:
-            for p in products:
-                # unknown state = warning
-                if p.get("state") is None:
-                    findings.append(
-                        {
-                            "rule": f"antivirus_{p['name']}_unknown",
-                            "level": "warning",
-                            "description": f"Antivirus product {p['name']} state unknown.",
-                        }
-                    )
+        findings.extend(_collect_antivirus_findings(metrics))
 
     score = calculate_score(findings)
-    # If any critical finding exists, override to Critical Risk
-    if any(f.get("level") == "critical" for f in findings):
-        grade = "Critical Risk"
-    else:
-        # Assign grade based on score thresholds
-        if score >= 90:
-            grade = "Excellent"
-        elif score >= 80:
-            grade = "Good"
-        elif score >= 60:
-            grade = "Fair"
-        elif score >= 40:
-            grade = "Poor"
-        else:
-            grade = "Critical Risk"
+    grade = _assign_grade(score, findings)
+    summary = (
+        "No critical issues found."
+        if not findings
+        else "; ".join(f["description"] for f in findings)
+    )
 
     return {
         "score": score,
         "grade": grade,
-        "summary": (
-            "No critical issues found."
-            if not findings
-            else "; ".join(f["description"] for f in findings)
-        ),
+        "summary": summary,
         "findings": findings,
         "rules_fired": len(findings),
         "explanations": [],
