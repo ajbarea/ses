@@ -118,6 +118,80 @@ def _evaluate_legacy(metrics: dict) -> dict:
             }
         )
 
+    if "firewall" in metrics:
+        profiles = metrics["firewall"].get("profiles", {})
+        domain = profiles.get("domain")
+        private = profiles.get("private")
+        public = profiles.get("public")
+
+        # all profiles off = critical
+        if domain == "OFF" and private == "OFF" and public == "OFF":
+            findings.append(
+                {
+                    "rule": "firewall_all_disabled",
+                    "level": "critical",
+                    "description": "All firewall profiles are disabled.",
+                }
+            )
+        else:
+            # individual profile warnings
+            if public == "OFF":
+                findings.append(
+                    {
+                        "rule": "firewall_public_disabled",
+                        "level": "warning",
+                        "description": "Public firewall profile is disabled.",
+                    }
+                )
+            if domain == "OFF":
+                findings.append(
+                    {
+                        "rule": "firewall_domain_disabled",
+                        "level": "warning",
+                        "description": "Domain firewall profile is disabled.",
+                    }
+                )
+            if private == "OFF":
+                findings.append(
+                    {
+                        "rule": "firewall_private_disabled",
+                        "level": "warning",
+                        "description": "Private firewall profile is disabled.",
+                    }
+                )
+            # all profiles on = info
+            if domain == "ON" and private == "ON" and public == "ON":
+                findings.append(
+                    {
+                        "rule": "firewall_all_enabled",
+                        "level": "info",
+                        "description": "All firewall profiles are enabled.",
+                    }
+                )
+
+    if "antivirus" in metrics:
+        products = metrics["antivirus"].get("products", [])
+        # none detected = critical
+        if not products:
+            findings.append(
+                {
+                    "rule": "antivirus_not_detected",
+                    "level": "critical",
+                    "description": "No antivirus products detected.",
+                }
+            )
+        else:
+            for p in products:
+                # unknown state = warning
+                if p.get("state") is None:
+                    findings.append(
+                        {
+                            "rule": f"antivirus_{p['name']}_unknown",
+                            "level": "warning",
+                            "description": f"Antivirus product {p['name']} state unknown.",
+                        }
+                    )
+
     score = calculate_score(findings)
     # If any critical finding exists, override to Critical Risk
     if any(f.get("level") == "critical" for f in findings):

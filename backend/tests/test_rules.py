@@ -250,6 +250,85 @@ class TestEvaluateLegacyRules(unittest.TestCase):
             result = _evaluate_legacy(metrics)
             self.assertEqual(result["grade"], "Critical Risk")
 
+    def test_firewall_all_disabled(self):
+        metrics = {
+            "patch": {"status": "up-to-date", "hotfixes": []},
+            "ports": {"ports": []},
+            "services": {"services": []},
+            "firewall": {
+                "profiles": {"domain": "OFF", "private": "OFF", "public": "OFF"}
+            },
+        }
+        result = _evaluate_legacy(metrics)
+        self.assertTrue(
+            any(
+                f["rule"] == "firewall_all_disabled" and f["level"] == "critical"
+                for f in result["findings"]
+            )
+        )
+
+    def test_firewall_partial_disabled(self):
+        metrics = {
+            "patch": {"status": "up-to-date", "hotfixes": []},
+            "ports": {"ports": []},
+            "services": {"services": []},
+            "firewall": {
+                "profiles": {"domain": "ON", "private": "ON", "public": "OFF"}
+            },
+        }
+        result = _evaluate_legacy(metrics)
+        self.assertTrue(
+            any(
+                f["rule"] == "firewall_public_disabled" and f["level"] == "warning"
+                for f in result["findings"]
+            )
+        )
+
+    def test_firewall_all_enabled(self):
+        metrics = {
+            "patch": {"status": "up-to-date", "hotfixes": []},
+            "ports": {"ports": []},
+            "services": {"services": []},
+            "firewall": {"profiles": {"domain": "ON", "private": "ON", "public": "ON"}},
+        }
+        result = _evaluate_legacy(metrics)
+        self.assertTrue(
+            any(
+                f["rule"] == "firewall_all_enabled" and f["level"] == "info"
+                for f in result["findings"]
+            )
+        )
+
+    def test_antivirus_not_detected(self):
+        metrics = {
+            "patch": {"status": "up-to-date", "hotfixes": []},
+            "ports": {"ports": []},
+            "services": {"services": []},
+            "antivirus": {"products": []},
+        }
+        result = _evaluate_legacy(metrics)
+        self.assertTrue(
+            any(
+                f["rule"] == "antivirus_not_detected" and f["level"] == "critical"
+                for f in result["findings"]
+            )
+        )
+
+    def test_antivirus_state_unknown(self):
+        metrics = {
+            "patch": {"status": "up-to-date", "hotfixes": []},
+            "ports": {"ports": []},
+            "services": {"services": []},
+            "antivirus": {"products": [{"name": "Defender", "state": None}]},
+        }
+        result = _evaluate_legacy(metrics)
+        self.assertTrue(
+            any(
+                f["rule"] == "antivirus_Defender_unknown" and f["level"] == "warning"
+                for f in result["findings"]
+            )
+        )
+
 
 class TestEvaluateWrapper(unittest.TestCase):
     @patch("src.rules._evaluate_legacy")

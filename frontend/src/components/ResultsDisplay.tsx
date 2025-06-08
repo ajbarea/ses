@@ -125,9 +125,6 @@ export default function ResultsDisplay({
 
         {activeTab === "metrics" && (
           <div>
-            <h3 className="font-medium text-gray-900 mb-2">
-              Evaluation Metrics:
-            </h3>
             <pre className="p-3 bg-gray-100 rounded text-sm overflow-x-auto text-gray-800">
               {JSON.stringify(result.metrics, null, 2)}
             </pre>
