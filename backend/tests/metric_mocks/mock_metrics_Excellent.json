@@ -1,0 +1,181 @@
+{
+  "explanations": [
+    {
+      "activation": "Rule activated: firewall_all_enabled - All firewall profiles are enabled.",
+      "rule": "firewall_all_enabled"
+    },
+    {
+      "activation": "Rule activated: smb_port_open - SMB port 445 is open, which is common for Windows file sharing.",
+      "rule": "smb_port_open"
+    },
+    {
+      "activation": "Rule activated: patch_status - System patches are up-to-date.",
+      "rule": "patch_status"
+    }
+  ],
+  "findings": [
+    {
+      "description": "All firewall profiles are enabled.",
+      "level": "info",
+      "recommendation": "Continue monitoring firewall status.",
+      "rule": "firewall_all_enabled"
+    },
+    {
+      "description": "SMB port 445 is open, which is common for Windows file sharing.",
+      "details": [445],
+      "level": "info",
+      "recommendation": "Ensure this port is not exposed to the internet and is properly firewalled.",
+      "rule": "smb_port_open"
+    },
+    {
+      "description": "System patches are up-to-date.",
+      "details": ["KB5056579", "KB5048779", "KB5058499"],
+      "level": "info",
+      "recommendation": "Continue with regular patch management.",
+      "rule": "patch_status"
+    }
+  ],
+  "grade": "Excellent",
+  "metrics": {
+    "antivirus": {
+      "products": [
+        {
+          "name": "Windows Defender",
+          "state": 397568
+        }
+      ]
+    },
+    "firewall": {
+      "profiles": {
+        "domain": "ON",
+        "private": "ON",
+        "public": "ON"
+      }
+    },
+    "password_policy": {
+      "policy": {
+        "max_password_age": 42,
+        "min_password_length": 12
+      }
+    },
+    "patch": {
+      "hotfixes": ["KB5056579", "KB5048779", "KB5058499", "KB5059502"],
+      "status": "up-to-date"
+    },
+    "ports": {
+      "ports": [135, 139, 445, 3000, 5040, 5432, 7680]
+    },
+    "services": {
+      "services": [
+        {
+          "name": "Appinfo",
+          "state": "running"
+        },
+        {
+          "name": "BFE",
+          "state": "running"
+        },
+        {
+          "name": "CoreMessagingRegistrar",
+          "state": "running"
+        },
+        {
+          "name": "CryptSvc",
+          "state": "running"
+        },
+        {
+          "name": "DcomLaunch",
+          "state": "running"
+        },
+        {
+          "name": "Dhcp",
+          "state": "running"
+        },
+        {
+          "name": "Dnscache",
+          "state": "running"
+        },
+        {
+          "name": "EventLog",
+          "state": "running"
+        },
+        {
+          "name": "LanmanServer",
+          "state": "running"
+        },
+        {
+          "name": "LanmanWorkstation",
+          "state": "running"
+        },
+        {
+          "name": "lmhosts",
+          "state": "running"
+        },
+        {
+          "name": "mpssvc",
+          "state": "running"
+        },
+        {
+          "name": "netprofm",
+          "state": "running"
+        },
+        {
+          "name": "NlaSvc",
+          "state": "running"
+        },
+        {
+          "name": "PlugPlay",
+          "state": "running"
+        },
+        {
+          "name": "Power",
+          "state": "running"
+        },
+        {
+          "name": "RpcSs",
+          "state": "running"
+        },
+        {
+          "name": "Schedule",
+          "state": "running"
+        },
+        {
+          "name": "SENS",
+          "state": "running"
+        },
+        {
+          "name": "ShellHWDetection",
+          "state": "running"
+        },
+        {
+          "name": "SysMain",
+          "state": "running"
+        },
+        {
+          "name": "SystemEventsBroker",
+          "state": "running"
+        },
+        {
+          "name": "Themes",
+          "state": "running"
+        },
+        {
+          "name": "UserManager",
+          "state": "running"
+        },
+        {
+          "name": "WinDefend",
+          "state": "running"
+        },
+        {
+          "name": "Winmgmt",
+          "state": "running"
+        }
+      ]
+    }
+  },
+  "rules_fired": 3,
+  "score": 100,
+  "summary": "All firewall profiles are enabled.; SMB port 445 is open, which is common for Windows file sharing.; System patches are up-to-date.",
+  "timestamp": "2025-06-09T19:14:08.117546+00:00"
+}

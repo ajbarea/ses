@@ -1,0 +1,190 @@
+{
+  "explanations": [
+    {
+      "activation": "Rule activated: firewall_profile_disabled - Public firewall profile is disabled.",
+      "rule": "firewall_profile_disabled"
+    },
+    {
+      "activation": "Rule activated: smb_port_open - SMB port 445 is open.",
+      "rule": "smb_port_open"
+    },
+    {
+      "activation": "Rule activated: patch_status_minor_pending - System patches mostly up-to-date, a few non-critical pending.",
+      "rule": "patch_status_minor_pending"
+    }
+  ],
+  "findings": [
+    {
+      "description": "Public firewall profile is disabled.",
+      "level": "warning",
+      "recommendation": "Enable Public firewall profile if network conditions require it.",
+      "rule": "firewall_profile_disabled"
+    },
+    {
+      "description": "SMB port 445 is open, which is common for Windows file sharing.",
+      "details": [445],
+      "level": "info",
+      "recommendation": "Ensure this port is not exposed to the internet and is properly firewalled.",
+      "rule": "smb_port_open"
+    },
+    {
+      "description": "System patches are mostly up-to-date, a few non-critical patches are pending.",
+      "details": ["KB5059900"],
+      "level": "info",
+      "recommendation": "Schedule installation of pending non-critical patches.",
+      "rule": "patch_status_minor_pending"
+    }
+  ],
+  "grade": "Good",
+  "metrics": {
+    "antivirus": {
+      "products": [
+        {
+          "name": "Windows Defender",
+          "state": 397568
+        }
+      ]
+    },
+    "firewall": {
+      "profiles": {
+        "domain": "ON",
+        "private": "ON",
+        "public": "OFF"
+      }
+    },
+    "password_policy": {
+      "policy": {
+        "max_password_age": 60,
+        "min_password_length": 10
+      }
+    },
+    "patch": {
+      "hotfixes": ["KB5056579", "KB5048779"],
+      "pending_non_critical": ["KB5059900"],
+      "status": "up-to-date"
+    },
+    "ports": {
+      "ports": [135, 139, 445, 3000, 5040, 5432, 7680, 8080]
+    },
+    "services": {
+      "services": [
+        {
+          "name": "Appinfo",
+          "state": "running"
+        },
+        {
+          "name": "BFE",
+          "state": "running"
+        },
+        {
+          "name": "CoreMessagingRegistrar",
+          "state": "running"
+        },
+        {
+          "name": "CryptSvc",
+          "state": "running"
+        },
+        {
+          "name": "DcomLaunch",
+          "state": "running"
+        },
+        {
+          "name": "Dhcp",
+          "state": "running"
+        },
+        {
+          "name": "Dnscache",
+          "state": "running"
+        },
+        {
+          "name": "EventLog",
+          "state": "running"
+        },
+        {
+          "name": "LanmanServer",
+          "state": "running"
+        },
+        {
+          "name": "LanmanWorkstation",
+          "state": "running"
+        },
+        {
+          "name": "lmhosts",
+          "state": "running"
+        },
+        {
+          "name": "mpssvc",
+          "state": "running"
+        },
+        {
+          "name": "netprofm",
+          "state": "running"
+        },
+        {
+          "name": "NlaSvc",
+          "state": "running"
+        },
+        {
+          "name": "PlugPlay",
+          "state": "running"
+        },
+        {
+          "name": "Power",
+          "state": "running"
+        },
+        {
+          "name": "RpcSs",
+          "state": "running"
+        },
+        {
+          "name": "Schedule",
+          "state": "running"
+        },
+        {
+          "name": "SENS",
+          "state": "running"
+        },
+        {
+          "name": "ShellHWDetection",
+          "state": "running"
+        },
+        {
+          "name": "SysMain",
+          "state": "running"
+        },
+        {
+          "name": "SystemEventsBroker",
+          "state": "running"
+        },
+        {
+          "name": "Themes",
+          "state": "running"
+        },
+        {
+          "name": "UserManager",
+          "state": "running"
+        },
+        {
+          "name": "WinDefend",
+          "state": "running"
+        },
+        {
+          "name": "Winmgmt",
+          "state": "running"
+        },
+        {
+          "name": "Spooler",
+          "state": "running"
+        },
+        {
+          "name": "TapiSrv",
+          "state": "running"
+        }
+      ]
+    }
+  },
+  "rules_fired": 3,
+  "score": 85,
+  "summary": "Most firewall profiles are enabled; Public profile is disabled. System patches are mostly up-to-date, with a few recent non-critical patches pending. SMB port 445 is open.",
+  "timestamp": "2025-06-09T19:14:08.561329+00:00"
+}

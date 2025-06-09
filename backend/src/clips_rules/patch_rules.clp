@@ -6,7 +6,7 @@
 ;;; Section: Patch Status Rules ;;;
 
 ;; Rule: critical-patch-missing
-;; Purpose: Check if system patches are missing
+;; Purpose: Identifies systems that are missing security updates and patches.
 (defrule critical-patch-missing
     "Check if system patches are missing"
     (patch-status (status "out-of-date"))
@@ -21,7 +21,7 @@
 )
 
 ;; Rule: recent-patch-installed
-;; Purpose: Check if recent patches are installed
+;; Purpose: Confirms that a system has all current security patches installed.
 (defrule recent-patch-installed
     "Check if recent patches are installed"
     (patch-status (status "up-to-date") 

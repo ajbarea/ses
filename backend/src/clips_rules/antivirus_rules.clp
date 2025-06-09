@@ -1,0 +1,51 @@
+;; --------------------------------------------------------------------
+;; File: antivirus_rules.clp
+;; Description: Contains CLIPS rules for evaluating antivirus status.
+;; --------------------------------------------------------------------
+
+;;; Section: Antivirus Status Rules ;;;
+
+;; Rule: antivirus-disabled
+;; Purpose: Identifies systems with completely disabled antivirus protection.
+(defrule antivirus-disabled
+    "Check if antivirus is disabled"
+    (antivirus-info (status "disabled"))
+    =>
+    (assert (finding
+        (rule-name "antivirus_disabled")
+        (level "critical")
+        (description "Antivirus software is disabled.")
+        (recommendation "Enable antivirus software immediately.")
+    ))
+    (assert (score (value -30) (type "penalty")))
+)
+
+;; Rule: antivirus-definitions-outdated
+;; Purpose: Identifies systems with outdated virus definitions that may miss recent threats.
+(defrule antivirus-definitions-outdated
+    "Check if antivirus definitions are out of date"
+    (antivirus-info (definitions "out-of-date"))
+    =>
+    (assert (finding
+        (rule-name "antivirus_definitions_outdated")
+        (level "warning")
+        (description "Antivirus definitions are out of date.")
+        (recommendation "Update antivirus definitions as soon as possible.")
+    ))
+    (assert (score (value -15) (type "penalty")))
+)
+
+;; Rule: antivirus-real-time-protection-disabled
+;; Purpose: Identifies systems where real-time scanning is disabled but antivirus is installed.
+(defrule antivirus-real-time-protection-disabled
+    "Check if real-time protection is disabled"
+    (antivirus-info (real-time-protection "disabled"))
+    =>
+    (assert (finding
+        (rule-name "antivirus_real_time_protection_disabled")
+        (level "critical")
+        (description "Real-time protection is disabled.")
+        (recommendation "Enable real-time protection immediately.")
+    ))
+    (assert (score (value -25) (type "penalty")))
+)

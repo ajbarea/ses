@@ -1,0 +1,197 @@
+{
+  "explanations": [
+    {
+      "activation": "Rule activated: firewall_multiple_disabled - Private and Public firewall profiles disabled.",
+      "rule": "firewall_multiple_disabled"
+    },
+    {
+      "activation": "Rule activated: patch_status_critical_missing_multiple - System missing multiple critical patches.",
+      "rule": "patch_status_critical_missing_multiple"
+    },
+    {
+      "activation": "Rule activated: antivirus_disabled - Antivirus is disabled.",
+      "rule": "antivirus_disabled"
+    },
+    {
+      "activation": "Rule activated: weak_password_policy - Password policy is weak.",
+      "rule": "weak_password_policy"
+    },
+    {
+      "activation": "Rule activated: rdp_port_open - RDP port 3389 is open.",
+      "rule": "rdp_port_open"
+    }
+  ],
+  "findings": [
+    {
+      "description": "Private and Public firewall profiles are disabled.",
+      "level": "error",
+      "recommendation": "Enable all firewall profiles immediately.",
+      "rule": "firewall_multiple_disabled"
+    },
+    {
+      "description": "System is missing multiple critical security patches.",
+      "details": ["KB5055001", "KB5054002", "KB5053000"],
+      "level": "error",
+      "recommendation": "Apply all critical patches immediately.",
+      "rule": "patch_status_critical_missing_multiple"
+    },
+    {
+      "description": "Antivirus is disabled.",
+      "details": {
+        "product": "Windows Defender"
+      },
+      "level": "critical",
+      "recommendation": "Enable and update antivirus immediately.",
+      "rule": "antivirus_disabled"
+    },
+    {
+      "description": "Password policy is weak (min length 6).",
+      "level": "warning",
+      "recommendation": "Strengthen password policy: increase minimum length, enforce complexity and history.",
+      "rule": "weak_password_policy"
+    },
+    {
+      "description": "RDP port 3389 is open to all networks.",
+      "details": [3389],
+      "level": "error",
+      "recommendation": "Restrict RDP access to trusted IPs or disable if not needed.",
+      "rule": "rdp_port_open"
+    }
+  ],
+  "grade": "Poor",
+  "metrics": {
+    "antivirus": {
+      "products": [
+        {
+          "name": "Windows Defender",
+          "state": 262144
+        }
+      ]
+    },
+    "firewall": {
+      "profiles": {
+        "domain": "ON",
+        "private": "OFF",
+        "public": "OFF"
+      }
+    },
+    "password_policy": {
+      "policy": {
+        "max_password_age": 0,
+        "min_password_length": 6
+      }
+    },
+    "patch": {
+      "hotfixes": ["KB5020000"],
+      "missing_critical": ["KB5055001", "KB5054002", "KB5053000", "KB5052000"],
+      "status": "missing_critical_patches"
+    },
+    "ports": {
+      "ports": [135, 139, 445, 3389, 5900]
+    },
+    "services": {
+      "services": [
+        {
+          "name": "Appinfo",
+          "state": "running"
+        },
+        {
+          "name": "BFE",
+          "state": "stopped"
+        },
+        {
+          "name": "CryptSvc",
+          "state": "running"
+        },
+        {
+          "name": "DcomLaunch",
+          "state": "running"
+        },
+        {
+          "name": "Dhcp",
+          "state": "running"
+        },
+        {
+          "name": "Dnscache",
+          "state": "running"
+        },
+        {
+          "name": "EventLog",
+          "state": "running"
+        },
+        {
+          "name": "LanmanServer",
+          "state": "running"
+        },
+        {
+          "name": "LanmanWorkstation",
+          "state": "running"
+        },
+        {
+          "name": "lmhosts",
+          "state": "running"
+        },
+        {
+          "name": "mpssvc",
+          "state": "stopped"
+        },
+        {
+          "name": "netprofm",
+          "state": "running"
+        },
+        {
+          "name": "NlaSvc",
+          "state": "running"
+        },
+        {
+          "name": "PlugPlay",
+          "state": "running"
+        },
+        {
+          "name": "Power",
+          "state": "running"
+        },
+        {
+          "name": "RpcSs",
+          "state": "running"
+        },
+        {
+          "name": "Schedule",
+          "state": "running"
+        },
+        {
+          "name": "SENS",
+          "state": "running"
+        },
+        {
+          "name": "ShellHWDetection",
+          "state": "running"
+        },
+        {
+          "name": "Themes",
+          "state": "running"
+        },
+        {
+          "name": "UserManager",
+          "state": "running"
+        },
+        {
+          "name": "WinDefend",
+          "state": "stopped"
+        },
+        {
+          "name": "Winmgmt",
+          "state": "running"
+        },
+        {
+          "name": "SecurityHealthService",
+          "state": "stopped"
+        }
+      ]
+    }
+  },
+  "rules_fired": 5,
+  "score": 35,
+  "summary": "Multiple firewall profiles are disabled (Private and Public). System is missing several critical patches. Antivirus is disabled. Weak password policy in effect. RDP port 3389 is open.",
+  "timestamp": "2025-06-09T19:14:09.408364+00:00"
+}

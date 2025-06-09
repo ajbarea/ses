@@ -1,4 +1,8 @@
-"""Security rule engine. Scores metrics, creates findings, and assigns a grade."""
+"""Security rule engine for evaluating Windows system security metrics.
+
+Processes system metrics to generate security findings, calculate scores,
+and determine an overall security grade for the system.
+"""
 
 from datetime import datetime, timezone
 from typing import Optional
@@ -6,17 +10,17 @@ from src.logging_config import get_logger
 
 logger = get_logger(__name__)
 
-# Penalty points associated with different finding severity levels.
+# Penalty points for finding severity levels
 SEVERITY_SCORES = {
     "critical": -30,
     "warning": -10,
     "info": -5,
 }
 
-# Threshold for the number of running services before an 'info' alert is triggered.
+# Threshold for number of running services before triggering an alert
 SERVICE_COUNT_THRESHOLD = 300
 
-# Descriptions and severity levels for predefined security rules.
+# Rule definitions with descriptions and severity levels
 RULE_DESCRIPTIONS = {
     "patch_status": {
         "description": "System patches are not up-to-date.",
@@ -56,7 +60,7 @@ RULE_DESCRIPTIONS = {
     },
 }
 
-# Flag indicating whether the CLIPS expert system library is available.
+# Check if CLIPS expert system is available
 CLIPS_AVAILABLE = False
 try:
     import clips
@@ -64,7 +68,7 @@ try:
     CLIPS_AVAILABLE = True
     logger.info("CLIPS module successfully imported")
 except ImportError as e:  # pragma: no cover
-    CLIPS_AVAILABLE = False  # CLIPS is not installed or importable.
+    CLIPS_AVAILABLE = False  # CLIPS is not installed or importable
     logger.warning(f"CLIPS import error: {e}")
 except Exception:  # pragma: no cover
     CLIPS_AVAILABLE = False
@@ -74,21 +78,18 @@ logger.info(
 )
 
 
-# Function to calculate the final security score based on findings.
 def calculate_score(findings: list, base_score: int = 100) -> int:
-    """Calculate the final security score by applying penalties for each finding.
+    """Calculate security score by applying penalties for findings.
 
-    The score starts at `base_score` and penalties are applied for each finding
-    according to its severity level defined in `SEVERITY_SCORES`.
-    The final score is clamped between 0 and 100.
+    Starts with the base score and deducts points based on the severity
+    of each finding, clamping the result to a 0-100 range.
 
     Args:
-        findings: A list of finding dictionaries. Each dictionary should
-                  contain a 'level' key indicating its severity.
-        base_score: The initial score before deductions (defaults to 100).
+        findings: List of finding dictionaries, each with a 'level' key
+        base_score: Starting score before penalties (default: 100)
 
     Returns:
-        The calculated security score, an integer between 0 and 100.
+        Final security score (0-100)
     """
     score = base_score
     for finding in findings:
@@ -101,6 +102,7 @@ def calculate_score(findings: list, base_score: int = 100) -> int:
 
 
 def _collect_patch_findings(metrics):
+    """Extract patch status findings."""
     findings = []
     if metrics["patch"]["status"] != "up-to-date":
         findings.append(
@@ -114,6 +116,7 @@ def _collect_patch_findings(metrics):
 
 
 def _collect_ports_findings(metrics):
+    """Extract open ports findings."""
     ports = metrics["ports"]["ports"]
     if ports:
         return [
@@ -128,6 +131,7 @@ def _collect_ports_findings(metrics):
 
 
 def _collect_service_count_findings(metrics):
+    """Extract service count findings."""
     count = len(metrics["services"]["services"])
     if count > SERVICE_COUNT_THRESHOLD:
         return [
@@ -142,10 +146,12 @@ def _collect_service_count_findings(metrics):
 
 
 def _collect_firewall_findings(metrics):
+    """Extract firewall status findings."""
     findings = []
     profiles = metrics.get("firewall", {}).get("profiles", {})
     d, p, u = profiles.get("domain"), profiles.get("private"), profiles.get("public")
 
+    # Check if all profiles are disabled
     if all(v == "OFF" for v in (d, p, u)):
         key = "firewall_all_disabled"
         findings.append(
@@ -157,6 +163,7 @@ def _collect_firewall_findings(metrics):
         )
         return findings
 
+    # Check individual disabled profiles
     for prof in ("public", "domain", "private"):
         if profiles.get(prof) == "OFF":
             key = f"firewall_{prof}_disabled"
@@ -168,6 +175,7 @@ def _collect_firewall_findings(metrics):
                 }
             )
 
+    # Check if all profiles are enabled
     if all(v == "ON" for v in (d, p, u)):
         key = "firewall_all_enabled"
         findings.append(
@@ -182,8 +190,11 @@ def _collect_firewall_findings(metrics):
 
 
 def _collect_antivirus_findings(metrics):
+    """Extract antivirus status findings."""
     findings = []
     products = metrics.get("antivirus", {}).get("products", [])
+
+    # Check if no antivirus products detected
     if not products:
         key = "antivirus_not_detected"
         findings.append(
@@ -194,6 +205,7 @@ def _collect_antivirus_findings(metrics):
             }
         )
     else:
+        # Check for antivirus products with unknown state
         for p in products:
             if p.get("state") is None:
                 findings.append(
@@ -207,8 +219,20 @@ def _collect_antivirus_findings(metrics):
 
 
 def _assign_grade(score, findings):
+    """Determine security grade based on score and findings.
+
+    Args:
+        score: Numeric security score (0-100)
+        findings: List of finding dictionaries
+
+    Returns:
+        String grade representing security level
+    """
+    # Critical findings always result in Critical Risk grade
     if any(f["level"] == "critical" for f in findings):
         return "Critical Risk"
+
+    # Otherwise grade based on score
     if score >= 90:
         return "Excellent"
     if score >= 80:
@@ -221,18 +245,16 @@ def _assign_grade(score, findings):
 
 
 def _evaluate_legacy(metrics: dict) -> dict:
-    """Evaluate metrics with a Python-based rule set, returning findings and a score.
+    """Evaluate metrics with Python-based rules and generate security findings.
 
-    This function applies a predefined set of rules to the provided system
-    metrics, generates a list of findings, and calculates an overall security score.
-    It serves as the default evaluation mechanism if CLIPS is unavailable.
+    Applies built-in rule sets to the system metrics and generates findings,
+    calculates an overall security score, and assigns a grade.
 
     Args:
-        metrics: A dictionary of system security metrics, categorized.
+        metrics: Dictionary of system security metrics by category
 
     Returns:
-        A dictionary representing the evaluation report, including 'score',
-        'grade', 'summary', and a list of 'findings'.
+        Evaluation results with score, grade, findings, and summary
     """
     findings = []
     findings.extend(_collect_patch_findings(metrics))
@@ -261,19 +283,16 @@ def _evaluate_legacy(metrics: dict) -> dict:
 
 
 def _evaluate_clips(metrics: dict) -> dict:
-    """Evaluate metrics with a CLIPS-based rule engine if available, otherwise fallback.
+    """Evaluate metrics with the CLIPS expert system rule engine.
 
-    This function attempts to use a CLIPS-based `SecurityExpertSystem` for
-    evaluation. If CLIPS is not available or an error occurs during its
-    execution, it falls back to the `_evaluate_legacy` Python-based engine.
+    Uses the SecurityExpertSystem to apply CLIPS rules to system metrics,
+    falling back to legacy evaluation if CLIPS fails.
 
     Args:
-        metrics: A dictionary of system security metrics, categorized.
+        metrics: Dictionary of system security metrics by category
 
     Returns:
-        A dictionary representing the evaluation report from CLIPS, or from
-        the legacy evaluator if CLIPS fails. The report includes 'score',
-        'grade', 'summary', and 'findings'.
+        Evaluation results from CLIPS engine or legacy fallback
     """
     try:
         from src.clips_evaluator import SecurityExpertSystem
@@ -281,7 +300,7 @@ def _evaluate_clips(metrics: dict) -> dict:
         expert_system = SecurityExpertSystem()
         result = expert_system.evaluate(metrics)
         return result
-    except Exception as e:  # Catches CLIPS import errors or runtime issues
+    except Exception as e:
         logger.error(
             f"Error using CLIPS evaluator: {e}. Falling back to legacy evaluator."
         )
@@ -289,44 +308,36 @@ def _evaluate_clips(metrics: dict) -> dict:
 
 
 def evaluate(metrics: dict, use_clips: Optional[bool] = None) -> dict:
-    """Evaluate system metrics, returning security findings, score, and grade.
+    """Evaluate system security and generate findings, score, and grade.
 
-    This is the main interface for security evaluation. It selects either the
-    CLIPS expert system or the legacy Python-based engine based on availability
-    and the `use_clips` parameter. The evaluation result is then enriched
-    with a timestamp and the original metrics data.
+    Main entry point for security evaluation, selecting between CLIPS
+    or legacy evaluation engine based on availability and preferences.
 
     Args:
-        metrics: A dictionary of system security metrics, categorized.
-        use_clips: A boolean to explicitly request the CLIPS engine.
-                   If None (default), CLIPS is used if available.
-                   If True, CLIPS is used if available, otherwise legacy.
-                   If False, legacy engine is used.
+        metrics: Dictionary of system security metrics by category
+        use_clips: Whether to use CLIPS engine (None=auto, True=force, False=legacy)
 
     Returns:
-        A complete evaluation report dictionary, including 'score', 'grade',
-        'summary', 'findings', 'timestamp', and the original 'metrics'.
+        Complete evaluation report with findings, score, grade, and metadata
     """
-    # Determine whether to attempt using CLIPS.
-    # If use_clips is explicitly set, respect that choice.
-    # Otherwise, use CLIPS if it's available.
+    # Determine evaluation engine based on preference and availability
     should_use_clips = CLIPS_AVAILABLE
     if use_clips is not None:
         should_use_clips = use_clips
 
-    # Run the appropriate evaluation engine.
+    # Run appropriate evaluation
     if should_use_clips and CLIPS_AVAILABLE:
         logger.info("Using CLIPS evaluation engine.")
         result = _evaluate_clips(metrics)
     else:
         if should_use_clips and not CLIPS_AVAILABLE:
             logger.warning(
-                "CLIPS evaluation requested but CLIPS is not available. Falling back to legacy."
+                "CLIPS evaluation requested but not available. Falling back to legacy."
             )
         logger.info("Using legacy Python evaluation engine.")
         result = _evaluate_legacy(metrics)
 
-    # Add timestamp and original metrics to the result for comprehensive logging.
+    # Add metadata to result
     result["timestamp"] = datetime.now(timezone.utc).isoformat()
     result["metrics"] = metrics
 

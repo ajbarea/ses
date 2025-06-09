@@ -6,9 +6,9 @@
 ;;; Section: Open Ports Rules ;;;
 
 ;; Rule: high-risk-port-open
-;; Purpose: Check for high-risk ports (telnet, ftp, smtp) and warn if open.
+;; Purpose: Identifies open ports associated with insecure legacy protocols (telnet, ftp, smtp, rdp).
 (defrule high-risk-port-open
-    "Check for high-risk ports (telnet, ftp, smtp)"
+    "Check for high-risk ports (telnet, ftp, smtp, rdp)"
     (open-port (number ?port&:(or (= ?port 21) (= ?port 23) (= ?port 25) (= ?port 3389))))
     =>
     (assert (finding
@@ -22,7 +22,7 @@
 )
 
 ;; Rule: suspicious-port-combination
-;; Purpose: Identify insecure service exposure combined with firewall disabled.
+;; Purpose: Identifies particularly dangerous combinations of open services with disabled firewalls.
 (defrule suspicious-port-combination
     "Check for suspicious combinations of open ports"
     (open-port (number ?port1&:(or (= ?port1 23) (= ?port1 21))))
@@ -40,7 +40,7 @@
 )
 
 ;; Rule: many-ports-open
-;; Purpose: Detect when more than 20 ports are open.
+;; Purpose: Detects unusually large attack surface due to excessive open ports.
 (defrule many-ports-open
     "Check if more than 20 ports are open"
     (not (excessive-ports-checked))

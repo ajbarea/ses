@@ -6,7 +6,7 @@
 ;;; Section: Firewall Profile Rules ;;;
 
 ;; Rule: firewall-all-disabled
-;; Purpose: Check if all firewall profiles are disabled.
+;; Purpose: Identifies critical security issue when all firewall profiles are off.
 (defrule firewall-all-disabled
     "Check if all firewall profiles are disabled"
     (firewall (domain "OFF") (private "OFF") (public "OFF"))
@@ -21,7 +21,7 @@
 )
 
 ;; Rule: smb-port-open
-;; Purpose: Detect when Windows file sharing (SMB) port 445 is open, which is common and needed for local network functionality.
+;; Purpose: Detects Windows file sharing (SMB) port 445 being open.
 (defrule smb-port-open
     "Check for SMB port 445"
     (open-port (number 445))
@@ -39,7 +39,7 @@
 )
 
 ;; Rule: smb-port-with-public-firewall-off
-;; Purpose: Detect the higher risk scenario of SMB port open with public firewall disabled.
+;; Purpose: Identifies the high risk scenario of SMB exposed when public firewall is disabled.
 (defrule smb-port-with-public-firewall-off
     "Check for SMB port with public firewall off"
     (open-port (number 445))
@@ -57,7 +57,7 @@
 )
 
 ;; Rule: firewall-public-disabled
-;; Purpose: Check if public firewall profile is disabled.
+;; Purpose: Identifies when only the public profile is disabled.
 (defrule firewall-public-disabled
     "Check if public firewall profile is disabled"
     (firewall (public "OFF"))
@@ -73,7 +73,7 @@
 )
 
 ;; Rule: firewall-domain-disabled
-;; Purpose: Check if domain firewall profile is disabled.
+;; Purpose: Identifies when only the domain profile is disabled.
 (defrule firewall-domain-disabled
     "Check if domain firewall profile is disabled"
     (firewall (domain "OFF"))
@@ -89,7 +89,7 @@
 )
 
 ;; Rule: firewall-private-disabled
-;; Purpose: Check if private firewall profile is disabled.
+;; Purpose: Identifies when only the private profile is disabled.
 (defrule firewall-private-disabled
     "Check if private firewall profile is disabled"
     (firewall (private "OFF"))
@@ -105,7 +105,7 @@
 )
 
 ;; Rule: firewall-all-enabled
-;; Purpose: Check if all firewall profiles are enabled.
+;; Purpose: Confirms optimal firewall configuration with all profiles enabled.
 (defrule firewall-all-enabled
     "Check if all firewall profiles are enabled"
     (firewall (domain "ON") (private "ON") (public "ON"))
@@ -116,5 +116,5 @@
         (description "All firewall profiles are enabled.")
         (recommendation "Continue monitoring firewall status.")
     ))
-    (assert (score (value 15) (type penalty)))
+    (assert (score (value 15) (type bonus)))
 )

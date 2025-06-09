@@ -1,0 +1,212 @@
+{
+  "explanations": [
+    {
+      "activation": "Rule activated: firewall_all_disabled - All firewall profiles disabled.",
+      "rule": "firewall_all_disabled"
+    },
+    {
+      "activation": "Rule activated: patch_status_severely_outdated - System severely outdated.",
+      "rule": "patch_status_severely_outdated"
+    },
+    {
+      "activation": "Rule activated: antivirus_non_functional - Antivirus non-functional.",
+      "rule": "antivirus_non_functional"
+    },
+    {
+      "activation": "Rule activated: no_password_policy - No effective password policy.",
+      "rule": "no_password_policy"
+    },
+    {
+      "activation": "Rule activated: multiple_high_risk_ports_open - Multiple high-risk ports open.",
+      "rule": "multiple_high_risk_ports_open"
+    }
+  ],
+  "findings": [
+    {
+      "description": "All firewall profiles (Domain, Private, Public) are disabled.",
+      "level": "critical",
+      "recommendation": "Enable all firewall profiles immediately and configure appropriately.",
+      "rule": "firewall_all_disabled"
+    },
+    {
+      "description": "System is severely outdated and missing numerous critical security patches.",
+      "details": [
+        "KB5055001",
+        "KB5054002",
+        "KB5053000",
+        "KB5052000",
+        "KB5051000",
+        "KB5050000"
+      ],
+      "level": "critical",
+      "recommendation": "Isolate system from network and apply all critical patches immediately. Consider rebuild if compromised.",
+      "rule": "patch_status_severely_outdated"
+    },
+    {
+      "description": "Antivirus is non-functional or missing.",
+      "details": {
+        "product": "None",
+        "status": "Not found"
+      },
+      "level": "critical",
+      "recommendation": "Install, enable, and update antivirus software immediately. Perform a full system scan.",
+      "rule": "antivirus_non_functional"
+    },
+    {
+      "description": "No effective password policy is enforced.",
+      "level": "critical",
+      "recommendation": "Implement a strong password policy: enforce complexity, minimum length, history, and regular changes.",
+      "rule": "no_password_policy"
+    },
+    {
+      "description": "Multiple high-risk ports (e.g., RDP, VNC, Telnet) are open to all networks.",
+      "details": [3389, 5900, 23],
+      "level": "critical",
+      "recommendation": "Close all unnecessary ports. Restrict access to essential ports to trusted IPs only.",
+      "rule": "multiple_high_risk_ports_open"
+    }
+  ],
+  "grade": "Critical Risk",
+  "metrics": {
+    "antivirus": {
+      "products": []
+    },
+    "firewall": {
+      "profiles": {
+        "domain": "OFF",
+        "private": "OFF",
+        "public": "OFF"
+      }
+    },
+    "password_policy": {
+      "policy": {
+        "max_password_age": 0,
+        "min_password_length": 0
+      }
+    },
+    "patch": {
+      "hotfixes": ["KB4000001"],
+      "missing_critical": [
+        "KB5055001",
+        "KB5054002",
+        "KB5053000",
+        "KB5052000",
+        "KB5051000",
+        "KB5050000",
+        "KB5049000"
+      ],
+      "status": "missing_many_critical_patches"
+    },
+    "ports": {
+      "ports": [21, 23, 135, 139, 445, 3389, 5900]
+    },
+    "services": {
+      "services": [
+        {
+          "name": "Appinfo",
+          "state": "running"
+        },
+        {
+          "name": "BFE",
+          "state": "stopped"
+        },
+        {
+          "name": "CryptSvc",
+          "state": "running"
+        },
+        {
+          "name": "DcomLaunch",
+          "state": "running"
+        },
+        {
+          "name": "Dhcp",
+          "state": "running"
+        },
+        {
+          "name": "Dnscache",
+          "state": "stopped"
+        },
+        {
+          "name": "EventLog",
+          "state": "running"
+        },
+        {
+          "name": "LanmanServer",
+          "state": "running"
+        },
+        {
+          "name": "LanmanWorkstation",
+          "state": "running"
+        },
+        {
+          "name": "lmhosts",
+          "state": "running"
+        },
+        {
+          "name": "mpssvc",
+          "state": "stopped"
+        },
+        {
+          "name": "netprofm",
+          "state": "running"
+        },
+        {
+          "name": "NlaSvc",
+          "state": "stopped"
+        },
+        {
+          "name": "PlugPlay",
+          "state": "running"
+        },
+        {
+          "name": "Power",
+          "state": "running"
+        },
+        {
+          "name": "RpcSs",
+          "state": "running"
+        },
+        {
+          "name": "Schedule",
+          "state": "running"
+        },
+        {
+          "name": "SENS",
+          "state": "running"
+        },
+        {
+          "name": "ShellHWDetection",
+          "state": "running"
+        },
+        {
+          "name": "Themes",
+          "state": "running"
+        },
+        {
+          "name": "UserManager",
+          "state": "running"
+        },
+        {
+          "name": "WinDefend",
+          "state": "stopped"
+        },
+        {
+          "name": "WdNisSvc",
+          "state": "stopped"
+        },
+        {
+          "name": "SecurityHealthService",
+          "state": "stopped"
+        },
+        {
+          "name": "wscsvc",
+          "state": "stopped"
+        }
+      ]
+    }
+  },
+  "rules_fired": 5,
+  "score": 10,
+  "summary": "All firewall profiles are disabled. System is severely outdated and missing numerous critical patches. Antivirus is non-functional or missing. No effective password policy. Multiple high-risk ports are exposed.",
+  "timestamp": "2025-06-09T19:14:09.809341+00:00"
+}

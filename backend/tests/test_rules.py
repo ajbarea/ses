@@ -18,13 +18,13 @@ from src.rules import (
 
 
 class TestEvaluateClips(unittest.TestCase):
-    """Unit tests for _evaluate_clips function."""
+    """Tests for the CLIPS-based evaluation function."""
 
     def setUp(self):
         self.metrics = {"key": "value"}
 
     def test_evaluate_clips_success(self):
-        """Verify CLIPS evaluation success scenario."""
+        """Test successful CLIPS evaluation with expert system."""
         fake_result = {"score": 75, "findings": []}
         fake_module = types.ModuleType("src.clips_evaluator")
 
@@ -38,7 +38,7 @@ class TestEvaluateClips(unittest.TestCase):
             self.assertIs(result, fake_result)
 
     def test_evaluate_clips_import_error_fallback(self):
-        """Check fallback when CLIPS import fails."""
+        """Test fallback to legacy evaluation when CLIPS module import fails."""
         fake_module = types.ModuleType("src.clips_evaluator")
         with patch.dict(sys.modules, {"src.clips_evaluator": fake_module}):
             with patch("src.rules._evaluate_legacy") as mock_legacy:
@@ -48,7 +48,7 @@ class TestEvaluateClips(unittest.TestCase):
                 self.assertEqual(result, {"fallback": True})
 
     def test_evaluate_clips_exception_in_evaluate_fallback(self):
-        """Check fallback when CLIPS evaluation raises errors."""
+        """Test fallback to legacy evaluation when CLIPS expert system raises an exception."""
         fake_module = types.ModuleType("src.clips_evaluator")
 
         class BadExpert:
@@ -65,11 +65,11 @@ class TestEvaluateClips(unittest.TestCase):
 
 
 class TestEvaluation(unittest.TestCase):
-    """Unit tests for the evaluate wrapper."""
+    """Tests for the main evaluate wrapper function."""
 
     @patch("src.rules._evaluate_legacy")
     def test_standard_evaluation_output(self, mock_legacy):
-        """Check overall structure of evaluation output."""
+        """Test that evaluate returns correctly structured output."""
         dummy = {"x": 1}
         mock_legacy.return_value = {
             "score": 100,
@@ -90,6 +90,7 @@ class TestEvaluation(unittest.TestCase):
     )
     @patch("src.rules._evaluate_clips")
     def test_clips_evaluation_output(self, mock_clips):
+        """Test that CLIPS-based evaluation returns correctly structured output."""
         DUMMY_METRICS = {"patch": {"hotfixes": ["KB1"], "status": "up-to-date"}}
         mock_clips.return_value = {
             "score": 95,
@@ -108,8 +109,10 @@ class TestEvaluation(unittest.TestCase):
 
 
 class TestCalculateScore(unittest.TestCase):
+    """Tests for the score calculation function."""
+
     def test_penalty_application_and_defaults(self):
-        """Check penalty application and default severity deduction."""
+        """Test score penalties are correctly applied for different finding levels."""
         findings = [
             {"level": "critical"},
             {"level": "warning"},
@@ -120,18 +123,20 @@ class TestCalculateScore(unittest.TestCase):
         self.assertEqual(score, 50)
 
     def test_clamping_below_zero(self):
-        """Ensure score does not drop below 0."""
+        """Test that score cannot go below zero even with many critical findings."""
         findings = [{"level": "critical"}] * 5
         self.assertEqual(calculate_score(findings), 0)
 
     def test_no_findings_stays_at_base(self):
-        """Verify score remains at base if no findings."""
+        """Test that score remains at base value when no findings exist."""
         self.assertEqual(calculate_score([], base_score=100), 100)
 
 
 class TestEvaluateLegacyRules(unittest.TestCase):
+    """Tests for the legacy rule evaluation system."""
+
     def test_patch_status_rule_fired(self):
-        """Check 'patch_status' rule triggers appropriately."""
+        """Test that patch_status rule triggers for out-of-date systems."""
         metrics = {
             "patch": {"status": "out-of-date", "hotfixes": []},
             "ports": {"ports": []},
@@ -149,7 +154,7 @@ class TestEvaluateLegacyRules(unittest.TestCase):
         )
 
     def test_open_ports_rule_fired(self):
-        """Check 'open_ports' rule triggers when open ports exist."""
+        """Test that open_ports rule triggers when ports are detected."""
         metrics = {
             "patch": {"status": "up-to-date", "hotfixes": ["KB"]},
             "ports": {"ports": [22, 80]},
@@ -168,7 +173,7 @@ class TestEvaluateLegacyRules(unittest.TestCase):
         self.assertIn(22, details)
 
     def test_service_count_rule_fired(self):
-        """Check 'service_count' rule triggers above threshold."""
+        """Test that service_count rule triggers when many services are running."""
         metrics = {
             "patch": {"status": "up-to-date", "hotfixes": ["KB"]},
             "ports": {"ports": []},
@@ -183,7 +188,7 @@ class TestEvaluateLegacyRules(unittest.TestCase):
         )
 
     def test_grade_boundaries_and_summary(self):
-        """Check correct grade assignment and summary generation."""
+        """Test grade assignment and summary generation with multiple findings."""
         metrics = {
             "patch": {"status": "out-of-date", "hotfixes": []},
             "ports": {"ports": [1]},
@@ -198,7 +203,7 @@ class TestEvaluateLegacyRules(unittest.TestCase):
             )
 
     def test_good_grade_assignment(self):
-        """Check 'Good' grade assignment when only warning and info findings exist."""
+        """Test 'Good' grade assignment with only warning and info findings."""
         metrics = {
             "patch": {"status": "up-to-date", "hotfixes": []},
             "ports": {"ports": [22]},
@@ -208,7 +213,7 @@ class TestEvaluateLegacyRules(unittest.TestCase):
         self.assertEqual(result["grade"], "Good")
 
     def test_critical_risk_grade_assignment(self):
-        """Check 'Critical Risk' grade assignment when all findings present."""
+        """Test 'Critical Risk' grade assignment with critical findings."""
         metrics = {
             "patch": {"status": "out-of-date", "hotfixes": []},
             "ports": {"ports": [22]},
@@ -218,7 +223,7 @@ class TestEvaluateLegacyRules(unittest.TestCase):
         self.assertEqual(result["grade"], "Critical Risk")
 
     def test_fair_grade_threshold(self):
-        """Check 'Fair' grade when score is between 60 and 79 with no critical findings."""
+        """Test 'Fair' grade assignment for scores between 60-79."""
         metrics = {
             "patch": {"status": "up-to-date", "hotfixes": []},
             "ports": {"ports": []},
@@ -229,7 +234,7 @@ class TestEvaluateLegacyRules(unittest.TestCase):
             self.assertEqual(result["grade"], "Fair")
 
     def test_poor_grade_threshold(self):
-        """Check 'Poor' grade when score is between 40 and 59 with no critical findings."""
+        """Test 'Poor' grade assignment for scores between 40-59."""
         metrics = {
             "patch": {"status": "up-to-date", "hotfixes": []},
             "ports": {"ports": []},
@@ -240,7 +245,7 @@ class TestEvaluateLegacyRules(unittest.TestCase):
             self.assertEqual(result["grade"], "Poor")
 
     def test_default_critical_risk_threshold(self):
-        """Check 'Critical Risk' grade when score is below 40 with no critical findings."""
+        """Test 'Critical Risk' grade assignment for scores below 40."""
         metrics = {
             "patch": {"status": "up-to-date", "hotfixes": []},
             "ports": {"ports": []},
@@ -251,6 +256,7 @@ class TestEvaluateLegacyRules(unittest.TestCase):
             self.assertEqual(result["grade"], "Critical Risk")
 
     def test_firewall_all_disabled(self):
+        """Test detection of completely disabled firewall."""
         metrics = {
             "patch": {"status": "up-to-date", "hotfixes": []},
             "ports": {"ports": []},
@@ -268,6 +274,7 @@ class TestEvaluateLegacyRules(unittest.TestCase):
         )
 
     def test_firewall_partial_disabled(self):
+        """Test detection of partially disabled firewall (only public profile)."""
         metrics = {
             "patch": {"status": "up-to-date", "hotfixes": []},
             "ports": {"ports": []},
@@ -285,6 +292,7 @@ class TestEvaluateLegacyRules(unittest.TestCase):
         )
 
     def test_firewall_all_enabled(self):
+        """Test detection of fully enabled firewall."""
         metrics = {
             "patch": {"status": "up-to-date", "hotfixes": []},
             "ports": {"ports": []},
@@ -300,6 +308,7 @@ class TestEvaluateLegacyRules(unittest.TestCase):
         )
 
     def test_antivirus_not_detected(self):
+        """Test detection of missing antivirus software."""
         metrics = {
             "patch": {"status": "up-to-date", "hotfixes": []},
             "ports": {"ports": []},
@@ -315,6 +324,7 @@ class TestEvaluateLegacyRules(unittest.TestCase):
         )
 
     def test_antivirus_state_unknown(self):
+        """Test detection of antivirus with unknown state."""
         metrics = {
             "patch": {"status": "up-to-date", "hotfixes": []},
             "ports": {"ports": []},
@@ -330,6 +340,7 @@ class TestEvaluateLegacyRules(unittest.TestCase):
         )
 
     def test_firewall_domain_disabled(self):
+        """Test detection of disabled domain firewall profile."""
         metrics = {
             "patch": {"status": "up-to-date", "hotfixes": []},
             "ports": {"ports": []},
@@ -347,6 +358,7 @@ class TestEvaluateLegacyRules(unittest.TestCase):
         )
 
     def test_firewall_private_disabled(self):
+        """Test detection of disabled private firewall profile."""
         metrics = {
             "patch": {"status": "up-to-date", "hotfixes": []},
             "ports": {"ports": []},
@@ -365,9 +377,11 @@ class TestEvaluateLegacyRules(unittest.TestCase):
 
 
 class TestEvaluateWrapper(unittest.TestCase):
+    """Tests for the evaluate wrapper function with auto-detection features."""
+
     @patch("src.rules._evaluate_legacy")
     def test_auto_detect_falls_back_to_legacy_and_injects_metadata(self, mock_legacy):
-        """Check fallback to legacy engine and metadata injection."""
+        """Test auto-detection falls back to legacy and adds timestamp metadata."""
         dummy = {"x": 1}
         mock_legacy.return_value = {
             "score": 80,
@@ -382,8 +396,7 @@ class TestEvaluateWrapper(unittest.TestCase):
         mock_legacy.assert_called_once_with(dummy)
         self.assertIn("timestamp", result)
         ts = datetime.fromisoformat(result["timestamp"])
-        # Allow ts.timestamp() to be slightly before 'before' or slightly after 'after'
-        # to account for system-specific timing variations.
+        # Allow timestamp to be within a small window of time around the evaluation
         self.assertTrue(before - 0.1 <= ts.timestamp() <= after + 0.1)
 
     @patch("src.rules._evaluate_legacy")
@@ -391,7 +404,7 @@ class TestEvaluateWrapper(unittest.TestCase):
     def test_clips_requested_not_available_falls_back_and_warns(
         self, mock_logger, mock_legacy
     ):
-        """Check fallback to legacy and warning when use_clips=True but CLIPS is not available."""
+        """Test warning when CLIPS is requested but not available."""
         dummy = {"x": 1}
         mock_legacy.return_value = {
             "score": 80,

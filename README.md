@@ -130,6 +130,16 @@ Create new `.clp` files in the `clips_rules` directory. For example:
 )
 ```
 
+### Available CLIPS Rule Files
+
+The system includes several specialized rule files:
+
+- `patch_rules.clp` - Evaluates Windows update status
+- `port_rules.clp` - Checks for open/high-risk network ports
+- `firewall_rules.clp` - Analyzes Windows Firewall profile status
+- `password_rules.clp` - Validates password policy strength
+- `antivirus_rules.clp` - Checks antivirus software status and configuration
+
 ## Testing
 
 Run the test suite with:

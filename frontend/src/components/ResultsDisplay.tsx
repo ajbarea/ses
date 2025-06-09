@@ -29,7 +29,7 @@ export default function ResultsDisplay({
   );
 
   const tabs = [
-    { id: "findings", label: `Findings (${result.findings.length})` },
+    { id: "findings", label: `Findings` },
     { id: "trace", label: "Rule Trace" },
     { id: "metrics", label: "Evaluation Metrics" },
   ];

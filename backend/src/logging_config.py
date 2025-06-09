@@ -1,5 +1,8 @@
 """
-Configures logging handlers and formatters for both console and file output.
+Logging configuration for the Security Evaluation System.
+
+Provides structured logging with console and file output options,
+JSON formatting capabilities, and standardized logger retrieval.
 """
 
 import json
@@ -10,9 +13,21 @@ from pathlib import Path
 
 
 class StructuredJsonFormatter(logging.Formatter):
-    """Format log records as structured JSON objects."""
+    """Formats log records as structured JSON for machine readability.
+
+    Provides consistent structured output with standard log fields and
+    any additional context provided via extra attributes or dictionaries.
+    """
 
     def format(self, record):
+        """Format a log record as a JSON object.
+
+        Args:
+            record: LogRecord object to format
+
+        Returns:
+            str: JSON-formatted log entry
+        """
         log_object = {
             "timestamp": self.formatTime(record, self.datefmt),
             "level": record.levelname,
@@ -20,14 +35,15 @@ class StructuredJsonFormatter(logging.Formatter):
             "message": record.getMessage(),
         }
 
-        if record.exc_info:  # Add exception information if present
+        # Include exception info if present
+        if record.exc_info:
             log_object["exception"] = self.formatException(record.exc_info)
 
         # Add any 'extra' dictionary passed to the logger
         if hasattr(record, "extra"):
             log_object.update(record.extra)
         elif hasattr(record, "__dict__"):
-            # Extract any extra fields added to the record
+            # Extract any non-standard fields added to the record
             for key, value in record.__dict__.items():
                 if key not in {
                     "args",
@@ -62,7 +78,20 @@ class StructuredJsonFormatter(logging.Formatter):
 def setup_logging(
     log_level: str = "INFO", json_format: bool = False, log_file: Optional[str] = None
 ) -> None:
-    """Set up log level, console/file handlers, and format (JSON or plain)."""
+    """Configure application logging with console and file handlers.
+
+    Sets up the root logger with the specified configuration:
+    - Console output to stdout
+    - File output with automatic directory creation
+    - Optional JSON structured logging
+    - Custom log levels with INFO default
+    - Reduced verbosity for third-party libraries
+
+    Args:
+        log_level: String log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+        json_format: Whether to use JSON structured logging
+        log_file: Path to log file (default: ./logs/app.log)
+    """
     # Determine log file path and ensure its directory exists
     if log_file is None:
         logs_dir = Path("logs")
@@ -72,8 +101,10 @@ def setup_logging(
         log_file_path = Path(log_file)
         log_file_path.parent.mkdir(parents=True, exist_ok=True)
 
+    # Convert string log level to numeric value
     level = getattr(logging, log_level.upper(), logging.INFO)
 
+    # Create console and file handlers
     handlers = []
     console_handler = logging.StreamHandler(sys.stdout)
     handlers.append(console_handler)
@@ -81,6 +112,7 @@ def setup_logging(
     file_handler = logging.FileHandler(log_file_path)
     handlers.append(file_handler)
 
+    # Select and apply formatter
     if json_format:
         formatter = StructuredJsonFormatter()
     else:
@@ -92,6 +124,7 @@ def setup_logging(
     for handler in handlers:
         handler.setFormatter(formatter)
 
+    # Configure root logger
     root_logger = logging.getLogger()
     root_logger.setLevel(level)
 
@@ -111,5 +144,14 @@ def setup_logging(
 
 
 def get_logger(name: str) -> logging.Logger:
-    """Obtain a logger instance by name."""
+    """Get a named logger instance.
+
+    Provides a standardized way to obtain named loggers throughout the application.
+
+    Args:
+        name: Logger name, typically __name__ for module-level loggers
+
+    Returns:
+        Logger instance with the specified name
+    """
     return logging.getLogger(name)

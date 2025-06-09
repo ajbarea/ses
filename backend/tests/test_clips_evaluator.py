@@ -25,12 +25,14 @@ class TestClipsEvaluator(unittest.TestCase):
         self.mock_env.assert_string = MagicMock()
 
     def test_convert_patch_metrics_asserts_expected_facts(self):
+        """Test that patch metrics are properly converted to CLIPS facts."""
         data = {"patch": {"status": "out-of-date", "hotfixes": ["KB1", "KB2"]}}
         self.expert_system.convert_metrics_to_facts(data)
         fact_call = '(patch-status (status "out-of-date") (hotfixes "KB1" "KB2"))'
         self.mock_env.assert_string.assert_any_call(fact_call)
 
     def test_convert_firewall_metrics_asserts_expected_fact(self):
+        """Test that firewall metrics are properly converted to CLIPS facts."""
         data = {
             "firewall": {
                 "profiles": {"domain": "ON", "private": "OFF", "public": "OFF"}
@@ -41,6 +43,7 @@ class TestClipsEvaluator(unittest.TestCase):
         self.mock_env.assert_string.assert_any_call(fact_call)
 
     def test_evaluate_uses_internal_methods(self):
+        """Test that evaluate() calls the expected sequence of internal methods."""
         dummy_metrics = {"any": "value"}
         with patch.object(
             self.expert_system, "convert_metrics_to_facts"
@@ -69,7 +72,7 @@ class TestClipsEvaluator(unittest.TestCase):
             self.assertIn("explanations", result)
 
     def test_evaluate_grade_excellent(self):
-        """Test grade assignment for Excellent score."""
+        """Test that a score of 95 results in an 'Excellent' grade."""
         dummy_metrics = {"any": "value"}
         with patch.object(self.expert_system, "convert_metrics_to_facts"), patch.object(
             self.expert_system, "run_evaluation", return_value=0
@@ -84,7 +87,7 @@ class TestClipsEvaluator(unittest.TestCase):
             self.assertEqual(result["grade"], "Excellent")
 
     def test_evaluate_grade_good(self):
-        """Test grade assignment for Good score."""
+        """Test that a score of 85 results in a 'Good' grade."""
         dummy_metrics = {"any": "value"}
         with patch.object(self.expert_system, "convert_metrics_to_facts"), patch.object(
             self.expert_system, "run_evaluation", return_value=0
@@ -99,7 +102,7 @@ class TestClipsEvaluator(unittest.TestCase):
             self.assertEqual(result["grade"], "Good")
 
     def test_evaluate_grade_fair(self):
-        """Test grade assignment for Fair score."""
+        """Test that a score of 75 results in a 'Fair' grade."""
         dummy_metrics = {"any": "value"}
         with patch.object(self.expert_system, "convert_metrics_to_facts"), patch.object(
             self.expert_system, "run_evaluation", return_value=0
@@ -114,7 +117,7 @@ class TestClipsEvaluator(unittest.TestCase):
             self.assertEqual(result["grade"], "Fair")
 
     def test_evaluate_grade_poor(self):
-        """Test grade assignment for Poor score."""
+        """Test that a score of 55 results in a 'Poor' grade."""
         dummy_metrics = {"any": "value"}
         with patch.object(self.expert_system, "convert_metrics_to_facts"), patch.object(
             self.expert_system, "run_evaluation", return_value=0
@@ -129,7 +132,7 @@ class TestClipsEvaluator(unittest.TestCase):
             self.assertEqual(result["grade"], "Poor")
 
     def test_evaluate_grade_critical_risk(self):
-        """Test grade assignment for Critical Risk score."""
+        """Test that a score of 35 results in a 'Critical Risk' grade."""
         dummy_metrics = {"any": "value"}
         with patch.object(self.expert_system, "convert_metrics_to_facts"), patch.object(
             self.expert_system, "run_evaluation", return_value=0
@@ -144,6 +147,7 @@ class TestClipsEvaluator(unittest.TestCase):
             self.assertEqual(result["grade"], "Critical Risk")
 
     def test_load_templates_handles_clips_error(self):
+        """Test that CLIPS errors during template loading are properly propagated."""
         mock_env = MagicMock()
         mock_env.build = MagicMock(
             side_effect=sys.modules["clips"].CLIPSError("Test error")
@@ -155,12 +159,14 @@ class TestClipsEvaluator(unittest.TestCase):
         mock_env.build.assert_called()
 
     def test_load_rules_handles_missing_directory(self):
+        """Test graceful handling when rules directory doesn't exist."""
         non_existent_dir = "non_existent_dir"
         expert_system = SecurityExpertSystem(rules_dir=non_existent_dir)
         expert_system._load_rules()
         self.assertFalse(Path(non_existent_dir).exists())
 
     def test_load_rules_handles_clips_error(self):
+        """Test graceful handling of CLIPS errors during rule loading."""
         from pathlib import Path
 
         # Use existing clips_rules directory for test files
@@ -176,6 +182,8 @@ class TestClipsEvaluator(unittest.TestCase):
 
 
 class TestConvertMetricsToFacts(unittest.TestCase):
+    """Tests the conversion of metric data to CLIPS facts."""
+
     def setUp(self):
         self.expert = SecurityExpertSystem(rules_dir=None)
         self.expert.env = MagicMock()
@@ -183,12 +191,14 @@ class TestConvertMetricsToFacts(unittest.TestCase):
         self.expert.env.assert_string = MagicMock()
 
     def test_ports_to_open_port_facts(self):
+        """Test conversion of port metrics to open-port facts."""
         data = {"ports": {"ports": [22, 80]}}
         self.expert.convert_metrics_to_facts(data)
         self.expert.env.assert_string.assert_any_call("(open-port (number 22))")
         self.expert.env.assert_string.assert_any_call("(open-port (number 80))")
 
     def test_services_to_service_facts(self):
+        """Test conversion of service metrics to service facts."""
         services = [
             {"name": "SvcA", "state": "Running"},
             {"name": "SvcB", "state": "Stopped"},
@@ -203,6 +213,7 @@ class TestConvertMetricsToFacts(unittest.TestCase):
         )
 
     def test_antivirus_to_antivirus_product_facts(self):
+        """Test conversion of antivirus metrics to antivirus-product facts."""
         products = [{"name": "AVX", "state": 5}, {"name": "AVY", "state": None}]
         data = {"antivirus": {"products": products}}
         self.expert.convert_metrics_to_facts(data)
@@ -214,6 +225,7 @@ class TestConvertMetricsToFacts(unittest.TestCase):
         )
 
     def test_password_policy_to_password_policy_fact(self):
+        """Test conversion of password policy metrics to password-policy facts."""
         policy = {"min_password_length": 5, "max_password_age": 15}
         data = {"password_policy": {"policy": policy}}
         self.expert.convert_metrics_to_facts(data)
@@ -223,17 +235,22 @@ class TestConvertMetricsToFacts(unittest.TestCase):
 
 
 class FakeFact(dict):
+    """Helper class to simulate CLIPS facts for testing."""
+
     def __init__(self, template_name, **kwargs):
         super().__init__(kwargs)
         self.template = types.SimpleNamespace(name=template_name)
 
 
 class TestExtractorsTracers(unittest.TestCase):
+    """Tests for methods that extract information from CLIPS facts."""
+
     def setUp(self):
         self.expert = SecurityExpertSystem(rules_dir=None)
         self.expert.rule_activations = []
 
     def test_get_findings_only_returns_finding_facts(self):
+        """Test that get_findings only processes facts of template 'finding'."""
         f1 = FakeFact(
             "finding",
             **{
@@ -260,12 +277,14 @@ class TestExtractorsTracers(unittest.TestCase):
         )
 
     def test_get_score_with_final_score_fact(self):
+        """Test that get_score uses the final score fact when available."""
         f = FakeFact("score", **{"value": "85", "type": "final"})
         self.expert.env.facts = lambda: [f]
         score = self.expert.get_score(base_score=50)
         self.assertEqual(score, 85)
 
     def test_get_score_with_penalty_facts_and_clamping(self):
+        """Test score calculation from penalty facts with clamping to prevent negative scores."""
         f1 = FakeFact("score", **{"value": "-150", "type": "penalty"})
         f2 = FakeFact("score", **{"value": "30", "type": "penalty"})
         self.expert.env.facts = lambda: [f1, f2]
@@ -273,18 +292,22 @@ class TestExtractorsTracers(unittest.TestCase):
         self.assertEqual(score, 0)
 
     def test_get_score_falls_back_to_findings(self):
+        """Test that get_score calculates score from findings when no score facts exist."""
         self.expert.env.facts = lambda: []
         self.expert.get_findings = lambda: [{"level": "critical"}, {"level": "info"}]
         score = self.expert.get_score()
         self.assertEqual(score, 65)
 
     def test_get_rule_trace_returns_activations(self):
+        """Test that get_rule_trace returns the stored rule activations."""
         self.expert.rule_activations = [{"rule": "r", "activation": "a"}]
         trace = self.expert.get_rule_trace()
         self.assertIs(trace, self.expert.rule_activations)
 
 
 class TestRunEvaluation(unittest.TestCase):
+    """Tests for the run_evaluation method."""
+
     def setUp(self):
         self.expert = SecurityExpertSystem(rules_dir=None)
         self.mock_env = MagicMock()
@@ -292,6 +315,7 @@ class TestRunEvaluation(unittest.TestCase):
         self.mock_env.facts = MagicMock(return_value=[])
 
     def test_watch_supported_traces_rules(self):
+        """Test rule tracing when watch/unwatch are supported."""
         self.mock_env.watch = MagicMock()
         self.mock_env.unwatch = MagicMock()
 
@@ -309,6 +333,7 @@ class TestRunEvaluation(unittest.TestCase):
         self.assertEqual(self.expert.rule_activations[1]["rule"], "ruleB")
 
     def test_watch_unsupported_fallbacks_to_findings(self):
+        """Test fallback to findings-based rule tracing when watch raises AttributeError."""
         self.mock_env.watch = MagicMock(side_effect=AttributeError)
         self.mock_env.run = MagicMock(return_value=5)
         findings = [
@@ -327,60 +352,47 @@ class TestRunEvaluation(unittest.TestCase):
         )
 
     def test_watch_type_error_fallbacks_to_findings(self):
-        """If watch raises TypeError, fallback behavior matches AttributeError fallback"""
-        # Simulate watch unsupported via TypeError
+        """Test fallback to findings-based rule tracing when watch raises TypeError."""
         self.mock_env.watch = MagicMock(side_effect=TypeError)
-        # env.run still returns a rule fire count
         self.mock_env.run = MagicMock(return_value=3)
-        # Prepare findings for fallback trace
         findings = [{"rule": "rX", "description": "descX"}]
         self.expert.get_findings = MagicMock(return_value=findings)
         fired = self.expert.run_evaluation()
         self.assertEqual(fired, 3)
-        # Fallback should add one activation entry
         self.assertEqual(len(self.expert.rule_activations), 1)
         self.assertEqual(
             self.expert.rule_activations[0]["activation"], "Rule activated: rX - descX"
         )
 
     def test_watch_supported_no_new_facts_appends_unknown(self):
-        """If watch/unwatch succeed but no new activations are found, append 'unknown' rule entry"""
-        # Simulate watch/unwatch supported
+        """Test handling when no rule activations are detected but rules fired."""
         self.mock_env.watch = MagicMock()
         self.mock_env.unwatch = MagicMock()
-        # Run returns 4 rules fired
         self.mock_env.run = MagicMock(return_value=4)
-        # facts before and after are identical (no new facts)
         facts = []
         self.mock_env.facts = MagicMock(side_effect=[facts, facts])
-        # Avoid further env.facts calls by returning no findings
         self.expert.get_findings = MagicMock(return_value=[])
         fired = self.expert.run_evaluation()
         self.assertEqual(fired, 4)
-        # Should have one 'unknown' activation entry
         self.assertEqual(len(self.expert.rule_activations), 1)
         entry = self.expert.rule_activations[0]
         self.assertEqual(entry["rule"], "unknown")
         self.assertIn("4 rules fired", entry["activation"])
 
     def test_unwatch_raises_error_fallbacks_to_findings(self):
-        """If unwatch raises an exception, fallback to findings trace"""
-        # Simulate watch supported and unwatch raising AttributeError
+        """Test fallback to findings-based rule tracing when unwatch raises an exception."""
         self.mock_env.watch = MagicMock()
         self.mock_env.unwatch = MagicMock(side_effect=AttributeError)
 
-        # env.run outputs a FIRE line but will not be processed due to unwatch error
         def run_side_effect():
             print("FIRE 1 ruleZ")
             return 1
 
         self.mock_env.run = MagicMock(side_effect=run_side_effect)
-        # Provide fallback findings
         findings = [{"rule": "rZ", "description": "descZ"}]
         self.expert.get_findings = MagicMock(return_value=findings)
         fired = self.expert.run_evaluation()
         self.assertEqual(fired, 1)
-        # Fallback should use findings activation since unwatch broke
         self.assertEqual(
             self.expert.rule_activations[0]["activation"], "Rule activated: rZ - descZ"
         )
