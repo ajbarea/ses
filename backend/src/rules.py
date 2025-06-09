@@ -332,7 +332,7 @@ def evaluate(metrics: dict, use_clips: Optional[bool] = None) -> dict:
     else:
         if should_use_clips and not CLIPS_AVAILABLE:
             logger.warning(
-                "CLIPS evaluation requested but not available. Falling back to legacy."
+                "CLIPS evaluation requested but CLIPS is not available. Falling back to legacy."
             )
         logger.info("Using legacy Python evaluation engine.")
         result = _evaluate_legacy(metrics)
