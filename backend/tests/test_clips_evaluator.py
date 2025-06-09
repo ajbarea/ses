@@ -456,5 +456,96 @@ class TestRunEvaluation(unittest.TestCase):
         )
 
 
+class TestAssertAntivirusFacts(unittest.TestCase):
+    def setUp(self):
+        self.expert = SecurityExpertSystem(rules_dir=None)
+        self.expert.env = MagicMock()
+        self.expert.env.assert_string = MagicMock()
+
+    def test_assert_antivirus_no_products_key(self):
+        """_assert_antivirus_facts() with no 'products' key asserts disabled info."""
+        self.expert._assert_antivirus_facts({})
+        self.expert.env.assert_string.assert_called_once_with(
+            "(antivirus-info "
+            '(status "disabled") '
+            '(definitions "up-to-date") '
+            '(real-time-protection "disabled")'
+            ")"
+        )
+
+    def test_assert_antivirus_empty_products(self):
+        """_assert_antivirus_facts() with empty products list asserts nothing."""
+        self.expert._assert_antivirus_facts({"products": []})
+        self.assertEqual(self.expert.env.assert_string.call_count, 0)
+
+    def test_assert_antivirus_partial_status(self):
+        """_assert_antivirus_facts() with mixed states asserts correct info."""
+        metrics = {
+            "products": [{"name": "X", "state": 0}, {"name": "Y", "state": 500000}]
+        }
+        self.expert._assert_antivirus_facts(metrics)
+        calls = [c[0][0] for c in self.expert.env.assert_string.call_args_list]
+        # should include both product facts and an overall info fact
+        self.assertIn('(antivirus-product (name "X") (state 0))', calls)
+        self.assertIn('(antivirus-product (name "Y") (state 500000))', calls)
+        self.assertIn(
+            '(antivirus-info (status "partial") (definitions "up-to-date") (real-time-protection "disabled"))',
+            calls,
+        )
+
+
+class TestGetScoreMethods(unittest.TestCase):
+    def setUp(self):
+        self.expert = SecurityExpertSystem(rules_dir=None)
+        self.expert.env = MagicMock()
+
+    def test_get_score_final_overrides(self):
+        """get_score() returns final score fact value overriding others."""
+        final = FakeFact("score", **{"value": "70", "type": "final"})
+        pen = FakeFact("score", **{"value": "-30", "type": "penalty"})
+        self.expert.env.facts = lambda: [pen, final]
+        self.assertEqual(self.expert.get_score(base_score=100), 70)
+
+    def test_get_score_mix_and_clamp(self):
+        """get_score() applies penalties and bonuses and clamps between 0-100."""
+        pen = FakeFact("score", **{"value": "-50", "type": "penalty"})
+        bonus = FakeFact("score", **{"value": "20", "type": "bonus"})
+        self.expert.env.facts = lambda: [pen, bonus]
+        # 100 - 50 + 20 = 70
+        self.assertEqual(self.expert.get_score(), 70)
+
+    def test_get_score_clamp_bounds(self):
+        """get_score() clamps maximum to 100 and minimum to 0."""
+        bonus = FakeFact("score", **{"value": "50", "type": "bonus"})
+        self.expert.env.facts = lambda: [bonus]
+        self.assertEqual(self.expert.get_score(base_score=90), 100)
+        pen = FakeFact("score", **{"value": "-200", "type": "penalty"})
+        self.expert.env.facts = lambda: [pen]
+        self.assertEqual(self.expert.get_score(base_score=100), 0)
+
+
+class TestEvaluateImpactSummary(unittest.TestCase):
+    def test_impact_summary_various_findings(self):
+        """evaluate() builds correct impact_summary from findings."""
+        expert = SecurityExpertSystem(rules_dir=None)
+        # stub out methods to focus on impact_summary
+        expert.convert_metrics_to_facts = lambda m: None
+        expert.run_evaluation = lambda: 0
+        expert.get_rule_trace = lambda: []
+        # one bonus, one penalty, one neutral finding
+        findings = [
+            {"score_impact": {"type": "bonus", "value": 5}, "description": "A"},
+            {"score_impact": {"type": "penalty", "value": -10}, "description": "B"},
+            {"score_impact": {"type": "neutral", "value": 0}, "description": "C"},
+        ]
+        expert.get_findings = lambda: findings
+        expert.get_score = lambda: 85
+        result = expert.evaluate({})
+        self.assertEqual(
+            result["impact_summary"],
+            "1 positive factors. 1 items reducing your score. 1 neutral findings. ",
+        )
+
+
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
