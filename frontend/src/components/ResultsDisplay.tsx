@@ -79,14 +79,14 @@ export default function ResultsDisplay({
 
       <div className="mb-4 p-3 bg-blue-50 border border-blue-100 rounded-md">
         <p className="text-sm text-blue-700">
-          <strong>Findings:</strong> Security checks and their results -
-          includes both security strengths and potential concerns.
+          <strong>Findings:</strong> Security checks and their results including
+          security strengths and potential concerns.
           <br />
           <strong>Rule Trace:</strong> Technical details about which security
           rules were activated.
           <br />
-          <strong>Evaluation Metrics:</strong> Raw data and performance metrics
-          from the scan.
+          <strong>Evaluation Metrics:</strong> Raw Windows data and performance
+          metrics from the scan.
         </p>
       </div>
 

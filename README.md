@@ -175,6 +175,6 @@ After a successful run you’ll find:
 - `frontend/out/` – Next.js static export
 - `frontend/dist_electron/` – Electron installer per-OS
 
-## Acknowledgements
+### Acknowledgements
 
 AI assistance from OpenAI, Anthropic, and Google models supported this project through code reviews, debugging, CLIPS rule syntax, documentation, and Electron build scripting.

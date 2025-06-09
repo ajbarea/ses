@@ -10,9 +10,6 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
-    webPreferences: {
-      preload: path.join(__dirname, "preload.js"),
-    },
   });
 
   let loadUrl;
@@ -50,38 +47,10 @@ function startBackend() {
 
   let executableName = "ses_backend";
 
-  const devBackendInfoPath = path.join(__dirname, "packed_backend_info.json");
-  const prodBackendInfoPath = path.join(
-    app.getAppPath(),
-    "packed_backend_info.json"
+  console.log(
+    "[Electron] Using hardcoded backend executable name:",
+    executableName
   );
-  let actualInfoPath = app.isPackaged
-    ? prodBackendInfoPath
-    : devBackendInfoPath;
-
-  if (fs.existsSync(actualInfoPath)) {
-    try {
-      const backendInfo = JSON.parse(fs.readFileSync(actualInfoPath, "utf-8"));
-      if (backendInfo.executableName) {
-        executableName = backendInfo.executableName;
-      }
-      console.log(
-        "[Electron] Using backend executable name from info file:",
-        executableName
-      );
-    } catch (e) {
-      console.error(
-        "[Electron] Error reading or parsing packed_backend_info.json:",
-        e.message
-      );
-    }
-  } else {
-    console.warn(
-      "[Electron] packed_backend_info.json not found at:",
-      actualInfoPath,
-      ". Using default executable name."
-    );
-  }
 
   const prodResourcesBaseDir = path.join(process.resourcesPath, "dist_backend");
   const devResourcesBaseDir = path.join(

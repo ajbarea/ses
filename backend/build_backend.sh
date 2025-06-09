@@ -5,7 +5,6 @@ cd "$(dirname "$0")"
 
 echo "Removing old backend build artifacts..."
 rm -rf dist build
-rm -f ../frontend/packed_backend_info.json || true
 
 echo "Creating/reusing virtual environment .venv_backend_build..."
 if [ ! -d ".venv_backend_build" ]; then
@@ -80,7 +79,4 @@ find dist/ses_backend -name "*clips*" || echo "No CLIPS files found in package"
 
 deactivate
 echo "PyInstaller build process complete. Backend executable should be in backend/dist/ses_backend/"
-
-echo "{\"executableName\": \"ses_backend\"}" > ../frontend/packed_backend_info.json
-echo "Created packed_backend_info.json in frontend directory with executableName: ses_backend"
 echo "--- Backend Build Finished Successfully ---"

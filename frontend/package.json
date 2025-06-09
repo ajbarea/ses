@@ -45,9 +45,7 @@
     "productName": "SES",
     "files": [
       "main.js",
-      "preload.js",
       "package.json",
-      "packed_backend_info.json",
       {
         "from": "out",
         "to": "out",
