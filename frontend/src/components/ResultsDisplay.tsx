@@ -2,22 +2,7 @@ import { useState } from "react";
 import ScoreCard from "./ScoreCard";
 import FindingsList from "./FindingsList";
 import TraceList from "./TraceList";
-
-interface Finding {
-  rule: string;
-  description: string;
-  [key: string]: any;
-}
-
-interface EvalResult {
-  score: number;
-  grade: string;
-  summary: string;
-  findings: Finding[];
-  rules_fired: number;
-  explanations: { rule: string; activation: string }[];
-  metrics: Record<string, any>;
-}
+import type { Finding, EvalResult } from "../types/eval";
 
 export default function ResultsDisplay({
   result,
@@ -50,6 +35,10 @@ export default function ResultsDisplay({
   // Calculate scan timestamp
   const scanTime = new Date().toLocaleString();
 
+  // Display positive and negative counts
+  const positiveCount = result.positive_findings?.length || 0;
+  const negativeCount = result.negative_findings?.length || 0;
+
   return (
     <div className="w-full max-w-2xl bg-white rounded-lg shadow-sm p-6 transition-all duration-300 ease-in-out">
       <ScoreCard grade={result.grade} score={result.score} />
@@ -61,6 +50,26 @@ export default function ResultsDisplay({
         </div>
 
         <p className="text-gray-800 mb-2">{getRecommendation()}</p>
+
+        {/* Score Impact Summary */}
+        {(positiveCount > 0 || negativeCount > 0) && (
+          <div className="mt-3 mb-3 text-sm">
+            <div className="flex flex-wrap gap-2">
+              {positiveCount > 0 && (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  +{positiveCount} positive factor
+                  {positiveCount !== 1 ? "s" : ""}
+                </span>
+              )}
+              {negativeCount > 0 && (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                  {negativeCount} negative factor
+                  {negativeCount !== 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="flex items-center text-sm mt-2">
           <div className="mr-4">

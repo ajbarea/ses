@@ -1,54 +1,97 @@
-import { useState } from "react";
-
-interface Finding {
-  rule: string;
-  description: string;
-  [key: string]: any;
-}
-
-function FindingItem({ f }: { readonly f: Finding }) {
-  const [open, setOpen] = useState(false);
-  const isLong = f.description.length > 100;
-  const displayed =
-    isLong && !open ? f.description.slice(0, 100) + "…" : f.description;
-
-  return (
-    <li className="mb-3 pl-1">
-      <div>
-        <span className="font-medium text-blue-700">{f.rule}</span>
-        <span className="text-gray-500 mx-1">—</span>
-        <span className="text-gray-800">{displayed}</span>
-        {isLong && (
-          <button
-            onClick={() => setOpen(!open)}
-            className="ml-2 text-blue-600 hover:underline text-sm font-medium"
-          >
-            {open ? "Show less" : "Show more"}
-          </button>
-        )}
-      </div>
-      {f.details && (
-        <div className="mt-1 text-xs text-gray-700 ml-4">
-          <span className="font-medium">Details:</span>{" "}
-          {Array.isArray(f.details) ? f.details.join(", ") : String(f.details)}
-        </div>
-      )}
-    </li>
-  );
-}
+import React from "react";
+import type { Finding } from "../types/eval";
 
 export default function FindingsList({
   findings,
 }: {
   readonly findings: readonly Finding[];
 }) {
+  const getLevelBadge = (level: string) => {
+    switch (level) {
+      case "critical":
+        return "bg-red-100 text-red-800";
+      case "warning":
+        return "bg-yellow-100 text-yellow-800";
+      case "info":
+        return "bg-blue-100 text-blue-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const getScoreImpactBadge = (impact: Finding["score_impact"]) => {
+    if (!impact) return null;
+
+    switch (impact.type) {
+      case "bonus":
+        return (
+          <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+            +{impact.value} points
+          </span>
+        );
+      case "penalty":
+        return (
+          <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+            {impact.value} points
+          </span>
+        );
+      case "neutral":
+        return (
+          <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+            0 points
+          </span>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
-    <div>
-      <ul className="list-disc list-outside pl-5 text-gray-800 marker:text-blue-600">
-        {findings.map((f) => (
-          <FindingItem key={f.rule} f={f} />
-        ))}
-      </ul>
+    <div className="space-y-3">
+      {findings.map((finding, index) => (
+        <div
+          key={index}
+          className="bg-white p-3 rounded border border-gray-200 shadow-sm"
+        >
+          <div className="flex justify-between items-start">
+            <div className="flex items-center">
+              <span
+                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getLevelBadge(
+                  finding.level
+                )}`}
+              >
+                {finding.level}
+              </span>
+              {getScoreImpactBadge(finding.score_impact)}
+            </div>
+            <span className="text-xs text-gray-500">{finding.rule}</span>
+          </div>
+
+          <p className="mt-2 text-sm text-gray-800">{finding.description}</p>
+
+          {finding.details && finding.details.length > 0 && (
+            <div className="mt-2">
+              <span className="text-xs font-medium text-gray-500">
+                Details:
+              </span>
+              <span className="ml-1 text-xs text-gray-700">
+                {finding.details.join(", ")}
+              </span>
+            </div>
+          )}
+
+          {finding.recommendation && (
+            <div className="mt-2">
+              <span className="text-xs font-medium text-gray-500">
+                Recommendation:
+              </span>
+              <span className="ml-1 text-xs text-gray-700">
+                {finding.recommendation}
+              </span>
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   );
 }

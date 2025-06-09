@@ -17,7 +17,7 @@
         (description "Antivirus software is disabled.")
         (recommendation "Enable antivirus software immediately.")
     ))
-    (assert (score (value -30) (type "penalty")))
+    (assert (score (value -30) (type penalty)))
 )
 
 ;; Rule: antivirus-definitions-outdated
@@ -32,7 +32,7 @@
         (description "Antivirus definitions are out of date.")
         (recommendation "Update antivirus definitions as soon as possible.")
     ))
-    (assert (score (value -15) (type "penalty")))
+    (assert (score (value -15) (type penalty)))
 )
 
 ;; Rule: antivirus-real-time-protection-disabled
@@ -47,5 +47,20 @@
         (description "Real-time protection is disabled.")
         (recommendation "Enable real-time protection immediately.")
     ))
-    (assert (score (value -25) (type "penalty")))
+    (assert (score (value -25) (type penalty)))
+)
+
+;; Rule: antivirus-properly-configured
+;; Purpose: Rewards systems with properly configured and up-to-date antivirus protection.
+(defrule antivirus-properly-configured
+    "Check if antivirus is properly configured"
+    (antivirus-info (status "enabled") (definitions "up-to-date") (real-time-protection "enabled"))
+    =>
+    (assert (finding
+        (rule-name "antivirus_properly_configured")
+        (level "info")
+        (description "Antivirus software is properly configured with up-to-date definitions and real-time protection.")
+        (recommendation "Continue monitoring antivirus status and keep definitions updated.")
+    ))
+    (assert (score (value 10) (type bonus)))
 )

@@ -224,6 +224,61 @@ class TestConvertMetricsToFacts(unittest.TestCase):
             '(antivirus-product (name "AVY") (state UNKNOWN))'
         )
 
+    def test_antivirus_no_products(self):
+        """Test antivirus status when no products are detected."""
+        data = {"antivirus": {"products": []}}
+        self.expert.convert_metrics_to_facts(data)
+
+        # Verify the antivirus-info fact is asserted with correct values
+        expected_fact = (
+            "(antivirus-info "
+            '(status "disabled") '
+            '(definitions "up-to-date") '
+            '(real-time-protection "disabled")'
+            ")"
+        )
+        self.expert.env.assert_string.assert_any_call(expected_fact)
+
+        # Also verify no antivirus-product facts were created
+        for call in self.expert.env.assert_string.call_args_list:
+            self.assertNotIn("antivirus-product", str(call))
+
+    def test_antivirus_all_products_disabled(self):
+        """Test antivirus status when all products are disabled."""
+        products = [{"name": "AVX", "state": 1}, {"name": "AVY", "state": 200}]
+        data = {"antivirus": {"products": products}}
+        self.expert.convert_metrics_to_facts(data)
+        self.expert.env.assert_string.assert_any_call(
+            '(antivirus-info (status "disabled") (definitions "up-to-date") (real-time-protection "disabled"))'
+        )
+
+    def test_antivirus_partial_products_disabled(self):
+        """Test antivirus status when some products are disabled."""
+        products = [{"name": "AVX", "state": 1}, {"name": "AVY", "state": 400000}]
+        data = {"antivirus": {"products": products}}
+        self.expert.convert_metrics_to_facts(data)
+        self.expert.env.assert_string.assert_any_call(
+            '(antivirus-info (status "partial") (definitions "up-to-date") (real-time-protection "disabled"))'
+        )
+
+    def test_antivirus_all_products_enabled(self):
+        """Test antivirus status when all products are enabled."""
+        products = [{"name": "AVX", "state": 397500}, {"name": "AVY", "state": 400000}]
+        data = {"antivirus": {"products": products}}
+        self.expert.convert_metrics_to_facts(data)
+        self.expert.env.assert_string.assert_any_call(
+            '(antivirus-info (status "enabled") (definitions "up-to-date") (real-time-protection "enabled"))'
+        )
+
+    def test_antivirus_definitions_out_of_date(self):
+        """Test antivirus definitions status when some products have undefined state."""
+        products = [{"name": "AVX", "state": 397500}, {"name": "AVY", "state": None}]
+        data = {"antivirus": {"products": products}}
+        self.expert.convert_metrics_to_facts(data)
+        self.expert.env.assert_string.assert_any_call(
+            '(antivirus-info (status "partial") (definitions "out-of-date") (real-time-protection "disabled"))'
+        )
+
     def test_password_policy_to_password_policy_fact(self):
         """Test conversion of password policy metrics to password-policy facts."""
         policy = {"min_password_length": 5, "max_password_age": 15}
@@ -265,16 +320,18 @@ class TestExtractorsTracers(unittest.TestCase):
         self.expert.env.facts = lambda: [f1, f2]
         findings = self.expert.get_findings()
         self.assertEqual(len(findings), 1)
-        self.assertDictEqual(
-            findings[0],
-            {
-                "rule": "r1",
-                "level": "warning",
-                "description": "d1",
-                "recommendation": "rec1",
-                "details": ["a", "b"],
-            },
-        )
+
+        # Check only the basic properties that don't depend on score calculation
+        self.assertEqual(findings[0]["rule"], "r1")
+        self.assertEqual(findings[0]["level"], "warning")
+        self.assertEqual(findings[0]["description"], "d1")
+        self.assertEqual(findings[0]["recommendation"], "rec1")
+        self.assertEqual(findings[0]["details"], ["a", "b"])
+
+        # Verify score impact was added with default values for warning level
+        self.assertEqual(findings[0]["score_impact"]["type"], "penalty")
+        self.assertEqual(findings[0]["score_impact"]["value"], -10)
+        self.assertEqual(findings[0]["score_text"], "-10 points")
 
     def test_get_score_with_final_score_fact(self):
         """Test that get_score uses the final score fact when available."""
@@ -292,11 +349,12 @@ class TestExtractorsTracers(unittest.TestCase):
         self.assertEqual(score, 0)
 
     def test_get_score_falls_back_to_findings(self):
-        """Test that get_score calculates score from findings when no score facts exist."""
+        """Test that get_score uses base score when no score facts exist."""
         self.expert.env.facts = lambda: []
-        self.expert.get_findings = lambda: [{"level": "critical"}, {"level": "info"}]
-        score = self.expert.get_score()
-        self.assertEqual(score, 65)
+        # The implementation no longer falls back to findings for score calculation
+        # It just returns the base score when no score facts exist
+        score = self.expert.get_score(base_score=100)
+        self.assertEqual(score, 100)
 
     def test_get_rule_trace_returns_activations(self):
         """Test that get_rule_trace returns the stored rule activations."""

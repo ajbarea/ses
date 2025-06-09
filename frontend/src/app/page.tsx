@@ -5,22 +5,7 @@ import { useState } from "react";
 import ScanButton from "../components/ScanButton";
 import ScanProgress from "../components/ScanProgress";
 import ResultsDisplay from "../components/ResultsDisplay";
-
-interface Finding {
-  rule: string;
-  description: string;
-  [key: string]: any;
-}
-
-interface EvalResult {
-  score: number;
-  grade: string;
-  summary: string;
-  findings: Finding[];
-  rules_fired: number;
-  explanations: { rule: string; activation: string }[];
-  metrics: Record<string, any>;
-}
+import type { EvalResult } from "../types/eval";
 
 export default function Home() {
   const [result, setResult] = useState<EvalResult | null>(null);
