@@ -1,10 +1,10 @@
 """Provide a CLIPS-based expert system for Windows security evaluation."""
 
-import clips
+import clipspy as clips # Use clipspy
 from pathlib import Path
 import io
 from contextlib import redirect_stdout
-from src.logging_config import get_logger
+from .logging_config import get_logger # Relative import
 
 logger = get_logger(__name__)
 
@@ -14,7 +14,7 @@ class SecurityExpertSystem:
 
     def __init__(self, rules_dir=None):
         """Initialize CLIPS environment and load rule templates and files."""
-        self.env = clips.Environment()
+        self.env = clips.Environment() # type: ignore
 
         if rules_dir is None:
             rules_dir = Path(__file__).parent / "clips_rules"
@@ -92,7 +92,7 @@ class SecurityExpertSystem:
    (slot value)
    (slot type (default penalty)))"""
             )
-        except clips.CLIPSError as e:
+        except clips.errors.CLIPSError as e: # type: ignore
             logger.error(f"Error loading template: {e}")
             raise
 
@@ -106,7 +106,7 @@ class SecurityExpertSystem:
             try:
                 self.env.load(str(rule_file))
                 logger.info(f"Loaded rules from {rule_file}")
-            except clips.CLIPSError as e:
+            except clips.errors.CLIPSError as e: # type: ignore
                 logger.error(f"Error loading {rule_file}: {e}")
 
     def _assert_patch_facts(self, patch_metrics):

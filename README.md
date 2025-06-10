@@ -185,6 +185,47 @@ After a successful run you’ll find:
 - `frontend/out/` – Next.js static export
 - `frontend/dist_electron/` – Electron installer per-OS
 
+### I/O Data Generation for ML Training
+
+**Purpose**: The script `backend/src/data_generator.py` is designed to generate input-output datasets. These datasets are intended for training a surrogate Machine Learning (ML) model that can mimic the behavior of the CLIPS-based expert system, potentially offering faster evaluations or enabling different deployment scenarios.
+
+**Prerequisites**:
+- The data generator relies on the CLIPS expert system for generating the "output" part of each data pair. Therefore, `clipspy` must be installed and accessible in the Python environment where `data_generator.py` is run.
+- **Note**: There is a known issue in some sandboxed execution environments where `clipspy` may not be correctly installed or accessible to the script execution user if installed by a different user. This dependency needs to be resolved externally by ensuring `clipspy` is properly installed in the active Python environment for the user running the script.
+
+**Usage**:
+To generate a dataset, navigate to the `backend` directory and run the script as a module:
+```bash
+python -m src.data_generator [options]
+```
+
+**Command-Line Arguments**:
+- `-n NUM_SAMPLES`, `--num_samples NUM_SAMPLES`: Specifies the number of input-output samples to generate. Default is 100.
+- `-o OUTPUT_FILE`, `--output_file OUTPUT_FILE`: Specifies the path for the output CSV file. Default is `es_security_dataset.csv` created in the current working directory (e.g., `backend/es_security_dataset.csv`).
+
+**Output CSV File**:
+The script generates a CSV file where each row represents a single input-output pair processed by the expert system. The columns include:
+- **Flattened Input Metrics**:
+    - `patch_status`: (e.g., "up-to-date", "out-of-date")
+    - `patch_hotfixes_count`: Number of hotfixes.
+    - `ports_count`: Number of open ports.
+    - `services_count`: Number of services listed.
+    - `firewall_domain_status`: (e.g., "ON", "OFF", "UNKNOWN")
+    - `firewall_private_status`: (e.g., "ON", "OFF", "UNKNOWN")
+    - `firewall_public_status`: (e.g., "ON", "OFF", "UNKNOWN")
+    - `antivirus_products_count`: Number of detected antivirus products.
+    - `password_policy_min_length`: Minimum password length.
+    - `password_policy_max_age`: Maximum password age in days (0 if not set).
+- **Expert System Outputs**:
+    - `score`: The numerical security score assigned by the expert system (0-100).
+    - `grade`: The qualitative grade assigned by the expert system (e.g., "Excellent", "Good", "Fair", "Poor", "Critical Risk").
+
+**Example**:
+To generate a dataset with 500 samples and save it to `dataset.csv` in the current directory:
+```bash
+python -m src.data_generator -n 500 -o dataset.csv
+```
+
 ### Acknowledgements
 
 AI assistance from OpenAI, Anthropic, and Google models supported this project through code reviews, debugging, CLIPS rule syntax, documentation, and Electron build scripting.
