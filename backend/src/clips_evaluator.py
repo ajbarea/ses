@@ -1,4 +1,9 @@
-"""Provide a CLIPS-based expert system for Windows security evaluation."""
+"""
+Windows Security Expert System based on CLIPS.
+
+This module provides a CLIPS-based inference engine that evaluates Windows
+security metrics and generates findings, recommendations, and security scores.
+"""
 
 import clips
 from pathlib import Path
@@ -10,10 +15,19 @@ logger = get_logger(__name__)
 
 
 class SecurityExpertSystem:
-    """Manage a CLIPS environment to evaluate system security metrics."""
+    """CLIPS-based expert system for Windows security evaluation.
+
+    Loads security rules from .clp files, processes system metrics as facts,
+    and performs inference to generate security findings and scores.
+    """
 
     def __init__(self, rules_dir=None):
-        """Initialize CLIPS environment and load rule templates and files."""
+        """Initialize CLIPS environment with security rule templates and files.
+
+        Args:
+            rules_dir (str or Path, optional): Directory containing CLIPS rule files.
+                Defaults to "clips_rules" subdirectory of this module's directory.
+        """
         self.env = clips.Environment()
 
         if rules_dir is None:
@@ -24,7 +38,14 @@ class SecurityExpertSystem:
         self._load_rules()
 
     def _load_templates(self):
-        """Define the CLIPS deftemplates for metrics and findings."""
+        """Define CLIPS templates for security metrics and findings.
+
+        Creates templates for patch status, ports, services, firewall,
+        antivirus, password policies, security findings, and scoring.
+
+        Raises:
+            clips.CLIPSError: If template definition fails.
+        """
         try:
             # Patch status template for Windows update information
             self.env.build(
@@ -72,8 +93,11 @@ class SecurityExpertSystem:
             # Password policy template for password settings analysis
             self.env.build(
                 """(deftemplate password-policy
-   (slot min-password-length)
-   (slot max-password-age))"""
+   (slot min-length (type INTEGER) (default 0))
+   (slot complexity (default "disabled"))
+   (slot lockout-threshold (type INTEGER SYMBOL) (default not-defined))
+   (slot history-size (type INTEGER) (default 0))
+   (slot max-age (type INTEGER SYMBOL) (default disabled)))"""
             )
 
             # Finding template for security findings/alerts
@@ -97,7 +121,11 @@ class SecurityExpertSystem:
             raise
 
     def _load_rules(self):
-        """Load all .clp rule files from the configured rules directory."""
+        """Load all CLIPS rule files (.clp) from the rules directory.
+
+        Attempts to load each .clp file found in the rules directory,
+        logging success or failure for each file.
+        """
         if not self.rules_dir.exists():
             logger.warning(f"Rules directory {self.rules_dir} does not exist.")
             return
@@ -110,7 +138,11 @@ class SecurityExpertSystem:
                 logger.error(f"Error loading {rule_file}: {e}")
 
     def _assert_patch_facts(self, patch_metrics):
-        """Assert a patch-status fact from the given metrics dict."""
+        """Assert patch status facts from patch metrics.
+
+        Args:
+            patch_metrics (dict): Dictionary containing patch status and hotfixes.
+        """
         fact = f'(patch-status (status "{patch_metrics["status"]}")'
         if patch_metrics.get("hotfixes"):
             hotfixes = " ".join(f'"{h}"' for h in patch_metrics["hotfixes"])
@@ -119,13 +151,22 @@ class SecurityExpertSystem:
         self.env.assert_string(fact)
 
     def _assert_port_facts(self, port_metrics):
-        """Assert open-port facts for each port in port_metrics['ports']."""
+        """Assert open-port facts for each port in metrics.
+
+        Args:
+            port_metrics (dict): Dictionary containing 'ports' list.
+        """
         if "ports" in port_metrics:
             for port in port_metrics["ports"]:
                 self.env.assert_string(f"(open-port (number {port}))")
 
     def _assert_service_facts(self, service_metrics):
-        """Assert service facts from service_metrics['services'] list."""
+        """Assert service facts from service metrics.
+
+        Args:
+            service_metrics (dict): Dictionary containing 'services' list with
+                                   name and state information.
+        """
         if "services" in service_metrics:
             for service in service_metrics["services"]:
                 self.env.assert_string(
@@ -133,7 +174,12 @@ class SecurityExpertSystem:
                 )
 
     def _assert_firewall_facts(self, firewall_metrics):
-        """Assert a firewall-profile fact using provided profiles dict."""
+        """Assert firewall profile facts.
+
+        Args:
+            firewall_metrics (dict): Dictionary containing 'profiles' with
+                                    domain, private, and public status.
+        """
         if "profiles" in firewall_metrics:
             profiles = firewall_metrics["profiles"]
             self.env.assert_string(
@@ -143,7 +189,12 @@ class SecurityExpertSystem:
             )
 
     def _assert_antivirus_facts(self, antivirus_metrics):
-        """Assert antivirus-product facts and derive overall antivirus-info."""
+        """Assert antivirus product facts and overall antivirus status.
+
+        Args:
+            antivirus_metrics (dict): Dictionary containing antivirus products
+                                     and their states.
+        """
         if "products" in antivirus_metrics:
             products = antivirus_metrics["products"]
 
@@ -157,28 +208,32 @@ class SecurityExpertSystem:
 
             if products:
                 # Determine enabled vs. disabled counts
-                # values < 397312 indicate disabled/risk per Windows SCC
+                # Windows Security Center values < 397312 indicate disabled/risk status
                 disabled_count = sum(
                     1
                     for p in products
                     if p.get("state") is None
                     or (isinstance(p.get("state"), int) and p["state"] < 397312)
                 )
-                # overall status
+
+                # Calculate overall status based on disabled product count
                 if disabled_count == len(products):
                     status = "disabled"
                 elif disabled_count > 0:
                     status = "partial"
                 else:
                     status = "enabled"
-                # definitions out-of-date if any state is undefined
+
+                # Consider definitions out-of-date if any state is undefined
                 definitions = (
                     "out-of-date"
                     if any(p.get("state") is None for p in products)
                     else "up-to-date"
                 )
-                # real-time protection follows enabled status
+
+                # Real-time protection follows overall enabled status
                 rtp_status = "enabled" if status == "enabled" else "disabled"
+
                 self.env.assert_string(
                     f'(antivirus-info (status "{status}") '
                     f'(definitions "{definitions}") '
@@ -195,16 +250,36 @@ class SecurityExpertSystem:
             )
 
     def _assert_password_policy_facts(self, password_policy_metrics):
-        """Assert password-policy fact with minimum length and maximum age."""
+        """Assert password policy facts from policy metrics.
+
+        Args:
+            password_policy_metrics (dict): Dictionary containing password policy
+                                          settings.
+        """
         if "policy" in password_policy_metrics:
             policy = password_policy_metrics["policy"]
-            self.env.assert_string(
-                f"(password-policy (min-password-length {policy.get('min_password_length', 0)}) "
-                f"(max-password-age {policy.get('max_password_age', 0)}))"
-            )
+            # Construct the fact string ensuring correct types and defaults
+            fact_string = "(password-policy "
+            fact_string += f"(min-length {policy.get('min_password_length', 0)}) "
+            fact_string += f"(complexity \"{policy.get('complexity', 'disabled')}\") "
+            # lockout-threshold expects INTEGER or SYMBOL. 'not-defined' is a SYMBOL.
+            lockout_threshold_val = policy.get("lockout_threshold", "not-defined")
+            fact_string += f"(lockout-threshold {lockout_threshold_val}) "
+            fact_string += f"(history-size {policy.get('history_size', 0)}) "
+            # max-age expects INTEGER or SYMBOL. 'disabled' is a SYMBOL.
+            max_age_val = policy.get("max_password_age", "disabled")
+            fact_string += f"(max-age {max_age_val})"
+            fact_string += ")"
+            self.env.assert_string(fact_string)
 
     def convert_metrics_to_facts(self, metrics):
-        """Reset environment and assert facts for each metrics category."""
+        """Convert collected security metrics to CLIPS facts.
+
+        Resets the CLIPS environment and asserts facts for each metrics category.
+
+        Args:
+            metrics (dict): Dictionary of system security metrics by category.
+        """
         # Reset the environment for a new evaluation
         self.env.reset()
 
@@ -248,29 +323,32 @@ class SecurityExpertSystem:
                     ")"
                 )
             else:
-                # Process products to determine overall status
-                # values < 397312 indicate disabled/risk per Windows SCC
+                # Windows Security Center values < 397312 indicate disabled/risk status
                 disabled_count = sum(
                     1
                     for p in products
                     if p.get("state") is None
                     or (isinstance(p.get("state"), int) and p["state"] < 397312)
                 )
-                # overall status
+
+                # Calculate overall status based on disabled product count
                 if disabled_count == len(products):
                     status = "disabled"
                 elif disabled_count > 0:
                     status = "partial"
                 else:
                     status = "enabled"
-                # definitions out-of-date if any state is undefined
+
+                # Consider definitions out-of-date if any state is undefined
                 definitions = (
                     "out-of-date"
                     if any(p.get("state") is None for p in products)
                     else "up-to-date"
                 )
-                # real-time protection follows enabled status
+
+                # Real-time protection follows overall enabled status
                 rtp_status = "enabled" if status == "enabled" else "disabled"
+
                 self.env.assert_string(
                     f'(antivirus-info (status "{status}") '
                     f'(definitions "{definitions}") '
@@ -281,9 +359,14 @@ class SecurityExpertSystem:
             self._assert_password_policy_facts(metrics["password_policy"])
 
     def run_evaluation(self):
-        """Run the CLIPS engine, capture and parse rule activations."""
+        """Run the CLIPS inference engine and capture rule activations.
+
+        Returns:
+            int: Number of rules fired during evaluation.
+        """
         self.rule_activations = []
-        # Capture rule activations if watch supported
+
+        # Attempt to capture rule activations via stdout redirection
         captured = io.StringIO()
         with redirect_stdout(captured):
             try:
@@ -293,7 +376,7 @@ class SecurityExpertSystem:
                 watch_supported = False
             rules_fired = self.env.run()
 
-        # Process watch output if supported and unwatch succeeds
+        # Process watch output if supported
         if watch_supported:
             try:
                 self.env.unwatch("rules")
@@ -309,7 +392,11 @@ class SecurityExpertSystem:
         return rules_fired
 
     def _parse_watch_activations(self, output: str):
-        """Extract fired rule names from CLIPS watch output."""
+        """Extract fired rule names from CLIPS watch output.
+
+        Args:
+            output (str): String output from CLIPS watch command.
+        """
         for line in output.splitlines():
             if "FIRE" in line:
                 parts = line.split()
@@ -322,8 +409,12 @@ class SecurityExpertSystem:
                     )
 
     def _process_fallback(self, rules_fired: int):
-        """Fallback: derive activations from findings when tracing is unavailable."""
-        # Use findings as a source of rule activation info when tracing not available
+        """Use findings to reconstruct rule activations when tracing is unavailable.
+
+        Args:
+            rules_fired (int): Number of rules that fired during evaluation.
+        """
+        # Use findings as a source of rule activation info
         for finding in self.get_findings():
             self.rule_activations.append(
                 {
@@ -331,6 +422,7 @@ class SecurityExpertSystem:
                     "activation": f"Rule activated: {finding.get('rule', 'unknown')} - {finding.get('description', '')}",
                 }
             )
+
         # Add placeholder entry if no findings were generated but rules fired
         if not self.rule_activations:
             self.rule_activations.append(
@@ -341,7 +433,11 @@ class SecurityExpertSystem:
             )
 
     def get_findings(self):
-        """Return a list of finding dicts with computed score impacts."""
+        """Extract security findings from CLIPS facts with score impacts.
+
+        Returns:
+            list: List of finding dictionaries sorted by score impact.
+        """
         findings = []
         score_facts = {}
 
@@ -369,8 +465,10 @@ class SecurityExpertSystem:
                 "recommendation": finding["recommendation"],
             }
 
-            # Add score impact information if available
+            # Find score impact using multiple fallback strategies
             score_impact = None
+
+            # Strategy 1: Direct relation via attribute
             for fact in self.env.facts():
                 if (
                     fact.template.name == "score"
@@ -380,15 +478,14 @@ class SecurityExpertSystem:
                     score_impact = {"value": int(fact["value"]), "type": fact["type"]}
                     break
 
-            # Try to find by rule name if not found by direct relation
+            # Strategy 2: Match by rule name
             if not score_impact and rule_name in score_facts:
                 score_impact = score_facts[rule_name]
 
-            # If still not found, do general lookup by matching rule activation pattern
+            # Strategy 3: Match by rule activation pattern
             if not score_impact:
                 for activation in self.rule_activations:
                     if activation.get("rule") and rule_name in activation.get("rule"):
-                        # Look for scores asserted during this activation
                         for fact in self.env.facts():
                             if (
                                 fact.template.name == "score"
@@ -401,9 +498,8 @@ class SecurityExpertSystem:
                                 }
                                 break
 
-            # Default if we can't find the specific score impact
+            # Strategy 4: Default based on finding level
             if not score_impact:
-                # Assign default score impact based on finding level
                 if finding["level"] == "info":
                     score_impact = {"value": 0, "type": "neutral"}
                 elif finding["level"] == "warning":
@@ -428,7 +524,7 @@ class SecurityExpertSystem:
 
             findings.append(finding_dict)
 
-        # Sort findings by score impact (bonuses first, then neutral, then penalties)
+        # Sort findings: bonuses first, then neutral, then penalties (by severity)
         findings.sort(
             key=lambda f: (
                 (
@@ -443,8 +539,14 @@ class SecurityExpertSystem:
         return findings
 
     def get_score(self, base_score=100):
-        """Compute and return the final security score (0–100)."""
-        # Check for score facts
+        """Compute the final security score from score facts.
+
+        Args:
+            base_score (int, optional): Starting score value. Defaults to 100.
+
+        Returns:
+            int: Final security score between 0 and 100.
+        """
         score = base_score
         score_details = []
 
@@ -456,7 +558,7 @@ class SecurityExpertSystem:
                     # Final score overrides all other calculations
                     return max(0, min(100, value))
                 elif score_fact["type"] == "penalty":
-                    score += value
+                    score += value  # Penalties are negative values
                     score_details.append(
                         {
                             "type": "penalty",
@@ -476,17 +578,25 @@ class SecurityExpertSystem:
                         }
                     )
 
-        # Ensure score is in valid range
+        # Ensure score is in valid range (0-100)
         return max(0, min(100, score))
 
     def get_rule_trace(self):
-        """Return the list of recorded rule activation events."""
+        """Return the list of recorded rule activation events.
+
+        Returns:
+            list: Rule activation dictionaries.
+        """
         return self.rule_activations
 
     def evaluate(self, metrics):
-        """Run a full evaluation: assert facts, infer, and summarize results.
+        """Run a complete security evaluation from metrics to results.
 
-        Returns a dict with score, grade, findings, and impact summary.
+        Args:
+            metrics (dict): Security metrics dictionary organized by category.
+
+        Returns:
+            dict: Evaluation results containing score, grade, findings, and explanations.
         """
         # Convert metrics to CLIPS facts
         self.convert_metrics_to_facts(metrics)
@@ -513,7 +623,7 @@ class SecurityExpertSystem:
         # Get rule explanations if available
         explanations = self.get_rule_trace()
 
-        # Organize findings by impact
+        # Organize findings by impact type
         positive_findings = [
             f for f in findings if f.get("score_impact", {}).get("type") == "bonus"
         ]

@@ -140,6 +140,40 @@ The system includes several specialized rule files:
 - `password_rules.clp` - Validates password policy strength
 - `antivirus_rules.clp` - Checks antivirus software status and configuration
 
+## Machine Learning Dataset Generation
+
+SES can generate datasets for training ML models that mimic the expert system's behavior.
+
+### Generating Training Data
+
+```bash
+cd backend
+
+# Generate a basic dataset
+python -m src.data_generator -n 1000 -o security_dataset.csv
+
+# Generate train/test split (0.8 => 80% train - 20% test)
+python -m src.data_generator -n 5000 --split 0.8 -o security_data.csv
+```
+
+### Dataset Structure
+
+The generated CSV contains:
+
+**Input Features:**
+
+- `patch_status`, `patch_hotfixes_count` - System patch information
+- `ports_count` - Number of open network ports
+- `services_total`, `services_running`, `services_stopped` - Service counts
+- `firewall_domain`, `firewall_private`, `firewall_public` - Firewall states
+- `antivirus_count`, `antivirus_enabled` - Antivirus status
+- `password_min_length`, `password_max_age` - Password policy
+
+**Target Variables:**
+
+- `target_score` - Expert system security score (0-100)
+- `target_grade` - Security grade (Excellent, Good, Fair, Poor, Critical Risk)
+
 ## Testing
 
 Run the test suite with:

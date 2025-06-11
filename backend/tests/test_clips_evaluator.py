@@ -281,12 +281,38 @@ class TestConvertMetricsToFacts(unittest.TestCase):
 
     def test_password_policy_to_password_policy_fact(self):
         """Test conversion of password policy metrics to password-policy facts."""
-        policy = {"min_password_length": 5, "max_password_age": 15}
+        policy = {
+            "min_password_length": 5,
+            "max_password_age": 15,
+            "complexity": "enabled",
+            "lockout_threshold": 5,
+            "history_size": 3,
+        }
         data = {"password_policy": {"policy": policy}}
         self.expert.convert_metrics_to_facts(data)
-        self.expert.env.assert_string.assert_any_call(
-            "(password-policy (min-password-length 5) (max-password-age 15))"
+        expected_fact = (
+            "(password-policy (min-length 5) "
+            '(complexity "enabled") '
+            "(lockout-threshold 5) "
+            "(history-size 3) "
+            "(max-age 15))"
         )
+        self.expert.env.assert_string.assert_any_call(expected_fact)
+
+    def test_password_policy_to_password_policy_fact_with_defaults(self):
+        """Test conversion of password policy metrics using default values for some fields."""
+        policy = {"min_password_length": 8}  # Only provide min_length
+        data = {"password_policy": {"policy": policy}}
+        self.expert.convert_metrics_to_facts(data)
+        # Expecting default values for complexity, lockout-threshold, history-size, and max-age
+        expected_fact = (
+            "(password-policy (min-length 8) "
+            '(complexity "disabled") '  # Default
+            "(lockout-threshold not-defined) "  # Default
+            "(history-size 0) "  # Default
+            "(max-age disabled))"  # Default
+        )
+        self.expert.env.assert_string.assert_any_call(expected_fact)
 
 
 class FakeFact(dict):

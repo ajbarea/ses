@@ -84,7 +84,7 @@
 ;; Purpose: Identifies when account lockout thresholds are not configured.
 (defrule account-lockout-not-defined
     "Check if account lockout policy is not defined"
-    (password-policy (lockout-threshold "not-defined"))
+    (password-policy (lockout-threshold not-defined))
     =>
     (assert (finding
         (rule-name "account_lockout_not_defined")
@@ -99,7 +99,7 @@
 ;; Purpose: Confirms that account lockout policies are configured.
 (defrule account-lockout-defined
     "Check if account lockout policy is defined"
-    (password-policy (lockout-threshold ?val&:(neq ?val "not-defined")))
+    (password-policy (lockout-threshold ?val&:(neq ?val not-defined)))
     =>
     (assert (finding
         (rule-name "account_lockout_defined")
@@ -144,7 +144,7 @@
 ;; Purpose: Identifies when password expiration is not enforced.
 (defrule max-password-age-disabled
     "Check if maximum password age is disabled"
-    (password-policy (max-age "disabled"))
+    (password-policy (max-age disabled))
     =>
     (assert (finding
         (rule-name "max_password_age_disabled")
@@ -159,7 +159,7 @@
 ;; Purpose: Confirms that password expiration is enforced.
 (defrule max-password-age-enabled
     "Check if maximum password age is enabled"
-    (password-policy (max-age ?days&:(neq ?days "disabled")&:(> (integer ?days) 0)))
+    (password-policy (max-age ?days&:(neq ?days disabled)&:(> (integer ?days) 0)))
     =>
     (assert (finding
         (rule-name "max_password_age_enabled")
@@ -174,7 +174,7 @@
 ;; Purpose: Identifies when password expiration period is excessively long.
 (defrule max-password-age-too-long
     "Check if maximum password age is too long"
-    (password-policy (max-age ?days&:(neq ?days "disabled")&:(> (integer ?days) 365)))
+    (password-policy (max-age ?days&:(neq ?days disabled)&:(> (integer ?days) 365)))
     =>
     (assert (finding
         (rule-name "max_password_age_too_long")
