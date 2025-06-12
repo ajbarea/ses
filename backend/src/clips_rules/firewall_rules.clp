@@ -116,5 +116,5 @@
         (description "All firewall profiles are enabled.")
         (recommendation "Continue monitoring firewall status.")
     ))
-    (assert (score (value 15) (type bonus)))
+    (assert (score (value 10) (type bonus)))
 )

@@ -47,7 +47,7 @@
         (description "Real-time protection is disabled.")
         (recommendation "Enable real-time protection immediately.")
     ))
-    (assert (score (value -25) (type penalty)))
+    (assert (score (value -30) (type penalty)))
 )
 
 ;; Rule: antivirus-properly-configured
@@ -62,5 +62,5 @@
         (description "Antivirus software is properly configured with up-to-date definitions and real-time protection.")
         (recommendation "Continue monitoring antivirus status and keep definitions updated.")
     ))
-    (assert (score (value 10) (type bonus)))
+    (assert (score (value 5) (type bonus)))
 )

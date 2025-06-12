@@ -609,7 +609,11 @@ class SecurityExpertSystem:
         score = self.get_score()
 
         # Determine grade based on score
-        if score >= 90:
+        is_critical_found = any(f.get("level") == "critical" for f in findings)
+
+        if is_critical_found:
+            grade = "Critical Risk"
+        elif score >= 90:
             grade = "Excellent"
         elif score >= 80:
             grade = "Good"

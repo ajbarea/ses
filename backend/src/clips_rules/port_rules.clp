@@ -36,7 +36,7 @@
         (details ?port1 ?port2)
         (recommendation "Disable unnecessary services and enable firewall.")
     ))
-    (assert (score (value -25) (type penalty)))
+    (assert (score (value -30) (type penalty)))
 )
 
 ;; Rule: many-ports-open
