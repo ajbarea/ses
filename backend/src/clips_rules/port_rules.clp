@@ -18,7 +18,7 @@
         (details ?port)
         (recommendation "Close unnecessary high-risk ports or restrict access.")
     ))
-    (assert (score (value -15) (type penalty)))
+    (assert (score (value -10) (type penalty)))
 )
 
 ;; Rule: suspicious-port-combination

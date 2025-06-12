@@ -17,7 +17,7 @@
         (description (str-cat "Minimum password length is weak (less than 8 characters). Currently: " ?len "."))
         (recommendation "Set minimum password length to at least 8 characters. Consider 12 or more for enhanced security.")
     ))
-    (assert (score (value -15) (type penalty)))
+    (assert (score (value -10) (type penalty)))
 )
 
 ;; Rule: password-min-length-acceptable
@@ -62,7 +62,7 @@
         (description "Password complexity requirements (requiring uppercase, lowercase, numbers, symbols) are disabled.")
         (recommendation "Enable password complexity requirements to enforce stronger passwords.")
     ))
-    (assert (score (value -15) (type penalty)))
+    (assert (score (value -10) (type penalty)))
 )
 
 ;; Rule: password-complexity-enabled
@@ -182,5 +182,5 @@
         (description (str-cat "Maximum password age may be too long. Passwords expire after " ?days " days."))
         (recommendation "Consider reducing the maximum password age to a shorter period (e.g., 90-180 days).")
     ))
-    (assert (score (value -5) (type penalty)))
+    (assert (score (value -10) (type penalty)))
 )

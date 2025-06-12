@@ -14,7 +14,7 @@ logger = get_logger(__name__)
 SEVERITY_SCORES = {
     "critical": -30,
     "warning": -10,
-    "info": -5,
+    "info": 0,
 }
 
 # Threshold for number of running services before triggering an alert
@@ -58,6 +58,74 @@ RULE_DESCRIPTIONS = {
         "description": "No antivirus products detected.",
         "level": "critical",
     },
+    "password_min_length_weak": {
+        "description": "Minimum password length is weak (less than 8 characters).",
+        "level": "warning",
+    },
+    "password_min_length_acceptable": {
+        "description": "Minimum password length is acceptable (8–11 characters).",
+        "level": "info",
+    },
+    "password_min_length_strong": {
+        "description": "Minimum password length is strong (12+ characters).",
+        "level": "info",
+    },
+    "password_complexity_disabled": {
+        "description": "Password complexity requirements are disabled.",
+        "level": "warning",
+    },
+    "password_complexity_enabled": {
+        "description": "Password complexity requirements are enabled.",
+        "level": "info",
+    },
+    "account_lockout_not_defined": {
+        "description": "Account lockout policy is not defined.",
+        "level": "warning",
+    },
+    "account_lockout_defined": {
+        "description": "Account lockout policy is defined.",
+        "level": "info",
+    },
+    "password_history_disabled": {
+        "description": "Password history is not enforced.",
+        "level": "warning",
+    },
+    "password_history_enabled": {
+        "description": "Password history is enforced.",
+        "level": "info",
+    },
+    "max_password_age_disabled": {
+        "description": "Maximum password age is disabled.",
+        "level": "warning",
+    },
+    "max_password_age_enabled": {
+        "description": "Maximum password age is enabled.",
+        "level": "info",
+    },
+    "max_password_age_too_long": {
+        "description": "Maximum password age is too long (>365 days).",
+        "level": "warning",
+    },
+    "smb_port_open": {
+        "description": "SMB port 445 is open, which is common for Windows file sharing.",
+        "level": "info",
+    },
+    "smb_port_risky": {
+        "description": "SMB port 445 is open with public firewall disabled.",
+        "level": "warning",
+    },
+    "high_risk_port_open": {
+        "description": "High-risk port is open.",
+        "level": "warning",
+    },
+    "suspicious_port_combination": {
+        "description": "Insecure services exposed with firewall disabled.",
+        "level": "critical",
+    },
+    "many_ports_open": {
+        "description": "Large number of open ports detected.",
+        "level": "warning",
+    },
 }
 
 # Check if CLIPS expert system is available
@@ -96,7 +164,7 @@ def calculate_score(findings: list, base_score: int = 100) -> int:
         level = finding.get(
             "level", "info"
         )  # Default to 'info' if level is not specified
-        penalty = SEVERITY_SCORES.get(level, -5)  # Default penalty if level is unknown
+        penalty = SEVERITY_SCORES.get(level, 0)  # Default penalty if level is unknown
         score += penalty
     return max(0, min(100, score))  # Ensure score is within 0-100 range
 
@@ -218,6 +286,89 @@ def _collect_antivirus_findings(metrics):
     return findings
 
 
+def _collect_password_findings(metrics):
+    """Extract Windows password‐policy findings."""
+    findings = []
+    policy = metrics.get("password_policy", {}).get("policy", {})
+
+    # minimum length
+    m = policy.get("min_password_length", 0)
+    if m < 8:
+        key = "password_min_length_weak"
+    elif m < 12:
+        key = "password_min_length_acceptable"
+    else:
+        key = "password_min_length_strong"
+    findings.append(
+        {
+            "rule": key,
+            "level": RULE_DESCRIPTIONS[key]["level"],
+            "description": f"{RULE_DESCRIPTIONS[key]['description']} Currently: {m}.",
+        }
+    )
+
+    # complexity
+    comp = policy.get("complexity", "disabled")
+    key = (
+        "password_complexity_disabled"
+        if comp != "enabled"
+        else "password_complexity_enabled"
+    )
+    findings.append(
+        {
+            "rule": key,
+            "level": RULE_DESCRIPTIONS[key]["level"],
+            "description": RULE_DESCRIPTIONS[key]["description"],
+        }
+    )
+
+    # lockout threshold
+    lt = policy.get("lockout_threshold", "not-defined")
+    if lt == "not-defined":
+        key = "account_lockout_not_defined"
+    else:
+        key = "account_lockout_defined"
+    findings.append(
+        {
+            "rule": key,
+            "level": RULE_DESCRIPTIONS[key]["level"],
+            "description": RULE_DESCRIPTIONS[key]["description"],
+        }
+    )
+
+    # history
+    sz = policy.get("history_size", 0)
+    if sz < 1:
+        key = "password_history_disabled"
+    else:
+        key = "password_history_enabled"
+    findings.append(
+        {
+            "rule": key,
+            "level": RULE_DESCRIPTIONS[key]["level"],
+            "description": f"{RULE_DESCRIPTIONS[key]['description']} Size: {sz}.",
+        }
+    )
+
+    # max age
+    ma = policy.get("max_password_age", "disabled")
+    if ma == "disabled":
+        key = "max_password_age_disabled"
+    elif isinstance(ma, int) and ma > 365:
+        key = "max_password_age_too_long"
+    else:
+        key = "max_password_age_enabled"
+    findings.append(
+        {
+            "rule": key,
+            "level": RULE_DESCRIPTIONS[key]["level"],
+            "description": f"{RULE_DESCRIPTIONS[key]['description']} Days: {ma}.",
+        }
+    )
+
+    return findings
+
+
 def _assign_grade(score, findings):
     """Determine security grade based on score and findings.
 
@@ -263,6 +414,10 @@ def _evaluate_legacy(metrics: dict) -> dict:
     findings.extend(_collect_firewall_findings(metrics))
     if "antivirus" in metrics:
         findings.extend(_collect_antivirus_findings(metrics))
+
+    # new password policy collector
+    if "password_policy" in metrics:
+        findings.extend(_collect_password_findings(metrics))
 
     score = calculate_score(findings)
     grade = _assign_grade(score, findings)

@@ -34,5 +34,5 @@
         (details $?fixes)
         (recommendation "Continue with regular patch management.")
     ))
-    (assert (score (value 5) (type bonus)))
+    (assert (score (value 0) (type neutral)))
 )

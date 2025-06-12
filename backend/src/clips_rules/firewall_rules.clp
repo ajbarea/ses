@@ -52,7 +52,7 @@
         (details 445)
         (recommendation "Enable public firewall profile and restrict SMB access to trusted networks only.")
     ))
-    (assert (score (value -15) (type penalty)))
+    (assert (score (value -10) (type penalty)))
     (assert (high-risk-smb-detected))
 )
 
@@ -116,5 +116,5 @@
         (description "All firewall profiles are enabled.")
         (recommendation "Continue monitoring firewall status.")
     ))
-    (assert (score (value 10) (type bonus)))
+    (assert (score (value 0) (type neutral)))
 )

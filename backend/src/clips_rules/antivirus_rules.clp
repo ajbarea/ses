@@ -62,5 +62,5 @@
         (description "Antivirus software is properly configured with up-to-date definitions and real-time protection.")
         (recommendation "Continue monitoring antivirus status and keep definitions updated.")
     ))
-    (assert (score (value 5) (type bonus)))
+    (assert (score (value 0) (type neutral)))
 )
