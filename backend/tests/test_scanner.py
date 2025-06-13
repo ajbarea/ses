@@ -62,11 +62,19 @@ class TestScanner(unittest.TestCase):
         mock_output = (
             "Minimum password length          7\n"
             "Maximum password age             42\n"
+            "Minimum password age             1\n"
+            "Password history length          5\n"
+            "Lockout threshold                3\n"
+            "Password complexity requirements Enabled\n"
         )
         mock_check_output.return_value = mock_output
         policy = get_password_policy()["policy"]
         self.assertEqual(policy["min_password_length"], 7)
         self.assertEqual(policy["max_password_age"], 42)
+        self.assertEqual(policy["min_password_age"], 1)
+        self.assertEqual(policy["history_size"], 5)
+        self.assertEqual(policy["lockout_threshold"], 3)
+        self.assertEqual(policy["complexity"], "enabled")
 
     @patch("src.scanner.subprocess.check_output")
     def test_password_policy_defaults_when_missing(self, mock_check_output):
@@ -76,6 +84,23 @@ class TestScanner(unittest.TestCase):
         policy = get_password_policy()["policy"]
         self.assertEqual(policy["min_password_length"], 1)
         self.assertEqual(policy["max_password_age"], 0)
+        self.assertNotIn("complexity", policy)
+        self.assertNotIn("lockout_threshold", policy)
+        self.assertNotIn("history_size", policy)
+
+    @patch("src.scanner.subprocess.check_output")
+    def test_password_policy_handles_disabled_values(self, mock_check_output):
+        """Test handling of 'Never' and 'Disabled' values in password policy."""
+        mock_output = (
+            "Minimum password length          8\n"
+            "Maximum password age             Never\n"
+            "Password complexity requirements Disabled\n"
+        )
+        mock_check_output.return_value = mock_output
+        policy = get_password_policy()["policy"]
+        self.assertEqual(policy["min_password_length"], 8)
+        self.assertEqual(policy["max_password_age"], "disabled")
+        self.assertEqual(policy["complexity"], "disabled")
 
     @patch("src.scanner.c.Win32_QuickFixEngineering")
     def test_patch_status_out_of_date_no_hotfixes(self, mock_wql):

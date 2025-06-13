@@ -7,6 +7,7 @@ from datetime import datetime
 
 from src import rules
 from src.rules import (
+    _collect_password_findings,
     _evaluate_clips,
     _evaluate_legacy,
     evaluate,
@@ -375,6 +376,66 @@ class TestEvaluateLegacyRules(unittest.TestCase):
             )
         )
 
+    def test_impact_summary_generation(self):
+        """Test that impact_summary correctly reports counts of different finding types."""
+        # Create a test metrics object that will generate different types of findings
+        metrics = {
+            "patch": {"status": "up-to-date", "hotfixes": []},
+            "ports": {"ports": [80, 443]},  # Will generate a warning
+            "services": {"services": []},
+            "firewall": {
+                "profiles": {"domain": "ON", "private": "ON", "public": "ON"}
+            },  # Will generate a positive finding
+            "antivirus": {
+                "products": [{"name": "Test AV", "state": None}]
+            },  # Will generate a warning
+            "password_policy": {
+                "policy": {"min_password_length": 12}
+            },  # Will generate a positive finding
+        }
+
+        # Mock the score_impact for findings to ensure we have positive, neutral and negative findings
+        with patch("src.rules.get_finding_score_impact") as mock_score_impact:
+            # Setup mock to return different score impacts based on rule
+            def side_effect(finding):
+                rule = finding.get("rule", "")
+                if (
+                    rule == "firewall_all_enabled"
+                    or "password_min_length_strong" in rule
+                ):
+                    return {"type": "bonus", "value": 5}
+                elif "open_ports" in rule or "antivirus" in rule:
+                    return {"type": "penalty", "value": -5}
+                else:
+                    return {"type": "neutral", "value": 0}
+
+            mock_score_impact.side_effect = side_effect
+
+            result = rules._evaluate_legacy(metrics)
+
+            # Check impact_summary field
+            self.assertIn("impact_summary", result)
+            impact_summary = result["impact_summary"]
+
+            # Should have positive and negative findings mentioned
+            self.assertIn("positive factors", impact_summary)
+            self.assertIn("reducing your score", impact_summary)
+
+            # Count the actual findings in each category
+            positive_count = len(result["positive_findings"])
+            negative_count = len(result["negative_findings"])
+            neutral_count = len(result["neutral_findings"])
+
+            # Verify the counts match what's reported in the impact summary
+            if positive_count > 0:
+                self.assertIn(f"{positive_count} positive factors", impact_summary)
+            if negative_count > 0:
+                self.assertIn(
+                    f"{negative_count} items reducing your score", impact_summary
+                )
+            if neutral_count > 0:
+                self.assertIn(f"{neutral_count} neutral findings", impact_summary)
+
 
 class TestEvaluateWrapper(unittest.TestCase):
     """Tests for the evaluate wrapper function with auto-detection features."""
@@ -419,6 +480,373 @@ class TestEvaluateWrapper(unittest.TestCase):
         mock_logger.warning.assert_called_once_with(
             "CLIPS evaluation requested but CLIPS is not available. Falling back to legacy."
         )
+
+    def test_empty_metrics(self):
+        """Test handling of empty metrics dictionary."""
+        # Empty metrics should return 5 findings with default values
+        findings = _collect_password_findings({})
+        self.assertEqual(len(findings), 5)
+
+        # Check specific findings
+        rule_names = [f["rule"] for f in findings]
+        self.assertIn("password_min_length_weak", rule_names)
+        self.assertIn("password_complexity_disabled", rule_names)
+        self.assertIn("account_lockout_not_defined", rule_names)
+        self.assertIn("password_history_disabled", rule_names)
+        self.assertIn("max_password_age_disabled", rule_names)
+
+    def test_missing_policy_key(self):
+        """Test handling of metrics with missing policy key."""
+        metrics = {"password_policy": {}}
+        findings = _collect_password_findings(metrics)
+        self.assertEqual(len(findings), 5)
+
+        # Verify default findings are returned
+        rule_names = [f["rule"] for f in findings]
+        self.assertIn("password_min_length_weak", rule_names)
+        self.assertIn("max_password_age_disabled", rule_names)
+
+    def test_password_min_length_weak(self):
+        """Test minimum password length < 8 produces weak finding."""
+        metrics = {"password_policy": {"policy": {"min_password_length": 7}}}
+        findings = _collect_password_findings(metrics)
+
+        # Find the min length finding
+        min_length_findings = [f for f in findings if "min_length" in f["rule"]]
+        self.assertEqual(len(min_length_findings), 1)
+        finding = min_length_findings[0]
+
+        self.assertEqual(finding["rule"], "password_min_length_weak")
+        self.assertEqual(
+            finding["level"], RULE_DESCRIPTIONS["password_min_length_weak"]["level"]
+        )
+        self.assertIn("Currently: 7", finding["description"])
+
+    def test_password_min_length_acceptable(self):
+        """Test minimum password length 8-11 produces acceptable finding."""
+        metrics = {"password_policy": {"policy": {"min_password_length": 8}}}
+        findings = _collect_password_findings(metrics)
+
+        min_length_findings = [f for f in findings if "min_length" in f["rule"]]
+        self.assertEqual(len(min_length_findings), 1)
+        finding = min_length_findings[0]
+
+        self.assertEqual(finding["rule"], "password_min_length_acceptable")
+        self.assertEqual(
+            finding["level"],
+            RULE_DESCRIPTIONS["password_min_length_acceptable"]["level"],
+        )
+        self.assertIn("Currently: 8", finding["description"])
+
+    def test_password_min_length_strong(self):
+        """Test minimum password length ≥ 12 produces strong finding."""
+        metrics = {"password_policy": {"policy": {"min_password_length": 12}}}
+        findings = _collect_password_findings(metrics)
+
+        min_length_findings = [f for f in findings if "min_length" in f["rule"]]
+        self.assertEqual(len(min_length_findings), 1)
+        finding = min_length_findings[0]
+
+        self.assertEqual(finding["rule"], "password_min_length_strong")
+        self.assertEqual(
+            finding["level"], RULE_DESCRIPTIONS["password_min_length_strong"]["level"]
+        )
+        self.assertIn("Currently: 12", finding["description"])
+
+    def test_complexity_enabled(self):
+        """Test complexity=enabled produces enabled finding."""
+        metrics = {"password_policy": {"policy": {"complexity": "enabled"}}}
+        findings = _collect_password_findings(metrics)
+
+        complexity_findings = [f for f in findings if "complexity" in f["rule"]]
+        self.assertEqual(len(complexity_findings), 1)
+        finding = complexity_findings[0]
+
+        self.assertEqual(finding["rule"], "password_complexity_enabled")
+        self.assertEqual(
+            finding["level"], RULE_DESCRIPTIONS["password_complexity_enabled"]["level"]
+        )
+
+    def test_complexity_disabled(self):
+        """Test complexity!=enabled produces disabled finding."""
+        # Test with explicit "disabled" value
+        metrics = {"password_policy": {"policy": {"complexity": "disabled"}}}
+        findings = _collect_password_findings(metrics)
+
+        complexity_findings = [f for f in findings if "complexity" in f["rule"]]
+        self.assertEqual(len(complexity_findings), 1)
+        finding = complexity_findings[0]
+
+        self.assertEqual(finding["rule"], "password_complexity_disabled")
+        self.assertEqual(
+            finding["level"], RULE_DESCRIPTIONS["password_complexity_disabled"]["level"]
+        )
+
+        # Test with non-standard value
+        metrics = {"password_policy": {"policy": {"complexity": "partial"}}}
+        findings = _collect_password_findings(metrics)
+
+        complexity_findings = [f for f in findings if "complexity" in f["rule"]]
+        self.assertEqual(finding["rule"], "password_complexity_disabled")
+
+    def test_lockout_threshold_not_defined(self):
+        """Test lockout_threshold=not-defined produces not defined finding."""
+        metrics = {"password_policy": {"policy": {"lockout_threshold": "not-defined"}}}
+        findings = _collect_password_findings(metrics)
+
+        lockout_findings = [f for f in findings if "lockout" in f["rule"]]
+        self.assertEqual(len(lockout_findings), 1)
+        finding = lockout_findings[0]
+
+        self.assertEqual(finding["rule"], "account_lockout_not_defined")
+        self.assertEqual(
+            finding["level"], RULE_DESCRIPTIONS["account_lockout_not_defined"]["level"]
+        )
+
+    def test_lockout_threshold_defined(self):
+        """Test lockout_threshold!=not-defined produces defined finding."""
+        metrics = {"password_policy": {"policy": {"lockout_threshold": 5}}}
+        findings = _collect_password_findings(metrics)
+
+        lockout_findings = [f for f in findings if "lockout" in f["rule"]]
+        self.assertEqual(len(lockout_findings), 1)
+        finding = lockout_findings[0]
+
+        self.assertEqual(finding["rule"], "account_lockout_defined")
+        self.assertEqual(
+            finding["level"], RULE_DESCRIPTIONS["account_lockout_defined"]["level"]
+        )
+
+    def test_history_size_disabled(self):
+        """Test history_size<1 produces disabled finding."""
+        metrics = {"password_policy": {"policy": {"history_size": 0}}}
+        findings = _collect_password_findings(metrics)
+
+        history_findings = [f for f in findings if "history" in f["rule"]]
+        self.assertEqual(len(history_findings), 1)
+        finding = history_findings[0]
+
+        self.assertEqual(finding["rule"], "password_history_disabled")
+        self.assertEqual(
+            finding["level"], RULE_DESCRIPTIONS["password_history_disabled"]["level"]
+        )
+        self.assertIn("Size: 0", finding["description"])
+
+    def test_history_size_enabled(self):
+        """Test history_size>=1 produces enabled finding."""
+        metrics = {"password_policy": {"policy": {"history_size": 5}}}
+        findings = _collect_password_findings(metrics)
+
+        history_findings = [f for f in findings if "history" in f["rule"]]
+        self.assertEqual(len(history_findings), 1)
+        finding = history_findings[0]
+
+        self.assertEqual(finding["rule"], "password_history_enabled")
+        self.assertEqual(
+            finding["level"], RULE_DESCRIPTIONS["password_history_enabled"]["level"]
+        )
+        self.assertIn("Size: 5", finding["description"])
+
+    def test_max_age_disabled(self):
+        """Test max_password_age=disabled produces disabled finding."""
+        metrics = {"password_policy": {"policy": {"max_password_age": "disabled"}}}
+        findings = _collect_password_findings(metrics)
+
+        age_findings = [f for f in findings if "max_password_age" in f["rule"]]
+        self.assertEqual(len(age_findings), 1)
+        finding = age_findings[0]
+
+        self.assertEqual(finding["rule"], "max_password_age_disabled")
+        self.assertEqual(
+            finding["level"], RULE_DESCRIPTIONS["max_password_age_disabled"]["level"]
+        )
+        self.assertIn("Days: disabled", finding["description"])
+
+    def test_max_age_too_long(self):
+        """Test max_password_age>365 produces too long finding."""
+        metrics = {"password_policy": {"policy": {"max_password_age": 366}}}
+        findings = _collect_password_findings(metrics)
+
+        age_findings = [f for f in findings if "max_password_age" in f["rule"]]
+        self.assertEqual(len(age_findings), 1)
+        finding = age_findings[0]
+
+        self.assertEqual(finding["rule"], "max_password_age_too_long")
+        self.assertEqual(
+            finding["level"], RULE_DESCRIPTIONS["max_password_age_too_long"]["level"]
+        )
+        self.assertIn("Days: 366", finding["description"])
+
+    def test_max_age_enabled(self):
+        """Test max_password_age<=365 produces enabled finding."""
+        metrics = {"password_policy": {"policy": {"max_password_age": 90}}}
+        findings = _collect_password_findings(metrics)
+
+        age_findings = [f for f in findings if "max_password_age" in f["rule"]]
+        self.assertEqual(len(age_findings), 1)
+        finding = age_findings[0]
+
+        self.assertEqual(finding["rule"], "max_password_age_enabled")
+        self.assertEqual(
+            finding["level"], RULE_DESCRIPTIONS["max_password_age_enabled"]["level"]
+        )
+        self.assertIn("Days: 90", finding["description"])
+
+    def test_complete_policy(self):
+        """Test complete policy with all settings."""
+        metrics = {
+            "password_policy": {
+                "policy": {
+                    "min_password_length": 12,
+                    "complexity": "enabled",
+                    "lockout_threshold": 5,
+                    "history_size": 10,
+                    "max_password_age": 60,
+                }
+            }
+        }
+        findings = _collect_password_findings(metrics)
+
+        self.assertEqual(len(findings), 5)
+
+        # Check each finding
+        rule_names = [f["rule"] for f in findings]
+        self.assertIn("password_min_length_strong", rule_names)
+        self.assertIn("password_complexity_enabled", rule_names)
+        self.assertIn("account_lockout_defined", rule_names)
+        self.assertIn("password_history_enabled", rule_names)
+        self.assertIn("max_password_age_enabled", rule_names)
+
+    def test_max_age_integer_but_not_too_long(self):
+        """Test max_password_age is an integer <= 365 (enabled case)."""
+        metrics = {"password_policy": {"policy": {"max_password_age": 365}}}
+        findings = _collect_password_findings(metrics)
+
+        age_findings = [f for f in findings if "max_password_age" in f["rule"]]
+        self.assertEqual(len(age_findings), 1)
+        finding = age_findings[0]
+
+        self.assertEqual(finding["rule"], "max_password_age_enabled")
+        self.assertIn("Days: 365", finding["description"])
+
+    def test_max_age_non_string_non_int(self):
+        """Test max_password_age with float value (should be treated as enabled)."""
+        metrics = {"password_policy": {"policy": {"max_password_age": 90.5}}}
+        findings = _collect_password_findings(metrics)
+
+        age_findings = [f for f in findings if "max_password_age" in f["rule"]]
+        self.assertEqual(len(age_findings), 1)
+        finding = age_findings[0]
+
+        # Should fall through to the else case: max_password_age_enabled
+        self.assertEqual(finding["rule"], "max_password_age_enabled")
+        self.assertIn("Days: 90.5", finding["description"])
+
+    def test_complexity_various_non_enabled_values(self):
+        """Test complexity with various non-'enabled' values."""
+        for value in ["Disabled", "partial", 0, None, True, False]:
+            metrics = {"password_policy": {"policy": {"complexity": value}}}
+            findings = _collect_password_findings(metrics)
+
+            complexity_findings = [f for f in findings if "complexity" in f["rule"]]
+            self.assertEqual(len(complexity_findings), 1)
+            finding = complexity_findings[0]
+
+            self.assertEqual(
+                finding["rule"],
+                "password_complexity_disabled",
+                f"Failed with complexity={value}",
+            )
+
+    def test_partial_policy(self):
+        """Test policy with some settings present and others missing."""
+        metrics = {
+            "password_policy": {
+                "policy": {
+                    "min_password_length": 10,
+                    # complexity missing
+                    "lockout_threshold": 3,
+                    # history_size missing
+                    # max_password_age missing
+                }
+            }
+        }
+        findings = _collect_password_findings(metrics)
+
+        # Should have 5 findings total with appropriate defaults
+        self.assertEqual(len(findings), 5)
+
+        # Check specific findings
+        rules = [f["rule"] for f in findings]
+
+        # min_length should be acceptable (8-11)
+        self.assertIn("password_min_length_acceptable", rules)
+
+        # complexity should default to disabled
+        self.assertIn("password_complexity_disabled", rules)
+
+        # lockout_threshold is defined
+        self.assertIn("account_lockout_defined", rules)
+
+        # history_size should default to disabled
+        self.assertIn("password_history_disabled", rules)
+
+        # max_password_age should default to disabled
+        self.assertIn("max_password_age_disabled", rules)
+
+    def test_unusual_lockout_threshold_values(self):
+        """Test lockout_threshold with unusual values."""
+        for value in [0, "", False, [], {}]:
+            metrics = {"password_policy": {"policy": {"lockout_threshold": value}}}
+            findings = _collect_password_findings(metrics)
+
+            lockout_findings = [f for f in findings if "lockout" in f["rule"]]
+            self.assertEqual(len(lockout_findings), 1)
+            finding = lockout_findings[0]
+
+            # Any value that's not "not-defined" should be treated as defined
+            self.assertEqual(
+                finding["rule"],
+                "account_lockout_defined",
+                f"Failed with lockout_threshold={value}",
+            )
+
+
+class TestScoreTypeToOrder(unittest.TestCase):
+    """Tests for the score type ordering function used for sorting findings."""
+
+    def test_score_type_to_order(self):
+        """Test that _score_type_to_order returns correct values for all score types."""
+        self.assertEqual(rules._score_type_to_order("bonus"), -1)
+        self.assertEqual(rules._score_type_to_order("neutral"), 0)
+        self.assertEqual(rules._score_type_to_order("penalty"), 1)
+        # Test fallback for unknown score type
+        self.assertEqual(rules._score_type_to_order("unknown"), 1)
+
+    def test_score_type_ordering_in_findings(self):
+        """Test that findings are correctly ordered by score type."""
+        # Create findings with different score types
+        findings = [
+            {"rule": "finding1", "score_impact": {"type": "penalty", "value": -10}},
+            {"rule": "finding2", "score_impact": {"type": "bonus", "value": 5}},
+            {"rule": "finding3", "score_impact": {"type": "neutral", "value": 0}},
+            {"rule": "finding4", "score_impact": {"type": "penalty", "value": -5}},
+        ]
+
+        # Sort findings using the same key function as in _evaluate_legacy
+        sorted_findings = sorted(
+            findings,
+            key=lambda f: (
+                rules._score_type_to_order(f.get("score_impact", {}).get("type")),
+                -1 * f.get("score_impact", {}).get("value", 0),
+            ),
+        )
+
+        # Verify the order: bonus, neutral, then penalties (with higher values first)
+        self.assertEqual(sorted_findings[0]["rule"], "finding2")  # bonus
+        self.assertEqual(sorted_findings[1]["rule"], "finding3")  # neutral
+        self.assertEqual(sorted_findings[2]["rule"], "finding4")  # penalty (-5)
+        self.assertEqual(sorted_findings[3]["rule"], "finding1")  # penalty (-10)
 
 
 if __name__ == "__main__":  # pragma: no cover

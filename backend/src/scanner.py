@@ -172,9 +172,44 @@ def get_password_policy():
             )
 
         # Extract maximum password age
-        if "Maximum password age" in line:
-            parts = line.split()
-            policy["max_password_age"] = int(parts[-1])
+        m = re.search(r"Maximum password age\s+(\d+|Never)", line, re.IGNORECASE)
+        if m:
+            age_str = m.group(1)
+            policy["max_password_age"] = (
+                "disabled" if age_str.lower() == "never" else int(age_str)
+            )
+
+        # Extract minimum password age
+        m = re.search(r"Minimum password age\s+(\d+)", line, re.IGNORECASE)
+        if m:
+            policy["min_password_age"] = int(m.group(1))
+
+        # Extract password history length
+        m = re.search(r"Password history length\s+(\d+|None)", line, re.IGNORECASE)
+        if m:
+            history_str = m.group(1)
+            policy["history_size"] = (
+                0 if history_str.lower() == "none" else int(history_str)
+            )
+
+        # Extract lockout threshold
+        m = re.search(r"Lockout threshold\s+(\d+|Never)", line, re.IGNORECASE)
+        if m:
+            threshold_str = m.group(1)
+            policy["lockout_threshold"] = (
+                "not-defined"
+                if threshold_str.lower() == "never"
+                else int(threshold_str)
+            )
+
+        # Extract password complexity requirements
+        m = re.search(
+            r"Password complexity requirements\s+(Enabled|Disabled)",
+            line,
+            re.IGNORECASE,
+        )
+        if m:
+            policy["complexity"] = m.group(1).lower()
 
     # Ensure minimum password length is at least 1 for sensible evaluation
     if policy.get("min_password_length", 0) < 1:

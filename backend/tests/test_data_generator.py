@@ -6,6 +6,10 @@ of these metrics for machine learning purposes.
 """
 
 import unittest
+import tempfile
+import os
+import csv
+from pathlib import Path
 
 from src.data_generator import (
     generate_patch_metric,
@@ -16,6 +20,9 @@ from src.data_generator import (
     generate_password_policy_metric,
     generate_single_metric_set,
     flatten_metrics,
+    generate_dataset,
+    save_to_csv,
+    split_dataset,
 )
 
 
@@ -291,5 +298,118 @@ class MockExpertSystem:
         }
 
 
-if __name__ == "__main__":
+class TestGenerateDataset(unittest.TestCase):
+    """Test suite for the dataset generation functionality."""
+
+    def test_generate_dataset_size(self):
+        """Test if generate_dataset returns the correct number of samples."""
+        num_samples = 10
+        expert_system = MockExpertSystem()
+        dataset = generate_dataset(expert_system, num_samples)
+
+        # Check if we got the right number of samples
+        self.assertEqual(len(dataset), num_samples)
+
+        # Check if each sample has the expected structure
+        for sample in dataset:
+            self.assertIn("target_score", sample)
+            self.assertIn("target_grade", sample)
+            # Check for some of the flattened metrics
+            self.assertIn("patch_status", sample)
+            self.assertIn("firewall_domain", sample)
+            self.assertIn("antivirus_enabled", sample)
+
+    def test_generate_dataset_with_zero_samples(self):
+        """Test if generate_dataset handles zero samples correctly."""
+        expert_system = MockExpertSystem()
+        dataset = generate_dataset(expert_system, 0)
+        self.assertEqual(len(dataset), 0)
+
+
+class TestSaveToCSV(unittest.TestCase):
+    """Test suite for the CSV saving functionality."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.test_data = [
+            {"col1": "value1", "col2": 10, "col3": True},
+            {"col1": "value2", "col2": 20, "col3": False},
+        ]
+
+    def tearDown(self):
+        """Tear down test fixtures."""
+        self.temp_dir.cleanup()
+
+    def test_save_to_csv_normal(self):
+        """Test saving a normal dataset to CSV."""
+        filepath = Path(self.temp_dir.name) / "test_output.csv"
+        save_to_csv(self.test_data, filepath)
+
+        # Verify the file exists
+        self.assertTrue(filepath.exists())
+
+        # Verify the file contents
+        with open(filepath, "r", newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+            self.assertEqual(len(rows), 2)
+            self.assertEqual(rows[0]["col1"], "value1")
+            self.assertEqual(rows[0]["col2"], "10")  # CSV stores as strings
+            self.assertEqual(rows[0]["col3"], "True")
+            self.assertEqual(rows[1]["col1"], "value2")
+
+    def test_save_to_csv_empty(self):
+        """Test saving an empty dataset to CSV."""
+        filepath = Path(self.temp_dir.name) / "empty_output.csv"
+        save_to_csv([], filepath)
+
+        # Verify the file should not exist or be empty
+        if filepath.exists():
+            with open(filepath, "r", encoding="utf-8") as f:
+                content = f.read()
+            self.assertEqual(content, "")
+
+
+class TestSplitDataset(unittest.TestCase):
+    """Test suite for the dataset splitting functionality."""
+
+    def test_split_dataset_normal(self):
+        """Test splitting a dataset with a normal ratio."""
+        dataset = [{"id": i} for i in range(100)]
+        train_ratio = 0.8
+
+        train_data, test_data = split_dataset(dataset, train_ratio)
+
+        # Check if the sizes are correct
+        self.assertEqual(len(train_data), 80)
+        self.assertEqual(len(test_data), 20)
+
+        # Check if the data is split correctly
+        self.assertEqual(train_data[0]["id"], 0)
+        self.assertEqual(test_data[0]["id"], 80)
+
+    def test_split_dataset_edge_ratios(self):
+        """Test splitting a dataset with edge case ratios."""
+        dataset = [{"id": i} for i in range(10)]
+
+        # Nearly all training data
+        train_data, test_data = split_dataset(dataset, 0.9)
+        self.assertEqual(len(train_data), 9)
+        self.assertEqual(len(test_data), 1)
+
+        # Nearly all testing data
+        train_data, test_data = split_dataset(dataset, 0.1)
+        self.assertEqual(len(train_data), 1)
+        self.assertEqual(len(test_data), 9)
+
+    def test_split_dataset_empty(self):
+        """Test splitting an empty dataset."""
+        dataset = []
+        train_data, test_data = split_dataset(dataset, 0.8)
+        self.assertEqual(len(train_data), 0)
+        self.assertEqual(len(test_data), 0)
+
+
+if __name__ == "__main__":  # pragma: no cover
     unittest.main()
