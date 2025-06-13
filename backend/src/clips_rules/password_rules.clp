@@ -17,7 +17,6 @@
         (description (str-cat "Minimum password length is weak (less than 8 characters). Currently: " ?len "."))
         (recommendation "Set minimum password length to at least 8 characters. Consider 12 or more for enhanced security.")
     ))
-    (assert (score (value -10) (type penalty)))
 )
 
 ;; Rule: password-min-length-acceptable
@@ -32,7 +31,6 @@
         (description (str-cat "Minimum password length is acceptable. Currently: " ?len ". Consider increasing for enhanced security."))
         (recommendation "Consider increasing minimum password length to 12 or more characters.")
     ))
-    (assert (score (value 0) (type neutral)))
 )
 
 ;; Rule: password-min-length-strong
@@ -47,7 +45,6 @@
         (description (str-cat "Minimum password length is strong. Currently: " ?len "."))
         (recommendation "Maintain strong password length requirements.")
     ))
-    (assert (score (value 5) (type bonus)))
 )
 
 ;; Rule: password-complexity-disabled
@@ -62,7 +59,6 @@
         (description "Password complexity requirements (requiring uppercase, lowercase, numbers, symbols) are disabled.")
         (recommendation "Enable password complexity requirements to enforce stronger passwords.")
     ))
-    (assert (score (value -10) (type penalty)))
 )
 
 ;; Rule: password-complexity-enabled
@@ -77,7 +73,6 @@
         (description "Password complexity requirements are enabled.")
         (recommendation "Ensure password complexity settings align with security best practices.")
     ))
-    (assert (score (value 5) (type bonus)))
 )
 
 ;; Rule: account-lockout-not-defined
@@ -92,7 +87,6 @@
         (description "Account lockout policy (e.g., locking account after a certain number of failed attempts) is not defined.")
         (recommendation "Define an account lockout threshold (e.g., 5 failed attempts) and lockout duration.")
     ))
-    (assert (score (value -10) (type penalty)))
 )
 
 ;; Rule: account-lockout-defined
@@ -107,7 +101,6 @@
         (description (str-cat "Account lockout policy is defined. Threshold: " ?val "."))
         (recommendation "Ensure the lockout threshold and duration are appropriate for your security needs.")
     ))
-    (assert (score (value 5) (type bonus)))
 )
 
 ;; Rule: password-history-disabled
@@ -122,7 +115,6 @@
         (description "Password history is not enforced, allowing immediate reuse of old passwords.")
         (recommendation "Enforce password history (e.g., remember at least the last 5 passwords).")
     ))
-    (assert (score (value -10) (type penalty)))
 )
 
 ;; Rule: password-history-enabled
@@ -137,7 +129,6 @@
         (description (str-cat "Password history is enforced. Remembering last " ?size " passwords."))
         (recommendation "Ensure the password history size is adequate (e.g., 5 or more).")
     ))
-    (assert (score (value 5) (type bonus)))
 )
 
 ;; Rule: max-password-age-disabled
@@ -152,7 +143,6 @@
         (description "Maximum password age is disabled, meaning passwords never expire.")
         (recommendation "Set a maximum password age (e.g., 90 days) to enforce regular password changes.")
     ))
-    (assert (score (value -10) (type penalty)))
 )
 
 ;; Rule: max-password-age-enabled
@@ -167,7 +157,6 @@
         (description (str-cat "Maximum password age is enabled. Passwords expire after " ?days " days."))
         (recommendation "Ensure the maximum password age is appropriate (e.g., 90 days).")
     ))
-    (assert (score (value 5) (type bonus)))
 )
 
 ;; Rule: max-password-age-too-long
@@ -182,5 +171,4 @@
         (description (str-cat "Maximum password age may be too long. Passwords expire after " ?days " days."))
         (recommendation "Consider reducing the maximum password age to a shorter period (e.g., 90-180 days).")
     ))
-    (assert (score (value -10) (type penalty)))
 )

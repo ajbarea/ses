@@ -18,7 +18,6 @@
         (details ?port)
         (recommendation "Close unnecessary high-risk ports or restrict access.")
     ))
-    (assert (score (value -10) (type penalty)))
 )
 
 ;; Rule: suspicious-port-combination
@@ -36,7 +35,6 @@
         (details ?port1 ?port2)
         (recommendation "Disable unnecessary services and enable firewall.")
     ))
-    (assert (score (value -30) (type penalty)))
 )
 
 ;; Rule: many-ports-open
@@ -58,7 +56,6 @@
             (details ?count)
             (recommendation "Review and close unnecessary ports.")
         ))
-        (assert (score (value -10) (type penalty)))
     )
     (assert (excessive-ports-checked))
 )

@@ -1,3 +1,5 @@
+"""Module for generating synthetic security metrics for Windows systems."""
+
 import random
 from pathlib import Path
 import csv
@@ -7,7 +9,12 @@ from typing import Dict, List, Any
 
 
 def generate_patch_metric() -> Dict[str, Any]:
-    """Generates a metric representing the patch status of a system."""
+    """
+    Generate a patch metric with random status and hotfix list.
+
+    Returns:
+        dict: Contains 'status' (patch state) and 'hotfixes' (list of hotfix identifiers).
+    """
     status_choices = ["up-to-date", "out-of-date"]
     hotfix_strategies = [
         [],
@@ -22,7 +29,12 @@ def generate_patch_metric() -> Dict[str, Any]:
 
 
 def generate_ports_metric() -> Dict[str, Any]:
-    """Generates a metric representing open ports on a system."""
+    """
+    Generate an open ports metric with a random selection of port numbers.
+
+    Returns:
+        dict: Contains 'ports' mapping to a list of port numbers.
+    """
     port_strategies = [
         [],
         [80, 443],
@@ -53,7 +65,12 @@ def generate_ports_metric() -> Dict[str, Any]:
 
 
 def generate_services_metric() -> Dict[str, Any]:
-    """Generates a metric representing the status of Windows services."""
+    """
+    Generate a metric representing Windows services with random statuses.
+
+    Returns:
+        dict: Contains 'services', a list of dictionaries each with 'name' and 'state'.
+    """
     windows_services = [
         "Appinfo",
         "AppXSvc",
@@ -182,7 +199,12 @@ def generate_services_metric() -> Dict[str, Any]:
 
 
 def generate_firewall_metric() -> Dict[str, Any]:
-    """Generates a metric representing the firewall profile states."""
+    """
+    Generate a firewall metric with random profile states.
+
+    Returns:
+        dict: Contains 'profiles', a dict with 'domain', 'private', and 'public' statuses.
+    """
     scenarios = [
         {"domain": "ON", "private": "ON", "public": "ON"},  # All enabled
         {"domain": "ON", "private": "ON", "public": "OFF"},  # Public disabled
@@ -193,7 +215,12 @@ def generate_firewall_metric() -> Dict[str, Any]:
 
 
 def generate_antivirus_metric() -> Dict[str, Any]:
-    """Generates a metric representing antivirus product information."""
+    """
+    Generate an antivirus metric with random product information.
+
+    Returns:
+        dict: Contains 'products', a list of antivirus product dictionaries.
+    """
     scenarios = [
         [],  # No products
         [{"name": "Windows Defender", "state": 397568}],  # Fully enabled
@@ -205,11 +232,11 @@ def generate_antivirus_metric() -> Dict[str, Any]:
 
 
 def generate_password_policy_metric() -> Dict[str, Any]:
-    """Generates a metric representing password policy settings.
+    """
+    Generate a password policy metric with random settings.
 
     Returns:
-        Dict[str, Any]: Dictionary containing password policy metrics with 'policy' as key
-        and various policy settings as nested dictionary values.
+        dict: Contains 'policy', a dictionary with password policy settings.
     """
     scenarios = [
         {"min_password_length": 0, "max_password_age": 0},  # No policy enforcement
@@ -222,13 +249,11 @@ def generate_password_policy_metric() -> Dict[str, Any]:
 
 
 def generate_single_metric_set() -> Dict[str, Any]:
-    """Generates a single comprehensive set of security metrics.
-
-    Creates a complete security profile by combining metrics from all
-    individual metric generators.
+    """
+    Generate a comprehensive set of security metrics.
 
     Returns:
-        Dict[str, Any]: Dictionary containing all security metrics organized by category.
+        dict: All security metrics organized by category.
     """
     return {
         "patch": generate_patch_metric(),
@@ -241,31 +266,39 @@ def generate_single_metric_set() -> Dict[str, Any]:
 
 
 def flatten_metrics(metrics_dict: Dict[str, Any]) -> Dict[str, Any]:
-    """Converts nested metrics to a flat dictionary for CSV output."""
+    """
+    Flatten nested metrics into a single-level dictionary for CSV output.
+
+    Args:
+        metrics_dict (dict): Nested metrics dictionary.
+
+    Returns:
+        dict: Flattened metrics with scalar values.
+    """
     flat = {}
 
-    # Patch features
+    # Flatten patch metrics
     patch = metrics_dict.get("patch", {})
     flat["patch_status"] = patch.get("status", "unknown")
     flat["patch_hotfixes_count"] = len(patch.get("hotfixes", []))
 
-    # Ports features
+    # Flatten ports metrics
     ports = metrics_dict.get("ports", {}).get("ports", [])
     flat["ports_count"] = len(ports)
 
-    # Services features
+    # Flatten services metrics
     services = metrics_dict.get("services", {}).get("services", [])
     flat["services_total"] = len(services)
     flat["services_running"] = len([s for s in services if s.get("state") == "running"])
     flat["services_stopped"] = len([s for s in services if s.get("state") == "stopped"])
 
-    # Firewall features
+    # Flatten firewall metrics
     profiles = metrics_dict.get("firewall", {}).get("profiles", {})
     flat["firewall_domain"] = profiles.get("domain", "UNKNOWN")
     flat["firewall_private"] = profiles.get("private", "UNKNOWN")
     flat["firewall_public"] = profiles.get("public", "UNKNOWN")
 
-    # Antivirus features
+    # Flatten antivirus metrics
     av_products = metrics_dict.get("antivirus", {}).get("products", [])
     flat["antivirus_count"] = len(av_products)
     flat["antivirus_enabled"] = 0
@@ -275,7 +308,7 @@ def flatten_metrics(metrics_dict: Dict[str, Any]) -> Dict[str, Any]:
             flat["antivirus_enabled"] = 1
             break
 
-    # Password policy features
+    # Flatten password policy metrics
     policy = metrics_dict.get("password_policy", {}).get("policy", {})
     flat["password_min_length"] = policy.get("min_password_length", 0)
     flat["password_max_age"] = policy.get("max_password_age", 0)
@@ -284,14 +317,15 @@ def flatten_metrics(metrics_dict: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def generate_dataset(expert_system, num_samples: int) -> List[Dict[str, Any]]:
-    """Generates a dataset by creating samples and evaluating them with an expert system.
+    """
+    Generate a dataset by evaluating generated metrics with the expert system.
 
     Args:
-        expert_system: The expert system used to evaluate the generated metrics.
-        num_samples: The number of samples to generate.
+        expert_system: An instance capable of evaluating security metrics.
+        num_samples (int): Number of samples to generate.
 
     Returns:
-        A list of dictionaries, where each dictionary represents a sample in the dataset.
+        List[dict]: List of dataset rows with flattened metrics and evaluation targets.
     """
     dataset = []
     print(f"Generating {num_samples} samples...")
@@ -300,16 +334,11 @@ def generate_dataset(expert_system, num_samples: int) -> List[Dict[str, Any]]:
         if (i + 1) % 100 == 0:
             print(f"Progress: {i+1}/{num_samples}")
 
-        # Generate metrics
         metrics = generate_single_metric_set()
-
-        # Get expert system evaluation
         result = expert_system.evaluate(metrics)
-
-        # Create dataset row
         row = flatten_metrics(metrics)
 
-        # Add target variables (what we want to predict)
+        # Add evaluation targets
         if result and "score" in result and "grade" in result:
             row["target_score"] = result["score"]
             row["target_grade"] = result["grade"]
@@ -324,11 +353,12 @@ def generate_dataset(expert_system, num_samples: int) -> List[Dict[str, Any]]:
 
 
 def save_to_csv(dataset: List[Dict[str, Any]], filepath: Path):
-    """Saves a dataset to a CSV file.
+    """
+    Save the dataset to a CSV file.
 
     Args:
-        dataset: The list of dictionaries to save.
-        filepath: The path to the output CSV file.
+        dataset (List[dict]): The dataset to save.
+        filepath (Path): The output CSV file path.
     """
     if not dataset:
         print("Dataset is empty.")
@@ -336,7 +366,7 @@ def save_to_csv(dataset: List[Dict[str, Any]], filepath: Path):
 
     try:
         with open(filepath, "w", newline="", encoding="utf-8") as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=dataset[0].keys())
+            writer = csv.DictWriter(csvfile, fieldnames=list(dataset[0].keys()))
             writer.writeheader()
             writer.writerows(dataset)
         print(f"Dataset saved to {filepath}")
@@ -347,14 +377,15 @@ def save_to_csv(dataset: List[Dict[str, Any]], filepath: Path):
 def split_dataset(
     dataset: List[Dict[str, Any]], train_ratio: float
 ) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-    """Splits a dataset into training and test sets.
+    """
+    Split the dataset into training and testing sets.
 
     Args:
-        dataset: The dataset to split.
-        train_ratio: The ratio of the dataset to use for training.
+        dataset (List[dict]): The complete dataset.
+        train_ratio (float): Proportion of data to use for training (e.g., 0.8).
 
     Returns:
-        A tuple containing the training and test sets.
+        tuple: (training dataset, testing dataset).
     """
     split_idx = int(len(dataset) * train_ratio)
     return dataset[:split_idx], dataset[split_idx:]
@@ -377,7 +408,7 @@ if __name__ == "__main__":
         help="Output CSV file (default: security_dataset.csv)",
     )
     parser.add_argument(
-        "--split", type=float, help="Train/test split ratio (e.g., 0.8 for 80%% train)"
+        "--split", type=float, help="Train/test split ratio (e.g., 0.8 for 80% train)"
     )
 
     args = parser.parse_args()

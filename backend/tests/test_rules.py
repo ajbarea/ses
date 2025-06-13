@@ -587,6 +587,8 @@ class TestEvaluateWrapper(unittest.TestCase):
         findings = _collect_password_findings(metrics)
 
         complexity_findings = [f for f in findings if "complexity" in f["rule"]]
+        self.assertEqual(len(complexity_findings), 1)
+        finding = complexity_findings[0]
         self.assertEqual(finding["rule"], "password_complexity_disabled")
 
     def test_lockout_threshold_not_defined(self):

@@ -162,60 +162,48 @@ def get_password_policy():
     output = subprocess.check_output("net accounts", shell=True, text=True)
     policy = {}
 
-    for line in output.splitlines():
-        # Extract minimum password length
-        m = re.search(r"Minimum password length\s+(\d+|None)", line, re.IGNORECASE)
-        if m:
-            length_str = m.group(1)
-            policy["min_password_length"] = (
-                0 if length_str.lower() == "none" else int(length_str)
-            )
-
-        # Extract maximum password age
-        m = re.search(r"Maximum password age\s+(\d+|Never)", line, re.IGNORECASE)
-        if m:
-            age_str = m.group(1)
-            policy["max_password_age"] = (
-                "disabled" if age_str.lower() == "never" else int(age_str)
-            )
-
-        # Extract minimum password age
-        m = re.search(r"Minimum password age\s+(\d+)", line, re.IGNORECASE)
-        if m:
-            policy["min_password_age"] = int(m.group(1))
-
-        # Extract password history length
-        m = re.search(r"Password history length\s+(\d+|None)", line, re.IGNORECASE)
-        if m:
-            history_str = m.group(1)
-            policy["history_size"] = (
-                0 if history_str.lower() == "none" else int(history_str)
-            )
-
-        # Extract lockout threshold
-        m = re.search(r"Lockout threshold\s+(\d+|Never)", line, re.IGNORECASE)
-        if m:
-            threshold_str = m.group(1)
-            policy["lockout_threshold"] = (
-                "not-defined"
-                if threshold_str.lower() == "never"
-                else int(threshold_str)
-            )
-
-        # Extract password complexity requirements
-        m = re.search(
+    # Define the patterns we care about, the policy key, and how to convert the match
+    rules = [
+        (
+            "min_password_length",
+            r"Minimum password length\s+(\d+|None)",
+            lambda v: 0 if v.lower() == "none" else int(v),
+        ),
+        (
+            "max_password_age",
+            r"Maximum password age\s+(\d+|Never)",
+            lambda v: "disabled" if v.lower() == "never" else int(v),
+        ),
+        ("min_password_age", r"Minimum password age\s+(\d+)", lambda v: int(v)),
+        (
+            "history_size",
+            r"Password history length\s+(\d+|None)",
+            lambda v: 0 if v.lower() == "none" else int(v),
+        ),
+        (
+            "lockout_threshold",
+            r"Lockout threshold\s+(\d+|Never)",
+            lambda v: "not-defined" if v.lower() == "never" else int(v),
+        ),
+        (
+            "complexity",
             r"Password complexity requirements\s+(Enabled|Disabled)",
-            line,
-            re.IGNORECASE,
-        )
-        if m:
-            policy["complexity"] = m.group(1).lower()
+            lambda v: v.lower(),
+        ),
+    ]
 
-    # Ensure minimum password length is at least 1 for sensible evaluation
-    if policy.get("min_password_length", 0) < 1:
-        policy["min_password_length"] = 1
+    for line in output.splitlines():
+        for key, pattern, transformer in rules:
+            m = re.search(pattern, line, re.IGNORECASE)
+            if not m:
+                continue
+            policy[key] = transformer(m.group(1))
+            break  # move to next line once one rule is matched
 
-    # Default max_password_age to 0 (no expiration) if not found
+    # Post-processing defaults and sanity checks
+    # Ensure min_password_length is at least 1
+    policy["min_password_length"] = max(policy.get("min_password_length", 1), 1)
+    # Default max_password_age to 0 (no expiration) if not set
     policy.setdefault("max_password_age", 0)
 
     return {"policy": policy}

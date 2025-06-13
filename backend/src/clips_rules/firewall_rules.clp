@@ -17,7 +17,6 @@
         (description "All firewall profiles are disabled.")
         (recommendation "Enable Windows Firewall for all profiles immediately.")
     ))
-    (assert (score (value -30) (type penalty)))
 )
 
 ;; Rule: smb-port-open
@@ -52,7 +51,6 @@
         (details 445)
         (recommendation "Enable public firewall profile and restrict SMB access to trusted networks only.")
     ))
-    (assert (score (value -10) (type penalty)))
     (assert (high-risk-smb-detected))
 )
 
@@ -69,7 +67,6 @@
         (description "Public firewall profile is disabled.")
         (recommendation "Enable Windows Firewall for the public profile.")
     ))
-    (assert (score (value -10) (type penalty)))
 )
 
 ;; Rule: firewall-domain-disabled
@@ -85,7 +82,6 @@
         (description "Domain firewall profile is disabled.")
         (recommendation "Enable Windows Firewall for the domain profile.")
     ))
-    (assert (score (value -10) (type penalty)))
 )
 
 ;; Rule: firewall-private-disabled
@@ -101,7 +97,6 @@
         (description "Private firewall profile is disabled.")
         (recommendation "Enable Windows Firewall for the private profile.")
     ))
-    (assert (score (value -10) (type penalty)))
 )
 
 ;; Rule: firewall-all-enabled
@@ -116,5 +111,4 @@
         (description "All firewall profiles are enabled.")
         (recommendation "Continue monitoring firewall status.")
     ))
-    (assert (score (value 0) (type neutral)))
 )

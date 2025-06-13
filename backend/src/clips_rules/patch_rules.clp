@@ -17,7 +17,6 @@
         (description "System patches are not up-to-date.")
         (recommendation "Apply all available Windows security updates immediately.")
     ))
-    (assert (score (value -30) (type penalty)))
 )
 
 ;; Rule: recent-patch-installed
@@ -34,5 +33,4 @@
         (details $?fixes)
         (recommendation "Continue with regular patch management.")
     ))
-    (assert (score (value 0) (type neutral)))
 )

@@ -17,7 +17,6 @@
         (description "Antivirus software is disabled.")
         (recommendation "Enable antivirus software immediately.")
     ))
-    (assert (score (value -30) (type penalty)))
 )
 
 ;; Rule: antivirus-definitions-outdated
@@ -32,7 +31,6 @@
         (description "Antivirus definitions are out of date.")
         (recommendation "Update antivirus definitions as soon as possible.")
     ))
-    (assert (score (value -15) (type penalty)))
 )
 
 ;; Rule: antivirus-real-time-protection-disabled
@@ -47,7 +45,6 @@
         (description "Real-time protection is disabled.")
         (recommendation "Enable real-time protection immediately.")
     ))
-    (assert (score (value -30) (type penalty)))
 )
 
 ;; Rule: antivirus-properly-configured
@@ -62,5 +59,4 @@
         (description "Antivirus software is properly configured with up-to-date definitions and real-time protection.")
         (recommendation "Continue monitoring antivirus status and keep definitions updated.")
     ))
-    (assert (score (value 0) (type neutral)))
 )
