@@ -2,7 +2,7 @@ import { useState } from "react";
 import ScoreCard from "./ScoreCard";
 import FindingsList from "./FindingsList";
 import TraceList from "./TraceList";
-import type { Finding, EvalResult } from "../types/eval";
+import type { EvalResult } from "../types/eval";
 
 export default function ResultsDisplay({
   result,
@@ -37,8 +37,8 @@ export default function ResultsDisplay({
   const scanTime = new Date().toLocaleString();
 
   // Display positive and negative counts
-  const positiveCount = result.positive_findings?.length || 0;
-  const negativeCount = result.negative_findings?.length || 0;
+  const positiveCount = result.positive_findings?.length ?? 0;
+  const negativeCount = result.negative_findings?.length ?? 0;
 
   return (
     <div className="w-full max-w-2xl bg-white rounded-lg shadow-sm p-6 transition-all duration-300 ease-in-out">
@@ -142,8 +142,8 @@ export default function ResultsDisplay({
         {activeTab === "score_changes" && (
           <div className="p-3 bg-gray-100 rounded text-sm text-gray-800">
             <ul className="list-disc list-outside pl-5">
-              {(result.score_changes ?? []).map((sc, idx) => (
-                <li key={idx}>
+              {(result.score_changes ?? []).map((sc) => (
+                <li key={`${sc.rule}_${sc.type}_${sc.delta}`}>
                   <span
                     className={
                       sc.type === "bonus"

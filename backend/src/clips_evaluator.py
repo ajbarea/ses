@@ -518,13 +518,16 @@ class SecurityExpertSystem:
             findings.append(finding_dict)
 
         # Sort findings: bonuses first, then neutral, then penalties (by severity)
+        def _get_type_order(impact_type):
+            if impact_type == "bonus":
+                return -1
+            elif impact_type == "neutral":
+                return 0
+            return 1
+
         findings.sort(
             key=lambda f: (
-                (
-                    -1
-                    if f.get("score_impact", {}).get("type") == "bonus"
-                    else 0 if f.get("score_impact", {}).get("type") == "neutral" else 1
-                ),
+                _get_type_order(f.get("score_impact", {}).get("type")),
                 -1 * f.get("score_impact", {}).get("value", 0),
             )
         )

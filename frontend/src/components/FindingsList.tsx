@@ -48,9 +48,9 @@ export default function FindingsList({
 
   return (
     <div className="space-y-3">
-      {findings.map((finding, index) => (
+      {findings.map((finding) => (
         <div
-          key={index}
+          key={finding.rule}
           className="bg-white p-3 rounded border border-gray-200 shadow-sm"
         >
           <div className="flex justify-between items-start">

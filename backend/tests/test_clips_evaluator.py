@@ -537,7 +537,6 @@ class TestGetScoreMethods(unittest.TestCase):
         pen = FakeFact("score", **{"value": "-50", "type": "penalty"})
         bonus = FakeFact("score", **{"value": "20", "type": "bonus"})
         self.expert.env.facts = lambda: [pen, bonus]
-        # 100 - 50 + 20 = 70
         self.assertEqual(self.expert.get_score(), 70)
 
     def test_get_score_clamp_bounds(self):

@@ -71,7 +71,7 @@ class TestMetricGenerators(unittest.TestCase):
                 self.assertIn("state", product)
                 self.assertIsInstance(product["name"], str)
                 # State can be int, str ("UNKNOWN"), or None
-                self.assertTrue(isinstance(product["state"], (int, str, type(None))))
+                self.assertIsInstance(product["state"], (int, str, type(None)))
                 if isinstance(product["state"], str):
                     self.assertEqual(product["state"], "UNKNOWN")
                 elif isinstance(product["state"], int):

@@ -23,6 +23,8 @@ GRADE_THRESHOLDS = {
     "Critical Risk": 0,  # Anything below 40 or with critical findings
 }
 
+CRITICAL_RISK_GRADE = "Critical Risk"
+
 # Default score mappings for CLIPS findings
 DEFAULT_FINDING_IMPACTS = {
     "info": {"value": 0, "type": "neutral"},
@@ -36,7 +38,7 @@ SCORE_GRADE_THRESHOLDS = {
     80: "Good",
     60: "Fair",
     40: "Poor",
-    0: "Critical Risk",  # Default/minimum grade
+    0: "Critical Risk",
 }
 
 # Score change type constants
@@ -83,7 +85,7 @@ def assign_grade(score: int, findings: list) -> str:
     """
     # Critical findings always result in Critical Risk grade
     if any(f["level"] == "critical" for f in findings):
-        return "Critical Risk"
+        return CRITICAL_RISK_GRADE
 
     # Otherwise grade based on score thresholds
     for grade, threshold in sorted(GRADE_THRESHOLDS.items(), key=lambda x: -x[1]):
@@ -91,7 +93,7 @@ def assign_grade(score: int, findings: list) -> str:
             return grade
 
     # Shouldn't reach here, but just in case
-    return "Critical Risk"
+    return CRITICAL_RISK_GRADE
 
 
 def get_finding_score_impact(finding: dict) -> dict:
@@ -135,10 +137,8 @@ def apply_score_impacts(
         impact_type = impact.get("type", "neutral")
         value = impact.get("value", 0)
 
-        if impact_type == "penalty":
+        if impact_type in ("penalty", "bonus"):
             score += value  # Penalties are negative values
-        elif impact_type == "bonus":
-            score += value  # Bonuses are positive values
 
     return max(0, min(100, score))  # Clamp to 0-100 range
 
@@ -188,7 +188,6 @@ def create_score_changes(base_score: int, findings: list) -> list:
 
     for finding in findings:
         if impact := finding.get("score_impact"):
-            # handle missing 'rule' key
             rule_name = finding.get("rule", finding.get("rule-name", ""))
             score_changes.append(
                 {"rule": rule_name, "delta": impact["value"], "type": impact["type"]}

@@ -274,11 +274,7 @@ def _evaluate_legacy(metrics: dict) -> dict:
     # Sort findings: bonuses first, then neutral, then penalties (by severity)
     findings.sort(
         key=lambda f: (
-            (
-                -1
-                if f.get("score_impact", {}).get("type") == "bonus"
-                else 0 if f.get("score_impact", {}).get("type") == "neutral" else 1
-            ),
+            _score_type_to_order(f.get("score_impact", {}).get("type")),
             -1 * f.get("score_impact", {}).get("value", 0),
         )
     )
@@ -387,3 +383,11 @@ def evaluate(metrics: dict, use_clips: Optional[bool] = None) -> dict:
     result["metrics"] = metrics
 
     return result
+
+
+def _score_type_to_order(score_type: str) -> int:
+    if score_type == "bonus":
+        return -1
+    elif score_type == "neutral":
+        return 0
+    return 1
