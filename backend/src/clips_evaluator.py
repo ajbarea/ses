@@ -129,6 +129,43 @@ class SecurityExpertSystem:
             logger.error(f"Error loading template: {e}")
             raise
 
+    def _determine_antivirus_status(self, products):
+        """Determine overall antivirus status from a list of products."""
+        if not products:
+            return {
+                "status": "disabled",
+                "definitions": "up-to-date",
+                "rtp_status": "disabled",
+            }
+
+        # Windows Security Center values < 397312 indicate disabled/risk status
+        disabled_count = sum(
+            1
+            for p in products
+            if p.get("state") is None
+            or (isinstance(p.get("state"), int) and p["state"] < 397312)
+        )
+
+        if disabled_count == len(products):
+            status = "disabled"
+        elif disabled_count > 0:
+            status = "partial"
+        else:
+            status = "enabled"
+
+        definitions = (
+            "out-of-date"
+            if any(p.get("state") is None for p in products)
+            else "up-to-date"
+        )
+        rtp_status = "enabled" if status == "enabled" else "disabled"
+
+        return {
+            "status": status,
+            "definitions": definitions,
+            "rtp_status": rtp_status,
+        }
+
     def _load_rules(self):
         """Load all CLIPS rule files (.clp) from the rules directory.
 
@@ -215,47 +252,20 @@ class SecurityExpertSystem:
                     f"(antivirus-product (name \"{product['name']}\") (state {state}))"
                 )
 
-            if products:
-                # Determine enabled vs. disabled counts
-                # Windows Security Center values < 397312 indicate disabled/risk status
-                disabled_count = sum(
-                    1
-                    for p in products
-                    if p.get("state") is None
-                    or (isinstance(p.get("state"), int) and p["state"] < 397312)
-                )
-
-                # Calculate overall status based on disabled product count
-                if disabled_count == len(products):
-                    status = "disabled"
-                elif disabled_count > 0:
-                    status = "partial"
-                else:
-                    status = "enabled"
-
-                # Consider definitions out-of-date if any state is undefined
-                definitions = (
-                    "out-of-date"
-                    if any(p.get("state") is None for p in products)
-                    else "up-to-date"
-                )
-
-                # Real-time protection follows overall enabled status
-                rtp_status = "enabled" if status == "enabled" else "disabled"
-
-                self.env.assert_string(
-                    f'(antivirus-info (status "{status}") '
-                    f'(definitions "{definitions}") '
-                    f'(real-time-protection "{rtp_status}"))'
-                )
-        else:
-            # No products detected - disabled status
+            # Determine and assert overall antivirus status
+            av_status_info = self._determine_antivirus_status(products)
             self.env.assert_string(
-                "(antivirus-info "
-                '(status "disabled") '
-                '(definitions "up-to-date") '
-                '(real-time-protection "disabled")'
-                ")"
+                f"(antivirus-info (status \"{av_status_info['status']}\") "
+                f"(definitions \"{av_status_info['definitions']}\") "
+                f"(real-time-protection \"{av_status_info['rtp_status']}\"))"
+            )
+        else:
+            # No products detected - use default disabled status
+            av_status_info = self._determine_antivirus_status([])
+            self.env.assert_string(
+                f"(antivirus-info (status \"{av_status_info['status']}\") "
+                f"(definitions \"{av_status_info['definitions']}\") "
+                f"(real-time-protection \"{av_status_info['rtp_status']}\"))"
             )
 
     def _assert_password_policy_facts(self, password_policy_metrics):
@@ -321,48 +331,13 @@ class SecurityExpertSystem:
                     f'(antivirus-product (name "{name}") (state {state}))'
                 )
 
-            # Determine overall antivirus status
-            if not products:
-                # No products detected - disabled status
-                self.env.assert_string(
-                    "(antivirus-info "
-                    '(status "disabled") '
-                    '(definitions "up-to-date") '
-                    '(real-time-protection "disabled")'
-                    ")"
-                )
-            else:
-                # Windows Security Center values < 397312 indicate disabled/risk status
-                disabled_count = sum(
-                    1
-                    for p in products
-                    if p.get("state") is None
-                    or (isinstance(p.get("state"), int) and p["state"] < 397312)
-                )
-
-                # Calculate overall status based on disabled product count
-                if disabled_count == len(products):
-                    status = "disabled"
-                elif disabled_count > 0:
-                    status = "partial"
-                else:
-                    status = "enabled"
-
-                # Consider definitions out-of-date if any state is undefined
-                definitions = (
-                    "out-of-date"
-                    if any(p.get("state") is None for p in products)
-                    else "up-to-date"
-                )
-
-                # Real-time protection follows overall enabled status
-                rtp_status = "enabled" if status == "enabled" else "disabled"
-
-                self.env.assert_string(
-                    f'(antivirus-info (status "{status}") '
-                    f'(definitions "{definitions}") '
-                    f'(real-time-protection "{rtp_status}"))'
-                )
+            # Determine and assert overall antivirus status using the helper function
+            av_status_info = self._determine_antivirus_status(products)
+            self.env.assert_string(
+                f"(antivirus-info (status \"{av_status_info['status']}\") "
+                f"(definitions \"{av_status_info['definitions']}\") "
+                f"(real-time-protection \"{av_status_info['rtp_status']}\"))"
+            )
 
         if "password_policy" in metrics:
             self._assert_password_policy_facts(metrics["password_policy"])
@@ -441,6 +416,65 @@ class SecurityExpertSystem:
                 }
             )
 
+    def _get_score_impact_for_finding(self, finding_dict, score_facts, rule_name):
+        """Find score impact for a finding using multiple strategies."""
+        score_impact = None
+
+        # Strategy 1: Direct relation via attribute
+        for fact in self.env.facts():
+            if (
+                fact.template.name == "score"
+                and hasattr(fact, "related_finding")
+                and fact.related_finding == rule_name
+            ):
+                score_impact = {"value": int(fact["value"]), "type": fact["type"]}
+                break
+
+        # Strategy 2: Match by rule name
+        if not score_impact and rule_name in score_facts:
+            score_impact = score_facts[rule_name]
+
+        # Strategy 3: Match by rule activation pattern
+        if not score_impact:
+            for activation in self.rule_activations:
+                if activation.get("rule") and rule_name in activation.get("rule"):
+                    for fact in self.env.facts():
+                        if (
+                            fact.template.name == "score"
+                            and hasattr(fact, "activation")
+                            and fact.activation == activation.get("activation")
+                        ):
+                            score_impact = {
+                                "value": int(fact["value"]),
+                                "type": fact["type"],
+                            }
+                            break
+                    if score_impact:  # Found in inner loop
+                        break
+
+        if not score_impact:
+            score_impact = get_clips_finding_impact(finding_dict)
+
+        return score_impact
+
+    def _sort_findings(self, findings):
+        """Sort findings: bonuses first, then neutral, then penalties (by severity)."""
+
+        def _get_type_order(impact_type):
+            if impact_type == "bonus":
+                return -1
+            elif impact_type == "neutral":
+                return 0
+            return 1
+
+        findings.sort(
+            key=lambda f: (
+                _get_type_order(f.get("score_impact", {}).get("type")),
+                -1 * f.get("score_impact", {}).get("value", 0),
+            )
+        )
+        return findings
+
     def get_findings(self):
         """Extract security findings from CLIPS facts with score impacts.
 
@@ -459,80 +493,33 @@ class SecurityExpertSystem:
                     "type": fact["type"],
                 }
 
-        for finding in self.env.facts():
+        for fact in self.env.facts():
             # Only process finding facts
-            if finding.template.name != "finding":
+            if fact.template.name != "finding":
                 continue
 
-            rule_name = finding["rule-name"]
+            rule_name = fact["rule-name"]
             finding_dict = {
                 "rule": rule_name,
-                "level": finding["level"],
-                "description": finding["description"],
-                "recommendation": finding["recommendation"],
+                "level": fact["level"],
+                "description": fact["description"],
+                "recommendation": fact["recommendation"],
             }
 
-            # Find score impact using multiple fallback strategies
-            score_impact = None
-
-            # Strategy 1: Direct relation via attribute
-            for fact in self.env.facts():
-                if (
-                    fact.template.name == "score"
-                    and hasattr(fact, "related_finding")
-                    and fact.related_finding == rule_name
-                ):
-                    score_impact = {"value": int(fact["value"]), "type": fact["type"]}
-                    break
-
-            # Strategy 2: Match by rule name
-            if not score_impact and rule_name in score_facts:
-                score_impact = score_facts[rule_name]
-
-            # Strategy 3: Match by rule activation pattern
-            if not score_impact:
-                for activation in self.rule_activations:
-                    if activation.get("rule") and rule_name in activation.get("rule"):
-                        for fact in self.env.facts():
-                            if (
-                                fact.template.name == "score"
-                                and hasattr(fact, "activation")
-                                and fact.activation == activation.get("activation")
-                            ):
-                                score_impact = {
-                                    "value": int(fact["value"]),
-                                    "type": fact["type"],
-                                }
-                                break
-
-            if not score_impact:
-                score_impact = get_clips_finding_impact(finding_dict)
+            score_impact = self._get_score_impact_for_finding(
+                finding_dict, score_facts, rule_name
+            )
 
             if score_impact:
                 finding_dict["score_impact"] = score_impact
                 finding_dict["score_text"] = format_score_impact_text(score_impact)
 
-            if finding["details"]:
-                finding_dict["details"] = list(finding["details"])
+            if fact["details"]:
+                finding_dict["details"] = list(fact["details"])
 
             findings.append(finding_dict)
 
-        # Sort findings: bonuses first, then neutral, then penalties (by severity)
-        def _get_type_order(impact_type):
-            if impact_type == "bonus":
-                return -1
-            elif impact_type == "neutral":
-                return 0
-            return 1
-
-        findings.sort(
-            key=lambda f: (
-                _get_type_order(f.get("score_impact", {}).get("type")),
-                -1 * f.get("score_impact", {}).get("value", 0),
-            )
-        )
-
-        return findings
+        return self._sort_findings(findings)
 
     def get_score(self, base_score=DEFAULT_BASE_SCORE):
         """Compute final security score from facts."""

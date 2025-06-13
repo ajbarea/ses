@@ -500,9 +500,17 @@ class TestAssertAntivirusFacts(unittest.TestCase):
         )
 
     def test_assert_antivirus_empty_products(self):
-        """_assert_antivirus_facts() with empty products list asserts nothing."""
+        """_assert_antivirus_facts() with empty products list asserts a default disabled info fact."""
         self.expert._assert_antivirus_facts({"products": []})
-        self.assertEqual(self.expert.env.assert_string.call_count, 0)
+        # Now expects one call for the default "disabled" antivirus-info fact
+        expected_fact = (
+            "(antivirus-info "
+            '(status "disabled") '
+            '(definitions "up-to-date") '
+            '(real-time-protection "disabled")'
+            ")"
+        )
+        self.expert.env.assert_string.assert_called_once_with(expected_fact)
 
     def test_assert_antivirus_partial_status(self):
         """_assert_antivirus_facts() with mixed states asserts correct info."""
@@ -581,6 +589,143 @@ class TestEvaluateImpactSummary(unittest.TestCase):
         self.assertEqual(
             result["impact_summary"],
             "1 positive factors. 1 items reducing your score. 1 neutral findings. ",
+        )
+
+
+class TestDetermineAntivirusStatus(unittest.TestCase):
+    def setUp(self):
+        self.expert_system = SecurityExpertSystem(rules_dir=None)
+        # Mocking env as it's not directly used by _determine_antivirus_status
+        self.expert_system.env = MagicMock()
+
+    def test_empty_products_list(self):
+        products = []
+        expected = {
+            "status": "disabled",
+            "definitions": "up-to-date",
+            "rtp_status": "disabled",
+        }
+        self.assertEqual(
+            self.expert_system._determine_antivirus_status(products), expected
+        )
+
+    def test_all_products_enabled(self):
+        products = [
+            {"name": "AV1", "state": 397312},
+            {"name": "AV2", "state": 400000},
+        ]
+        expected = {
+            "status": "enabled",
+            "definitions": "up-to-date",
+            "rtp_status": "enabled",
+        }
+        self.assertEqual(
+            self.expert_system._determine_antivirus_status(products), expected
+        )
+
+    def test_all_products_disabled(self):
+        products = [
+            {"name": "AV1", "state": 200000},  # Disabled by state value
+            {"name": "AV2", "state": None},  # Disabled by None state
+        ]
+        expected = {
+            "status": "disabled",
+            "definitions": "out-of-date",  # Because one is None
+            "rtp_status": "disabled",
+        }
+        self.assertEqual(
+            self.expert_system._determine_antivirus_status(products), expected
+        )
+
+    def test_partial_some_enabled_some_disabled(self):
+        products = [
+            {"name": "AV1", "state": 397312},  # Enabled
+            {"name": "AV2", "state": 200000},  # Disabled
+        ]
+        expected = {
+            "status": "partial",
+            "definitions": "up-to-date",
+            "rtp_status": "disabled",
+        }
+        self.assertEqual(
+            self.expert_system._determine_antivirus_status(products), expected
+        )
+
+    def test_partial_some_enabled_some_none_state(self):
+        products = [
+            {"name": "AV1", "state": 397312},  # Enabled
+            {"name": "AV2", "state": None},  # None state
+        ]
+        expected = {
+            "status": "partial",
+            "definitions": "out-of-date",  # Because one is None
+            "rtp_status": "disabled",
+        }
+        self.assertEqual(
+            self.expert_system._determine_antivirus_status(products), expected
+        )
+
+
+class TestSortFindings(unittest.TestCase):
+    def setUp(self):
+        self.expert_system = SecurityExpertSystem(rules_dir=None)
+        # Mocking env as it's not directly used by _sort_findings
+        self.expert_system.env = MagicMock()
+
+    def test_empty_list(self):
+        findings = []
+        self.assertEqual(self.expert_system._sort_findings(findings), [])
+
+    def test_various_score_impacts(self):
+        findings = [
+            {"rule": "R_penalty_50", "score_impact": {"type": "penalty", "value": 50}},
+            {"rule": "R_bonus_10", "score_impact": {"type": "bonus", "value": 10}},
+            {"rule": "R_neutral_0", "score_impact": {"type": "neutral", "value": 0}},
+            {
+                "rule": "R_penalty_100",
+                "score_impact": {"type": "penalty", "value": 100},
+            },
+        ]
+        sorted_findings = self.expert_system._sort_findings(findings)
+        expected_order = ["R_bonus_10", "R_neutral_0", "R_penalty_100", "R_penalty_50"]
+        self.assertEqual([f["rule"] for f in sorted_findings], expected_order)
+
+    def test_missing_score_impact(self):
+        # Test how items with missing score_impact are sorted.
+        # Based on current _get_type_order, missing type would lead to TypeError.
+        # The lambda f.get("score_impact", {}).get("type") will return None.
+        # _get_type_order(None) returns 1 (treated like penalty).
+        # -1 * f.get("score_impact", {}).get("value", 0) will be 0.
+        # So, it should be sorted among penalties, with a value of 0.
+        findings = [
+            {"rule": "R_penalty_50", "score_impact": {"type": "penalty", "value": 50}},
+            {"rule": "R_no_impact"},  # No score_impact key
+            {"rule": "R_bonus_10", "score_impact": {"type": "bonus", "value": 10}},
+            {"rule": "R_empty_impact", "score_impact": {}},  # Empty score_impact dict
+        ]
+        sorted_findings = self.expert_system._sort_findings(findings)
+
+        # Expected: Bonus (10), then R_no_impact and R_empty_impact (treated as penalty 0), then Penalty (50)
+        # The relative order of R_no_impact and R_empty_impact might not be stable,
+        # as they both get type_order=1 and value=0.
+        # Expected: Bonus (10), Penalty (50), then R_no_impact and R_empty_impact (treated as penalty 0).
+        # The relative order of R_no_impact and R_empty_impact might not be stable,
+        # as they both get type_order=1 and value=0 for sorting.
+        rules_in_sorted_findings = [f["rule"] for f in sorted_findings]
+
+        self.assertEqual(
+            rules_in_sorted_findings[0], "R_bonus_10", "Bonus item should be first."
+        )
+        self.assertEqual(
+            rules_in_sorted_findings[1], "R_penalty_50", "Penalty 50 should be second."
+        )
+
+        # Check that R_no_impact and R_empty_impact are in the last two positions
+        last_two_elements = sorted(rules_in_sorted_findings[2:])
+        self.assertListEqual(
+            last_two_elements,
+            sorted(["R_no_impact", "R_empty_impact"]),
+            "Items with no/empty impact should be last and sorted alphabetically if their sort keys are identical.",
         )
 
 

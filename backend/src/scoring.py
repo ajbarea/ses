@@ -13,6 +13,7 @@ SEVERITY_SCORES = {
 
 # Base score to start from
 DEFAULT_BASE_SCORE = 100
+CRITICAL_RISK_GRADE = "Critical Risk"
 
 # Score thresholds for grade determination
 GRADE_THRESHOLDS = {
@@ -20,10 +21,8 @@ GRADE_THRESHOLDS = {
     "Good": 80,
     "Fair": 60,
     "Poor": 40,
-    "Critical Risk": 0,  # Anything below 40 or with critical findings
+    CRITICAL_RISK_GRADE: 0,  # Anything below 40 or with critical findings
 }
-
-CRITICAL_RISK_GRADE = "Critical Risk"
 
 # Default score mappings for CLIPS findings
 DEFAULT_FINDING_IMPACTS = {
@@ -38,7 +37,7 @@ SCORE_GRADE_THRESHOLDS = {
     80: "Good",
     60: "Fair",
     40: "Poor",
-    0: "Critical Risk",
+    0: CRITICAL_RISK_GRADE,
 }
 
 # Score change type constants
