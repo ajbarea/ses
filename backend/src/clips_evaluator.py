@@ -10,6 +10,14 @@ from pathlib import Path
 import io
 from contextlib import redirect_stdout
 from src.logging_config import get_logger
+from src.scoring import (
+    DEFAULT_BASE_SCORE,
+    get_clips_finding_impact,
+    apply_score_impacts,
+    format_score_impact_text,
+    create_score_changes,
+    assign_grade,
+)
 
 logger = get_logger(__name__)
 
@@ -113,6 +121,7 @@ class SecurityExpertSystem:
             # Score template for security score calculations
             self.env.build(
                 """(deftemplate score
+   (slot rule-name)
    (slot value)
    (slot type (default penalty)))"""
             )
@@ -444,13 +453,11 @@ class SecurityExpertSystem:
         # First, collect all score facts to associate with findings
         for fact in self.env.facts():
             if fact.template.name == "score":
-                # Get rule name from asserted finding if available
-                rule_context = getattr(fact, "rule_context", None)
-                if rule_context:
-                    score_facts[rule_context] = {
-                        "value": int(fact["value"]),
-                        "type": fact["type"],
-                    }
+                rn = fact["rule-name"]
+                score_facts[rn] = {
+                    "value": int(fact["value"]),
+                    "type": fact["type"],
+                }
 
         for finding in self.env.facts():
             # Only process finding facts
@@ -498,26 +505,12 @@ class SecurityExpertSystem:
                                 }
                                 break
 
-            # Strategy 4: Default based on finding level
             if not score_impact:
-                if finding["level"] == "info":
-                    score_impact = {"value": 0, "type": "neutral"}
-                elif finding["level"] == "warning":
-                    score_impact = {"value": -10, "type": "penalty"}
-                elif finding["level"] == "critical":
-                    score_impact = {"value": -30, "type": "penalty"}
+                score_impact = get_clips_finding_impact(finding_dict)
 
-            # Add score impact to finding dict
             if score_impact:
                 finding_dict["score_impact"] = score_impact
-
-                # Add a formatted string for display
-                if score_impact["type"] == "penalty":
-                    finding_dict["score_text"] = f"-{abs(score_impact['value'])} points"
-                elif score_impact["type"] == "bonus":
-                    finding_dict["score_text"] = f"+{score_impact['value']} points"
-                else:
-                    finding_dict["score_text"] = "0 points (neutral)"
+                finding_dict["score_text"] = format_score_impact_text(score_impact)
 
             if finding["details"]:
                 finding_dict["details"] = list(finding["details"])
@@ -538,48 +531,22 @@ class SecurityExpertSystem:
 
         return findings
 
-    def get_score(self, base_score=100):
-        """Compute the final security score from score facts.
+    def get_score(self, base_score=DEFAULT_BASE_SCORE):
+        """Compute final security score from facts."""
+        impacts = []
+        final_score = None
 
-        Args:
-            base_score (int, optional): Starting score value. Defaults to 100.
+        for fact in self.env.facts():
+            if fact.template.name == "score":
+                if fact["type"] == "final":
+                    final_score = int(fact["value"])
+                    break
+                impacts.append({"type": fact["type"], "value": int(fact["value"])})
 
-        Returns:
-            int: Final security score between 0 and 100.
-        """
-        score = base_score
-        score_details = []
+        if final_score is not None:
+            return max(0, min(100, final_score))
 
-        for score_fact in self.env.facts():
-            if score_fact.template.name == "score":
-                value = int(score_fact["value"])
-
-                if score_fact["type"] == "final":
-                    # Final score overrides all other calculations
-                    return max(0, min(100, value))
-                elif score_fact["type"] == "penalty":
-                    score += value  # Penalties are negative values
-                    score_details.append(
-                        {
-                            "type": "penalty",
-                            "value": value,
-                            "description": getattr(
-                                score_fact, "description", "Penalty"
-                            ),
-                        }
-                    )
-                elif score_fact["type"] == "bonus":
-                    score += value
-                    score_details.append(
-                        {
-                            "type": "bonus",
-                            "value": value,
-                            "description": getattr(score_fact, "description", "Bonus"),
-                        }
-                    )
-
-        # Ensure score is in valid range (0-100)
-        return max(0, min(100, score))
+        return apply_score_impacts(base_score, impacts)
 
     def get_rule_trace(self):
         """Return the list of recorded rule activation events.
@@ -608,24 +575,13 @@ class SecurityExpertSystem:
         findings = self.get_findings()
         score = self.get_score()
 
-        # Determine grade based on score
-        is_critical_found = any(f.get("level") == "critical" for f in findings)
-
-        if is_critical_found:
-            grade = "Critical Risk"
-        elif score >= 90:
-            grade = "Excellent"
-        elif score >= 80:
-            grade = "Good"
-        elif score >= 60:
-            grade = "Fair"
-        elif score >= 40:
-            grade = "Poor"
-        else:
-            grade = "Critical Risk"
+        # Use centralized grade assignment instead of hardcoded thresholds
+        grade = assign_grade(score, findings)
 
         # Get rule explanations if available
         explanations = self.get_rule_trace()
+        # Create centralized score changes
+        score_changes = create_score_changes(DEFAULT_BASE_SCORE, findings)
 
         # Organize findings by impact type
         positive_findings = [
@@ -662,4 +618,5 @@ class SecurityExpertSystem:
             "neutral_findings": neutral_findings,
             "rules_fired": rules_fired,
             "explanations": explanations,
+            "score_changes": score_changes,
         }

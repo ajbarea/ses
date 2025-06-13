@@ -560,9 +560,21 @@ class TestEvaluateImpactSummary(unittest.TestCase):
         expert.get_rule_trace = lambda: []
         # one bonus, one penalty, one neutral finding
         findings = [
-            {"score_impact": {"type": "bonus", "value": 5}, "description": "A"},
-            {"score_impact": {"type": "penalty", "value": -10}, "description": "B"},
-            {"score_impact": {"type": "neutral", "value": 0}, "description": "C"},
+            {
+                "score_impact": {"type": "bonus", "value": 5},
+                "description": "A",
+                "level": "info",
+            },
+            {
+                "score_impact": {"type": "penalty", "value": -10},
+                "description": "B",
+                "level": "info",
+            },
+            {
+                "score_impact": {"type": "neutral", "value": 0},
+                "description": "C",
+                "level": "info",
+            },
         ]
         expert.get_findings = lambda: findings
         expert.get_score = lambda: 85

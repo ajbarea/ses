@@ -7,126 +7,20 @@ and determine an overall security grade for the system.
 from datetime import datetime, timezone
 from typing import Optional
 from src.logging_config import get_logger
+from src.scoring import (
+    calculate_score,
+    assign_grade,
+    DEFAULT_BASE_SCORE,
+    create_score_changes,
+    format_score_impact_text,
+    get_finding_score_impact,
+)
+from src.rule_descriptions import RULE_DESCRIPTIONS
 
 logger = get_logger(__name__)
 
-# Penalty points for finding severity levels
-SEVERITY_SCORES = {
-    "critical": -30,
-    "warning": -10,
-    "info": 0,
-}
-
 # Threshold for number of running services before triggering an alert
 SERVICE_COUNT_THRESHOLD = 300
-
-# Rule definitions with descriptions and severity levels
-RULE_DESCRIPTIONS = {
-    "patch_status": {
-        "description": "System patches are not up-to-date.",
-        "level": "critical",
-    },
-    "open_ports": {
-        "description": "Open TCP ports found.",
-        "level": "warning",
-    },
-    "service_count": {
-        "description": "Number of running services exceeds threshold",
-        "level": "info",
-    },
-    "firewall_all_disabled": {
-        "description": "All firewall profiles are disabled.",
-        "level": "critical",
-    },
-    "firewall_public_disabled": {
-        "description": "Public firewall profile is disabled.",
-        "level": "warning",
-    },
-    "firewall_domain_disabled": {
-        "description": "Domain firewall profile is disabled.",
-        "level": "warning",
-    },
-    "firewall_private_disabled": {
-        "description": "Private firewall profile is disabled.",
-        "level": "warning",
-    },
-    "firewall_all_enabled": {
-        "description": "All firewall profiles are enabled.",
-        "level": "info",
-    },
-    "antivirus_not_detected": {
-        "description": "No antivirus products detected.",
-        "level": "critical",
-    },
-    "password_min_length_weak": {
-        "description": "Minimum password length is weak (less than 8 characters).",
-        "level": "warning",
-    },
-    "password_min_length_acceptable": {
-        "description": "Minimum password length is acceptable (8–11 characters).",
-        "level": "info",
-    },
-    "password_min_length_strong": {
-        "description": "Minimum password length is strong (12+ characters).",
-        "level": "info",
-    },
-    "password_complexity_disabled": {
-        "description": "Password complexity requirements are disabled.",
-        "level": "warning",
-    },
-    "password_complexity_enabled": {
-        "description": "Password complexity requirements are enabled.",
-        "level": "info",
-    },
-    "account_lockout_not_defined": {
-        "description": "Account lockout policy is not defined.",
-        "level": "warning",
-    },
-    "account_lockout_defined": {
-        "description": "Account lockout policy is defined.",
-        "level": "info",
-    },
-    "password_history_disabled": {
-        "description": "Password history is not enforced.",
-        "level": "warning",
-    },
-    "password_history_enabled": {
-        "description": "Password history is enforced.",
-        "level": "info",
-    },
-    "max_password_age_disabled": {
-        "description": "Maximum password age is disabled.",
-        "level": "warning",
-    },
-    "max_password_age_enabled": {
-        "description": "Maximum password age is enabled.",
-        "level": "info",
-    },
-    "max_password_age_too_long": {
-        "description": "Maximum password age is too long (>365 days).",
-        "level": "warning",
-    },
-    "smb_port_open": {
-        "description": "SMB port 445 is open, which is common for Windows file sharing.",
-        "level": "info",
-    },
-    "smb_port_risky": {
-        "description": "SMB port 445 is open with public firewall disabled.",
-        "level": "warning",
-    },
-    "high_risk_port_open": {
-        "description": "High-risk port is open.",
-        "level": "warning",
-    },
-    "suspicious_port_combination": {
-        "description": "Insecure services exposed with firewall disabled.",
-        "level": "critical",
-    },
-    "many_ports_open": {
-        "description": "Large number of open ports detected.",
-        "level": "warning",
-    },
-}
 
 # Check if CLIPS expert system is available
 CLIPS_AVAILABLE = False
@@ -144,29 +38,6 @@ except Exception:  # pragma: no cover
 logger.info(
     f"CLIPS availability: {'AVAILABLE' if CLIPS_AVAILABLE else 'NOT AVAILABLE'}"
 )
-
-
-def calculate_score(findings: list, base_score: int = 100) -> int:
-    """Calculate security score by applying penalties for findings.
-
-    Starts with the base score and deducts points based on the severity
-    of each finding, clamping the result to a 0-100 range.
-
-    Args:
-        findings: List of finding dictionaries, each with a 'level' key
-        base_score: Starting score before penalties (default: 100)
-
-    Returns:
-        Final security score (0-100)
-    """
-    score = base_score
-    for finding in findings:
-        level = finding.get(
-            "level", "info"
-        )  # Default to 'info' if level is not specified
-        penalty = SEVERITY_SCORES.get(level, 0)  # Default penalty if level is unknown
-        score += penalty
-    return max(0, min(100, score))  # Ensure score is within 0-100 range
 
 
 def _collect_patch_findings(metrics):
@@ -369,32 +240,6 @@ def _collect_password_findings(metrics):
     return findings
 
 
-def _assign_grade(score, findings):
-    """Determine security grade based on score and findings.
-
-    Args:
-        score: Numeric security score (0-100)
-        findings: List of finding dictionaries
-
-    Returns:
-        String grade representing security level
-    """
-    # Critical findings always result in Critical Risk grade
-    if any(f["level"] == "critical" for f in findings):
-        return "Critical Risk"
-
-    # Otherwise grade based on score
-    if score >= 90:
-        return "Excellent"
-    if score >= 80:
-        return "Good"
-    if score >= 60:
-        return "Fair"
-    if score >= 40:
-        return "Poor"
-    return "Critical Risk"
-
-
 def _evaluate_legacy(metrics: dict) -> dict:
     """Evaluate metrics with Python-based rules and generate security findings.
 
@@ -414,13 +259,53 @@ def _evaluate_legacy(metrics: dict) -> dict:
     findings.extend(_collect_firewall_findings(metrics))
     if "antivirus" in metrics:
         findings.extend(_collect_antivirus_findings(metrics))
-
-    # new password policy collector
     if "password_policy" in metrics:
         findings.extend(_collect_password_findings(metrics))
 
-    score = calculate_score(findings)
-    grade = _assign_grade(score, findings)
+    score = calculate_score(findings, DEFAULT_BASE_SCORE)
+    grade = assign_grade(score, findings)
+
+    # Add score impact to findings and sort them
+    for finding in findings:
+        impact = get_finding_score_impact(finding)
+        finding["score_impact"] = impact
+        finding["score_text"] = format_score_impact_text(impact)
+
+    # Sort findings: bonuses first, then neutral, then penalties (by severity)
+    findings.sort(
+        key=lambda f: (
+            (
+                -1
+                if f.get("score_impact", {}).get("type") == "bonus"
+                else 0 if f.get("score_impact", {}).get("type") == "neutral" else 1
+            ),
+            -1 * f.get("score_impact", {}).get("value", 0),
+        )
+    )
+
+    # Generate score changes
+    score_changes = create_score_changes(DEFAULT_BASE_SCORE, findings)
+
+    # Organize findings by impact type
+    positive_findings = [
+        f for f in findings if f.get("score_impact", {}).get("type") == "bonus"
+    ]
+    neutral_findings = [
+        f for f in findings if f.get("score_impact", {}).get("type") == "neutral"
+    ]
+    negative_findings = [
+        f for f in findings if f.get("score_impact", {}).get("type") == "penalty"
+    ]
+
+    # Create impact summary
+    impact_summary = ""
+    if positive_findings:
+        impact_summary += f"{len(positive_findings)} positive factors. "
+    if negative_findings:
+        impact_summary += f"{len(negative_findings)} items reducing your score. "
+    if neutral_findings:
+        impact_summary += f"{len(neutral_findings)} neutral findings. "
+
     summary = (
         "No critical issues found."
         if not findings
@@ -431,9 +316,14 @@ def _evaluate_legacy(metrics: dict) -> dict:
         "score": score,
         "grade": grade,
         "summary": summary,
+        "impact_summary": impact_summary,
         "findings": findings,
+        "positive_findings": positive_findings,
+        "negative_findings": negative_findings,
+        "neutral_findings": neutral_findings,
         "rules_fired": len(findings),
         "explanations": [],
+        "score_changes": score_changes,
     }
 
 

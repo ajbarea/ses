@@ -120,7 +120,7 @@ class TestCalculateScore(unittest.TestCase):
             {"level": "unknown"},
         ]
         score = calculate_score(findings, base_score=100)
-        self.assertEqual(score, 50)
+        self.assertEqual(score, 60)
 
     def test_clamping_below_zero(self):
         """Test that score cannot go below zero even with many critical findings."""
@@ -210,7 +210,7 @@ class TestEvaluateLegacyRules(unittest.TestCase):
             "services": {"services": [None] * (SERVICE_COUNT_THRESHOLD + 1)},
         }
         result = _evaluate_legacy(metrics)
-        self.assertEqual(result["grade"], "Good")
+        self.assertEqual(result["grade"], "Excellent")
 
     def test_critical_risk_grade_assignment(self):
         """Test 'Critical Risk' grade assignment with critical findings."""

@@ -9,14 +9,15 @@ export default function ResultsDisplay({
 }: {
   readonly result: EvalResult;
 }) {
-  const [activeTab, setActiveTab] = useState<"findings" | "trace" | "metrics">(
-    "findings"
-  );
+  const [activeTab, setActiveTab] = useState<
+    "findings" | "trace" | "metrics" | "score_changes"
+  >("findings");
 
   const tabs = [
     { id: "findings", label: `Findings` },
     { id: "trace", label: "Rule Trace" },
     { id: "metrics", label: "Evaluation Metrics" },
+    { id: "score_changes", label: "Score Changes" },
   ];
 
   // Function to generate a recommendation based on score and findings
@@ -104,9 +105,7 @@ export default function ResultsDisplay({
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() =>
-                setActiveTab(tab.id as "findings" | "trace" | "metrics")
-              }
+              onClick={() => setActiveTab(tab.id as any)}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === tab.id
                   ? "border-blue-500 text-blue-700"
@@ -137,6 +136,29 @@ export default function ResultsDisplay({
             <pre className="p-3 bg-gray-100 rounded text-sm overflow-x-auto text-gray-800">
               {JSON.stringify(result.metrics, null, 2)}
             </pre>
+          </div>
+        )}
+
+        {activeTab === "score_changes" && (
+          <div className="p-3 bg-gray-100 rounded text-sm text-gray-800">
+            <ul className="list-disc list-outside pl-5">
+              {(result.score_changes ?? []).map((sc, idx) => (
+                <li key={idx}>
+                  <span
+                    className={
+                      sc.type === "bonus"
+                        ? "text-green-600"
+                        : sc.type === "penalty"
+                        ? "text-red-600"
+                        : "text-gray-600"
+                    }
+                  >
+                    {sc.delta > 0 ? `+${sc.delta}` : sc.delta} points
+                  </span>{" "}
+                  for rule: {sc.rule}
+                </li>
+              ))}
+            </ul>
           </div>
         )}
       </div>

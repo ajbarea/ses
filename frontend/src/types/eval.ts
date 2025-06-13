@@ -35,6 +35,11 @@ export interface EvalResult {
   neutral_findings?: Finding[];
   rules_fired: number;
   explanations: { rule: string; activation: string }[];
+  score_changes?: {
+    rule: string;
+    delta: number;
+    type: "initial" | "bonus" | "penalty" | "neutral";
+  }[];
   metrics: {
     antivirus?: AntivirusInfo;
     [key: string]: any;
