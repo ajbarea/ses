@@ -40,6 +40,13 @@ export default function ResultsDisplay({
   const positiveCount = result.positive_findings?.length ?? 0;
   const negativeCount = result.negative_findings?.length ?? 0;
 
+  // Determine score change color class
+  const getScoreChangeColorClass = (type: string) => {
+    if (type === "bonus") return "text-green-600";
+    if (type === "penalty") return "text-red-600";
+    return "text-gray-600";
+  };
+
   return (
     <div className="w-full max-w-2xl bg-white rounded-lg shadow-sm p-6 transition-all duration-300 ease-in-out">
       <ScoreCard grade={result.grade} score={result.score} />
@@ -144,15 +151,7 @@ export default function ResultsDisplay({
             <ul className="list-disc list-outside pl-5">
               {(result.score_changes ?? []).map((sc) => (
                 <li key={`${sc.rule}_${sc.type}_${sc.delta}`}>
-                  <span
-                    className={
-                      sc.type === "bonus"
-                        ? "text-green-600"
-                        : sc.type === "penalty"
-                        ? "text-red-600"
-                        : "text-gray-600"
-                    }
-                  >
+                  <span className={getScoreChangeColorClass(sc.type)}>
                     {sc.delta > 0 ? `+${sc.delta}` : sc.delta} points
                   </span>{" "}
                   for rule: {sc.rule}
