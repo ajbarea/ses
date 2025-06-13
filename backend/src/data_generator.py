@@ -1,6 +1,6 @@
 """Module for generating synthetic security metrics for Windows systems."""
 
-import random
+import secrets
 from pathlib import Path
 import csv
 import argparse
@@ -23,8 +23,8 @@ def generate_patch_metric() -> Dict[str, Any]:
         ["KB1234567", "KB2345678", "KB3456789"],
     ]
     return {
-        "status": random.choice(status_choices),
-        "hotfixes": random.choice(hotfix_strategies),
+        "status": secrets.choice(status_choices),
+        "hotfixes": secrets.choice(hotfix_strategies),
     }
 
 
@@ -61,7 +61,7 @@ def generate_ports_metric() -> Dict[str, Any]:
         ],
         [21, 22, 23, 25, 53, 80, 110, 135, 137, 139, 443, 445, 3389, 5900],  # High risk
     ]
-    return {"ports": random.choice(port_strategies)}
+    return {"ports": secrets.choice(port_strategies)}
 
 
 def generate_services_metric() -> Dict[str, Any]:
@@ -172,6 +172,16 @@ def generate_services_metric() -> Dict[str, Any]:
         "wuauserv",
     ]
 
+    shuffled_services_for_medium_set = list(windows_services)
+    secrets.SystemRandom().shuffle(shuffled_services_for_medium_set)
+    selected_services_for_medium_set = shuffled_services_for_medium_set[
+        : min(30, len(windows_services))
+    ]
+    medium_set_services = [
+        {"name": service, "state": secrets.choice(["running", "stopped"])}
+        for service in selected_services_for_medium_set
+    ]
+
     service_strategies = [
         [],  # No services
         # Small set
@@ -180,22 +190,19 @@ def generate_services_metric() -> Dict[str, Any]:
             {"name": "Spooler", "state": "running"},
         ],
         # Medium set
-        [
-            {"name": service, "state": random.choice(["running", "stopped"])}
-            for service in random.sample(
-                windows_services, min(30, len(windows_services))
-            )
-        ],
+        medium_set_services,
         # Large set
         [
             {
                 "name": service,
-                "state": "running" if random.random() > 0.1 else "stopped",
+                "state": (
+                    "running" if secrets.SystemRandom().random() > 0.1 else "stopped"
+                ),
             }
             for service in windows_services
         ],
     ]
-    return {"services": random.choice(service_strategies)}
+    return {"services": secrets.choice(service_strategies)}
 
 
 def generate_firewall_metric() -> Dict[str, Any]:
@@ -211,7 +218,7 @@ def generate_firewall_metric() -> Dict[str, Any]:
         {"domain": "OFF", "private": "OFF", "public": "OFF"},  # All disabled (risky)
         {"domain": "UNKNOWN", "private": "ON", "public": "ON"},  # Domain unknown
     ]
-    return {"profiles": random.choice(scenarios)}
+    return {"profiles": secrets.choice(scenarios)}
 
 
 def generate_antivirus_metric() -> Dict[str, Any]:
@@ -228,7 +235,7 @@ def generate_antivirus_metric() -> Dict[str, Any]:
         [{"name": "Windows Defender", "state": 262144}],  # Disabled
         [{"name": "Windows Defender", "state": "UNKNOWN"}],  # Unknown state
     ]
-    return {"products": random.choice(scenarios)}
+    return {"products": secrets.choice(scenarios)}
 
 
 def generate_password_policy_metric() -> Dict[str, Any]:
@@ -245,7 +252,7 @@ def generate_password_policy_metric() -> Dict[str, Any]:
         {"min_password_length": 8, "max_password_age": 60},  # Medium security
         {"min_password_length": 12, "max_password_age": 90},  # High security
     ]
-    return {"policy": random.choice(scenarios)}
+    return {"policy": secrets.choice(scenarios)}
 
 
 def generate_single_metric_set() -> Dict[str, Any]:
@@ -391,7 +398,7 @@ def split_dataset(
     return dataset[:split_idx], dataset[split_idx:]
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     parser = argparse.ArgumentParser(description="Generate dataset for ML training.")
     parser.add_argument(
         "-n",

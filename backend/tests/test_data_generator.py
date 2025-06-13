@@ -1,15 +1,12 @@
-"""Unit tests for the data generator module that produces security metrics datasets.
-
-Tests the generation of various security metrics including patch status, ports,
-services, firewall, antivirus and password policies, as well as the flattening
-of these metrics for machine learning purposes.
-"""
+"""Unit tests for data_generator.py module's security metrics generation and processing."""
 
 import unittest
 import tempfile
 import os
 import csv
 from pathlib import Path
+from unittest.mock import patch, MagicMock
+import io
 
 from src.data_generator import (
     generate_patch_metric,
@@ -27,7 +24,7 @@ from src.data_generator import (
 
 
 class TestMetricGenerators(unittest.TestCase):
-    """Test suite for individual metric generator functions."""
+    """Tests for individual security metric generator functions."""
 
     def test_generate_patch_metric(self):
         metric = generate_patch_metric()
@@ -94,7 +91,7 @@ class TestMetricGenerators(unittest.TestCase):
         self.assertIsInstance(metric["policy"]["max_password_age"], int)
 
     def test_generate_single_metric_set_structure(self):
-        """Tests if generate_single_metric_set returns a dict with all expected metric keys."""
+        """Verifies that all required metric categories are present in generated set."""
         metric_set = generate_single_metric_set()
         expected_keys = [
             "patch",
@@ -110,9 +107,10 @@ class TestMetricGenerators(unittest.TestCase):
 
 
 class TestFlattenMetrics(unittest.TestCase):
-    """Test suite for the metrics flattening functionality."""
+    """Tests for metric flattening functionality that transforms nested metrics into ML-ready format."""
 
     def test_flatten_metrics_basic(self):
+        """Tests flattening of a complete, well-formed metrics dictionary."""
         sample_metrics = {
             "patch": {"status": "up-to-date", "hotfixes": ["KB1", "KB2"]},
             "ports": {"ports": [80, 443, 8080]},
@@ -160,6 +158,7 @@ class TestFlattenMetrics(unittest.TestCase):
         self.assertEqual(flat["password_max_age"], 90)
 
     def test_flatten_metrics_empty_or_missing(self):
+        """Tests handling of partially populated or empty metric categories."""
         sample_metrics = {
             "patch": {"status": "out-of-date", "hotfixes": []},
             "services": {"services": []},
@@ -188,6 +187,7 @@ class TestFlattenMetrics(unittest.TestCase):
         self.assertEqual(flat["password_max_age"], 0)
 
     def test_flatten_metrics_all_missing(self):
+        """Tests handling of completely empty metrics dictionary."""
         sample_metrics = {}
         flat = flatten_metrics(sample_metrics)
 
@@ -207,34 +207,31 @@ class TestFlattenMetrics(unittest.TestCase):
 
 
 class MockExpertSystem:
-    """A mock implementation of the security expert system for testing.
+    """Mock security expert system for testing dataset generation.
 
-    Simulates the behavior of the real expert system by evaluating security metrics
-    and producing scores, grades and findings. Uses a simplified scoring algorithm:
-    - Starts with 100 points
-    - -30 points for out-of-date patches
-    - -25 points for disabled firewall
-    - -20 points for disabled antivirus
+    Implements a simplified scoring system:
+    - Base score: 100 points
+    - Deductions:
+        - Out-of-date patches: -30
+        - Disabled firewall: -25
+        - Disabled antivirus: -20
 
-    Grades are assigned based on score ranges:
-    - Excellent: >= 90
-    - Good: >= 80
-    - Fair: >= 60
-    - Poor: >= 40
-    - Critical Risk: < 40
+    Grade thresholds:
+        - Excellent: >= 90
+        - Good: >= 80
+        - Fair: >= 60
+        - Poor: >= 40
+        - Critical Risk: < 40
     """
 
     def evaluate(self, metrics):
-        """Evaluates security metrics and returns mock assessment results.
+        """Simulates security metric evaluation with simplified scoring logic.
 
         Args:
-            metrics: Dict containing security metrics to evaluate
+            metrics: Dictionary of security metrics
 
         Returns:
-            Dict with keys:
-                score: int 0-100 representing overall security score
-                grade: str classification of the score
-                findings: list of security issues found
+            Dict containing score (0-100), grade, and list of findings
         """
         score = 100
         findings = []
@@ -299,11 +296,12 @@ class MockExpertSystem:
 
 
 class TestGenerateDataset(unittest.TestCase):
-    """Test suite for the dataset generation functionality."""
+    """Tests for dataset generation using the expert system."""
 
-    def test_generate_dataset_size(self):
-        """Test if generate_dataset returns the correct number of samples."""
-        num_samples = 10
+    @patch("sys.stdout", new_callable=io.StringIO)
+    def test_generate_dataset_size(self, mock_stdout):
+        """Tests dataset size and progress reporting."""
+        num_samples = 100
         expert_system = MockExpertSystem()
         dataset = generate_dataset(expert_system, num_samples)
 
@@ -319,15 +317,38 @@ class TestGenerateDataset(unittest.TestCase):
             self.assertIn("firewall_domain", sample)
             self.assertIn("antivirus_enabled", sample)
 
+        # Check for progress print
+        self.assertIn(f"Progress: {num_samples}/{num_samples}", mock_stdout.getvalue())
+
     def test_generate_dataset_with_zero_samples(self):
         """Test if generate_dataset handles zero samples correctly."""
         expert_system = MockExpertSystem()
         dataset = generate_dataset(expert_system, 0)
         self.assertEqual(len(dataset), 0)
 
+    def test_generate_dataset_expert_system_error(self):
+        """Tests error handling when expert system evaluation fails."""
+        num_samples = 1
+        mock_expert_system = MagicMock()
+        # Simulate evaluate returning None or an incomplete dict
+        mock_expert_system.evaluate.return_value = None
+
+        dataset = generate_dataset(mock_expert_system, num_samples)
+        self.assertEqual(len(dataset), num_samples)
+        self.assertIsNone(dataset[0]["target_score"])
+        self.assertEqual(dataset[0]["target_grade"], "Error")
+
+        mock_expert_system.evaluate.return_value = {
+            "some_other_key": "value"
+        }  # Incomplete dict
+        dataset = generate_dataset(mock_expert_system, num_samples)
+        self.assertEqual(len(dataset), num_samples)
+        self.assertIsNone(dataset[0]["target_score"])
+        self.assertEqual(dataset[0]["target_grade"], "Error")
+
 
 class TestSaveToCSV(unittest.TestCase):
-    """Test suite for the CSV saving functionality."""
+    """Tests for CSV file output functionality."""
 
     def setUp(self):
         """Set up test fixtures."""
@@ -342,7 +363,7 @@ class TestSaveToCSV(unittest.TestCase):
         self.temp_dir.cleanup()
 
     def test_save_to_csv_normal(self):
-        """Test saving a normal dataset to CSV."""
+        """Tests successful CSV file writing with valid data."""
         filepath = Path(self.temp_dir.name) / "test_output.csv"
         save_to_csv(self.test_data, filepath)
 
@@ -360,22 +381,44 @@ class TestSaveToCSV(unittest.TestCase):
             self.assertEqual(rows[1]["col1"], "value2")
 
     def test_save_to_csv_empty(self):
-        """Test saving an empty dataset to CSV."""
+        """Tests CSV handling with empty dataset.
+
+        Note: Implementation may either create an empty file or not create one at all.
+        Both behaviors are acceptable."""
         filepath = Path(self.temp_dir.name) / "empty_output.csv"
         save_to_csv([], filepath)
 
         # Verify the file should not exist or be empty
+        # If it exists, it should be empty (only header if fieldnames were known, but here it's truly empty)
         if filepath.exists():
             with open(filepath, "r", encoding="utf-8") as f:
-                content = f.read()
+                content = f.read().strip()  # Read and strip whitespace
+            # An empty dataset results in no file or an empty file depending on implementation details.
+            # The current save_to_csv returns early if dataset is empty, so file might not be created.
+            # If it is created (e.g., by a different logic path not shown), it should be empty.
             self.assertEqual(content, "")
+        else:
+            # This is also an acceptable outcome for an empty dataset if no file is created.
+            self.assertTrue(True)
+
+    @patch("sys.stdout", new_callable=io.StringIO)
+    @patch("builtins.open", side_effect=IOError("Simulated I/O Error"))
+    def test_save_to_csv_io_error(self, mock_open, mock_stdout):
+        """Tests error handling during CSV file writing."""
+        filepath = Path(self.temp_dir.name) / "error_output.csv"
+        save_to_csv(self.test_data, filepath)
+
+        # Verify the error message was printed to stdout
+        self.assertIn("Error saving CSV: Simulated I/O Error", mock_stdout.getvalue())
+        # Verify that open was called
+        mock_open.assert_called_once_with(filepath, "w", newline="", encoding="utf-8")
 
 
 class TestSplitDataset(unittest.TestCase):
-    """Test suite for the dataset splitting functionality."""
+    """Tests for dataset splitting into training and testing sets."""
 
     def test_split_dataset_normal(self):
-        """Test splitting a dataset with a normal ratio."""
+        """Tests standard 80/20 train/test split."""
         dataset = [{"id": i} for i in range(100)]
         train_ratio = 0.8
 
@@ -390,7 +433,7 @@ class TestSplitDataset(unittest.TestCase):
         self.assertEqual(test_data[0]["id"], 80)
 
     def test_split_dataset_edge_ratios(self):
-        """Test splitting a dataset with edge case ratios."""
+        """Tests extreme split ratios (90/10 and 10/90)."""
         dataset = [{"id": i} for i in range(10)]
 
         # Nearly all training data
@@ -411,5 +454,7 @@ class TestSplitDataset(unittest.TestCase):
         self.assertEqual(len(test_data), 0)
 
 
+if __name__ == "__main__":  # pragma: no cover
+    unittest.main()
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
