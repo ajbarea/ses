@@ -2,7 +2,6 @@
 
 import unittest
 import tempfile
-import os
 import csv
 from pathlib import Path
 from unittest.mock import patch, MagicMock
@@ -376,7 +375,7 @@ class TestSaveToCSV(unittest.TestCase):
             rows = list(reader)
             self.assertEqual(len(rows), 2)
             self.assertEqual(rows[0]["col1"], "value1")
-            self.assertEqual(rows[0]["col2"], "10")  # CSV stores as strings
+            self.assertEqual(rows[0]["col2"], "10")
             self.assertEqual(rows[0]["col3"], "True")
             self.assertEqual(rows[1]["col1"], "value2")
 
@@ -388,18 +387,11 @@ class TestSaveToCSV(unittest.TestCase):
         filepath = Path(self.temp_dir.name) / "empty_output.csv"
         save_to_csv([], filepath)
 
-        # Verify the file should not exist or be empty
-        # If it exists, it should be empty (only header if fieldnames were known, but here it's truly empty)
+        # If file exists, it should be empty
         if filepath.exists():
             with open(filepath, "r", encoding="utf-8") as f:
-                content = f.read().strip()  # Read and strip whitespace
-            # An empty dataset results in no file or an empty file depending on implementation details.
-            # The current save_to_csv returns early if dataset is empty, so file might not be created.
-            # If it is created (e.g., by a different logic path not shown), it should be empty.
+                content = f.read().strip()
             self.assertEqual(content, "")
-        else:
-            # This is also an acceptable outcome for an empty dataset if no file is created.
-            self.assertTrue(True)
 
     @patch("sys.stdout", new_callable=io.StringIO)
     @patch("builtins.open", side_effect=IOError("Simulated I/O Error"))
@@ -454,7 +446,5 @@ class TestSplitDataset(unittest.TestCase):
         self.assertEqual(len(test_data), 0)
 
 
-if __name__ == "__main__":  # pragma: no cover
-    unittest.main()
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()

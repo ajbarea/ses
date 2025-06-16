@@ -8,8 +8,7 @@ for the same security metrics, or document expected differences.
 import unittest
 import json
 from pathlib import Path
-import sys
-from unittest.mock import patch, MagicMock, Mock
+from unittest.mock import patch, Mock
 
 # Check if CLIPS is available - needed for meaningful tests
 try:
@@ -21,8 +20,6 @@ except ImportError:
 
 from src.rules import (
     evaluate,
-    _evaluate_legacy,
-    CLIPS_AVAILABLE as RULES_CLIPS_AVAILABLE,
 )
 from src.logging_config import setup_logging
 
@@ -110,6 +107,33 @@ class TestEngineConsistency(unittest.TestCase):
             "services": {"services": [{"name": "test-service", "status": "running"}]},
         }
 
+    def _load_and_complete_metrics(self, metrics_file):
+        """Load JSON and ensure all required keys present."""
+        with open(metrics_file, "r") as f:
+            metrics = json.load(f)
+        complete = self._get_complete_test_metrics()
+        for k, v in complete.items():
+            metrics.setdefault(k, v)
+        return metrics
+
+    def _extract_critical_rules(self, result):
+        """Return set of critical rule names from evaluation result."""
+        return {
+            f.get("rule")
+            for f in result.get("findings", [])
+            if f.get("level") == "critical"
+        }
+
+    def _check_critical_consistency(self, issue, clips_set, legacy_set):
+        if issue in clips_set and issue not in legacy_set:
+            self.fail(
+                f"Critical issue {issue} detected by CLIPS but not by legacy engine"
+            )
+        if issue in legacy_set and issue not in clips_set:
+            self.fail(
+                f"Critical issue {issue} detected by legacy engine but not by CLIPS"
+            )
+
     def test_engine_consistency_for_all_samples(self):
         """Test CLIPS and legacy engines produce consistent results for all samples."""
         all_differences = {}
@@ -133,38 +157,12 @@ class TestEngineConsistency(unittest.TestCase):
             if differences:
                 all_differences[metrics_file.name] = differences
 
-        # If we found any significant differences, explain them
+        # Fail immediately on any divergence
         if all_differences:
             differences_msg = json.dumps(all_differences, indent=2)
-
-            # Check if these are documented/expected differences
-            expected_differences = self._get_expected_differences()
-
-            if self._match_expected_differences(all_differences, expected_differences):
-                print(
-                    f"\nFound expected differences between engines: {differences_msg}"
-                )
-            else:
-                self.fail(
-                    f"Unexpected differences between CLIPS and legacy engines: {differences_msg}"
-                )
-
-    def _get_expected_differences(self):
-        """Return documented expected differences between engines."""
-        # For future: This could load from a configuration file
-        return {
-            # Example of expected difference format:
-            # "sample1.json": {
-            #     "score": {"min_diff": 0, "max_diff": 10},
-            #     "finding_counts": {"critical": {"min_diff": 0, "max_diff": 1}}
-            # }
-        }
-
-    def _match_expected_differences(self, actual_differences, expected_differences):
-        """Check if actual differences match expected/documented differences."""
-        # TODO: Implement comparison with expected differences documentation
-        # For now, we don't expect any differences
-        return False
+            self.fail(
+                f"Differences between CLIPS and legacy engines: {differences_msg}"
+            )
 
     def test_rule_count_consistency(self):
         """Test that both engines find a similar number of issues for complex metrics."""
@@ -205,48 +203,19 @@ class TestEngineConsistency(unittest.TestCase):
 
     def test_critical_finding_consistency(self):
         """Test that both engines identify the same critical security issues."""
-        critical_issues = {
-            "patch_status": "out-of-date",
-            "firewall_all_disabled": True,
-            "antivirus_not_detected": True,
-        }
-
+        critical_issues = [
+            "patch_status",
+            "firewall_all_disabled",
+            "antivirus_not_detected",
+        ]
         for metrics_file in self.metrics_files:
-            with open(metrics_file, "r") as f:
-                metrics = json.load(f)
-
-            # Ensure metrics contains all required keys in the expected format
-            complete_metrics = self._get_complete_test_metrics()
-            for key in complete_metrics:
-                if key not in metrics:
-                    metrics[key] = complete_metrics[key]
-
-            # Force evaluation with both engines
+            metrics = self._load_and_complete_metrics(metrics_file)
             clips_result = evaluate(metrics, use_clips=True)
             legacy_result = evaluate(metrics, use_clips=False)
-
-            # Check critical findings consistency
-            clips_critical = {
-                f.get("rule")
-                for f in clips_result.get("findings", [])
-                if f.get("level") == "critical"
-            }
-            legacy_critical = {
-                f.get("rule")
-                for f in legacy_result.get("findings", [])
-                if f.get("level") == "critical"
-            }
-
-            # Check if any known critical issues are detected by one engine but not the other
+            clips_set = self._extract_critical_rules(clips_result)
+            legacy_set = self._extract_critical_rules(legacy_result)
             for issue in critical_issues:
-                if issue in clips_critical and issue not in legacy_critical:
-                    self.fail(
-                        f"Critical issue {issue} detected by CLIPS but not by legacy engine"
-                    )
-                if issue in legacy_critical and issue not in clips_critical:
-                    self.fail(
-                        f"Critical issue {issue} detected by legacy engine but not by CLIPS"
-                    )
+                self._check_critical_consistency(issue, clips_set, legacy_set)
 
 
 @unittest.skipIf(not CLIPS_AVAILABLE, "CLIPS is required for these tests")
