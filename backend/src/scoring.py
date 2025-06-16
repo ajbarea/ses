@@ -91,7 +91,7 @@ def assign_grade(score: int, findings: list) -> str:
         if score >= threshold:
             return grade
 
-    # Shouldn't reach here, but just in case
+    # If no other grade matched, return Critical Risk
     return CRITICAL_RISK_GRADE
 
 

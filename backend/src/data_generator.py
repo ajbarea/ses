@@ -172,7 +172,6 @@ def generate_services_metric() -> Dict[str, Any]:
         "wuauserv",
     ]
 
-    shuffled_services_for_medium_set = list(windows_services)
     # Use secrets for cryptographically secure shuffling
     shuffled = []
     services_copy = list(windows_services)
