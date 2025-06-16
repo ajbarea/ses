@@ -220,6 +220,49 @@ class TestEngineConsistency(unittest.TestCase):
         self.assertEqual(differences["finding_counts"]["clips"]["warning"], 1)
         self.assertEqual(differences["finding_counts"]["legacy"]["critical"], 1)
 
+    @patch("src.rules.evaluate")
+    def test_engine_consistency_with_differences(self, mock_evaluate):
+        """Test the branches in test_engine_consistency_for_all_samples that handle differences."""
+        # Create mock file and metrics
+        mock_file = Mock()
+        mock_file.name = "test_file.json"
+
+        # Save original method to restore later
+        original_method = self._get_key_differences
+
+        try:
+            # Override the metrics_files attribute
+            self.metrics_files = [mock_file]
+
+            # Mock open to return our test metrics
+            mock_open = unittest.mock.mock_open(read_data='{"test": "data"}')
+
+            # Create different results for CLIPS and legacy engines
+            clips_result = {"score": 90, "grade": "Good"}
+            legacy_result = {"score": 70, "grade": "Fair"}
+
+            # Mock evaluate to return our test results
+            mock_evaluate.side_effect = [clips_result, legacy_result]
+
+            # Mock _get_key_differences to return differences
+            self._get_key_differences = Mock(return_value={"score": {"difference": 20}})
+
+            # Patch open and expect an AssertionError
+            with patch("builtins.open", mock_open), self.assertRaises(
+                AssertionError
+            ) as cm:
+                self.test_engine_consistency_for_all_samples()
+
+            # Verify the error message contains our differences
+            self.assertIn(
+                "Differences between CLIPS and legacy engines", str(cm.exception)
+            )
+            self.assertIn("test_file.json", str(cm.exception))
+
+        finally:
+            # Restore original method
+            self._get_key_differences = original_method
+
 
 @unittest.skipIf(not CLIPS_AVAILABLE, "CLIPS is required for these tests")
 class TestCLIPSRulesDirect(unittest.TestCase):
