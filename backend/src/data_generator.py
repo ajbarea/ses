@@ -1,7 +1,6 @@
 """Module for generating synthetic security metrics for Windows systems."""
 
 import secrets
-import random
 from pathlib import Path
 import csv
 import argparse
@@ -174,7 +173,15 @@ def generate_services_metric() -> Dict[str, Any]:
     ]
 
     shuffled_services_for_medium_set = list(windows_services)
-    random.shuffle(shuffled_services_for_medium_set)
+    # Use secrets for cryptographically secure shuffling
+    shuffled = []
+    services_copy = list(windows_services)
+    while services_copy:
+        # Select and remove a random service from the copy
+        index = secrets.randbelow(len(services_copy))
+        shuffled.append(services_copy.pop(index))
+    shuffled_services_for_medium_set = shuffled
+
     selected_services_for_medium_set = shuffled_services_for_medium_set[
         : min(30, len(windows_services))
     ]
@@ -196,7 +203,7 @@ def generate_services_metric() -> Dict[str, Any]:
         [
             {
                 "name": service,
-                "state": "running" if random.random() > 0.1 else "stopped",
+                "state": "running" if secrets.randbelow(10) > 0 else "stopped",
             }
             for service in windows_services
         ],
