@@ -1,0 +1,38 @@
+{
+  "patch": {
+    "status": "out-of-date",
+    "hotfixes": []
+  },
+  "ports": {
+    "ports": [21, 22, 23, 25, 80, 443, 3389, 5900]
+  },
+  "services": {
+    "services": [
+      { "name": "DHCP Client", "state": "running" },
+      { "name": "DNS Client", "state": "running" },
+      { "name": "FTP Server", "state": "running" },
+      { "name": "Telnet Server", "state": "running" },
+      { "name": "Remote Desktop", "state": "running" }
+    ]
+  },
+  "firewall": {
+    "profiles": {
+      "domain": "OFF",
+      "private": "OFF",
+      "public": "OFF"
+    }
+  },
+  "antivirus": {
+    "products": []
+  },
+  "password_policy": {
+    "policy": {
+      "min_password_length": 6,
+      "max_password_age": "disabled",
+      "min_password_age": 0,
+      "history_size": 0,
+      "lockout_threshold": "not-defined",
+      "complexity": "disabled"
+    }
+  }
+}

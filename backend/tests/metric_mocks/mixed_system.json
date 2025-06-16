@@ -1,0 +1,37 @@
+{
+  "patch": {
+    "status": "up-to-date",
+    "hotfixes": ["KB5022842", "KB5022845"]
+  },
+  "ports": {
+    "ports": [80, 443, 3389]
+  },
+  "services": {
+    "services": [
+      { "name": "DHCP Client", "state": "running" },
+      { "name": "DNS Client", "state": "running" },
+      { "name": "Windows Defender", "state": "running" },
+      { "name": "Remote Desktop", "state": "running" }
+    ]
+  },
+  "firewall": {
+    "profiles": {
+      "domain": "ON",
+      "private": "ON",
+      "public": "OFF"
+    }
+  },
+  "antivirus": {
+    "products": [{ "name": "Windows Defender", "state": null }]
+  },
+  "password_policy": {
+    "policy": {
+      "min_password_length": 8,
+      "max_password_age": 90,
+      "min_password_age": 1,
+      "history_size": 5,
+      "lockout_threshold": 3,
+      "complexity": "enabled"
+    }
+  }
+}
