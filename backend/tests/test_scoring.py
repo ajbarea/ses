@@ -42,5 +42,5 @@ class TestScoring(unittest.TestCase):
         self.assertEqual(result, DEFAULT_BASE_SCORE)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     unittest.main()

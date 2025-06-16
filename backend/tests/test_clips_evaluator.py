@@ -592,10 +592,103 @@ class TestEvaluateImpactSummary(unittest.TestCase):
         )
 
 
+class TestGetScoreImpact(unittest.TestCase):
+    """Tests for the different methods of retrieving score impacts for findings."""
+
+    def setUp(self):
+        self.expert = SecurityExpertSystem(rules_dir=None)
+        self.expert.env = MagicMock()
+        self.expert.rule_activations = []
+        self.finding = {
+            "rule": "test_rule",
+            "level": "warning",
+            "description": "Test finding",
+        }
+        self.score_facts = {"rule_in_facts": {"type": "penalty", "value": -15}}
+
+    def test_direct_score_impact_path(self):
+        """Test that direct score impact is used when available."""
+        # Mock _direct_score_impact to return a direct score impact
+        with patch.object(
+            self.expert,
+            "_direct_score_impact",
+            return_value={"type": "bonus", "value": 10},
+        ) as mock_direct:
+            # The other methods should not be called
+            with patch.object(
+                self.expert, "_activation_score_impact"
+            ) as mock_activation:
+                impact = self.expert._get_score_impact_for_finding(
+                    self.finding, self.score_facts, "test_rule"
+                )
+                mock_direct.assert_called_once_with("test_rule")
+                mock_activation.assert_not_called()
+                # Verify the returned impact is from the direct method
+                self.assertEqual(impact["type"], "bonus")
+                self.assertEqual(impact["value"], 10)
+
+    def test_score_facts_path(self):
+        """Test that score facts are used when direct impact is not available."""
+        # Mock _direct_score_impact to return None
+        with patch.object(
+            self.expert, "_direct_score_impact", return_value=None
+        ) as mock_direct:
+            # Mock _activation_score_impact - shouldn't be called
+            with patch.object(
+                self.expert, "_activation_score_impact"
+            ) as mock_activation:
+                impact = self.expert._get_score_impact_for_finding(
+                    self.finding, self.score_facts, "rule_in_facts"
+                )
+                mock_direct.assert_called_once_with("rule_in_facts")
+                mock_activation.assert_not_called()
+                self.assertEqual(impact["type"], "penalty")
+                self.assertEqual(impact["value"], -15)
+
+    def test_activation_score_impact_path(self):
+        """Test that activation score impact is used when other methods don't find an impact."""
+        # Mock _direct_score_impact to return None
+        with patch.object(
+            self.expert, "_direct_score_impact", return_value=None
+        ) as mock_direct:
+            # Mock _activation_score_impact to return an impact
+            with patch.object(
+                self.expert,
+                "_activation_score_impact",
+                return_value={"type": "neutral", "value": 0},
+            ) as mock_activation:
+                # Use a rule name not in score_facts
+                impact = self.expert._get_score_impact_for_finding(
+                    self.finding, self.score_facts, "missing_rule"
+                )
+                mock_direct.assert_called_once_with("missing_rule")
+                mock_activation.assert_called_once_with("missing_rule")
+                self.assertEqual(impact["type"], "neutral")
+                self.assertEqual(impact["value"], 0)
+
+    def test_default_impact_path(self):
+        """Test that default impact is used when no other method finds an impact."""
+        # Mock _direct_score_impact to return None
+        with patch.object(
+            self.expert, "_direct_score_impact", return_value=None
+        ) as mock_direct:
+            # Mock _activation_score_impact to return None
+            with patch.object(
+                self.expert, "_activation_score_impact", return_value=None
+            ) as mock_activation:
+                # Use a rule name not in score_facts
+                impact = self.expert._get_score_impact_for_finding(
+                    self.finding, self.score_facts, "missing_rule"
+                )
+                mock_direct.assert_called_once_with("missing_rule")
+                mock_activation.assert_called_once_with("missing_rule")
+                self.assertEqual(impact["type"], "penalty")
+                self.assertEqual(impact["value"], -10)
+
+
 class TestDetermineAntivirusStatus(unittest.TestCase):
     def setUp(self):
         self.expert_system = SecurityExpertSystem(rules_dir=None)
-        # Mocking env as it's not directly used by _determine_antivirus_status
         self.expert_system.env = MagicMock()
 
     def test_empty_products_list(self):
@@ -669,7 +762,6 @@ class TestDetermineAntivirusStatus(unittest.TestCase):
 class TestSortFindings(unittest.TestCase):
     def setUp(self):
         self.expert_system = SecurityExpertSystem(rules_dir=None)
-        # Mocking env as it's not directly used by _sort_findings
         self.expert_system.env = MagicMock()
 
     def test_empty_list(self):
@@ -691,12 +783,6 @@ class TestSortFindings(unittest.TestCase):
         self.assertEqual([f["rule"] for f in sorted_findings], expected_order)
 
     def test_missing_score_impact(self):
-        # Test how items with missing score_impact are sorted.
-        # Based on current _get_type_order, missing type would lead to TypeError.
-        # The lambda f.get("score_impact", {}).get("type") will return None.
-        # _get_type_order(None) returns 1 (treated like penalty).
-        # -1 * f.get("score_impact", {}).get("value", 0) will be 0.
-        # So, it should be sorted among penalties, with a value of 0.
         findings = [
             {"rule": "R_penalty_50", "score_impact": {"type": "penalty", "value": 50}},
             {"rule": "R_no_impact"},  # No score_impact key
@@ -704,13 +790,6 @@ class TestSortFindings(unittest.TestCase):
             {"rule": "R_empty_impact", "score_impact": {}},  # Empty score_impact dict
         ]
         sorted_findings = self.expert_system._sort_findings(findings)
-
-        # Expected: Bonus (10), then R_no_impact and R_empty_impact (treated as penalty 0), then Penalty (50)
-        # The relative order of R_no_impact and R_empty_impact might not be stable,
-        # as they both get type_order=1 and value=0.
-        # Expected: Bonus (10), Penalty (50), then R_no_impact and R_empty_impact (treated as penalty 0).
-        # The relative order of R_no_impact and R_empty_impact might not be stable,
-        # as they both get type_order=1 and value=0 for sorting.
         rules_in_sorted_findings = [f["rule"] for f in sorted_findings]
 
         self.assertEqual(
@@ -720,13 +799,159 @@ class TestSortFindings(unittest.TestCase):
             rules_in_sorted_findings[1], "R_penalty_50", "Penalty 50 should be second."
         )
 
-        # Check that R_no_impact and R_empty_impact are in the last two positions
         last_two_elements = sorted(rules_in_sorted_findings[2:])
         self.assertListEqual(
             last_two_elements,
             sorted(["R_no_impact", "R_empty_impact"]),
             "Items with no/empty impact should be last and sorted alphabetically if their sort keys are identical.",
         )
+
+
+class TestDirectScoreImpact(unittest.TestCase):
+    """Tests for the _direct_score_impact method."""
+
+    def setUp(self):
+        self.expert = SecurityExpertSystem(rules_dir=None)
+        self.expert.env = MagicMock()
+
+    def test_direct_score_impact_with_related_finding(self):
+        """Test that _direct_score_impact returns score impact when related_finding matches."""
+        # Create a mock fact with the necessary attributes
+        mock_fact = MagicMock()
+        mock_fact.template.name = "score"
+        # Set the related_finding attribute that should match our rule name
+        mock_fact.related_finding = "test_rule"
+        # Set up the fact to return appropriate values when accessed like a dictionary
+        mock_fact.__getitem__.side_effect = lambda key: {
+            "value": "15",
+            "type": "penalty",
+        }[key]
+
+        # Set up the environment to return our mock fact
+        self.expert.env.facts.return_value = [mock_fact]
+
+        # Call the method with the matching rule name
+        impact = self.expert._direct_score_impact("test_rule")
+
+        # Verify the impact dictionary is returned correctly
+        self.assertEqual(impact["value"], 15)
+        self.assertEqual(impact["type"], "penalty")
+
+    def test_direct_score_impact_no_related_finding(self):
+        """Test that _direct_score_impact returns None when no related_finding attribute exists."""
+        # Create a mock fact without the related_finding attribute
+        mock_fact = MagicMock()
+        mock_fact.template.name = "score"
+        # No related_finding attribute means getattr returns None
+
+        # Set up the environment to return our mock fact
+        self.expert.env.facts.return_value = [mock_fact]
+
+        # Call the method with any rule name
+        impact = self.expert._direct_score_impact("test_rule")
+
+        # Verify that None is returned when no related_finding matches
+        self.assertIsNone(impact)
+
+
+class TestActivationScoreImpact(unittest.TestCase):
+    """Tests for the _activation_score_impact method."""
+
+    def setUp(self):
+        self.expert = SecurityExpertSystem(rules_dir=None)
+        self.expert.env = MagicMock()
+
+    def test_activation_score_impact_with_matching_activation(self):
+        """Test that _activation_score_impact returns score impact when there's a matching activation."""
+        # Set up rule activations with a known activation ID
+        activation_id = "FIRE 1 test_rule"
+        self.expert.rule_activations = [
+            {"rule": "test_rule", "activation": activation_id}
+        ]
+
+        # Create a mock fact with matching activation attribute
+        mock_fact = MagicMock()
+        mock_fact.template.name = "score"
+        # Set the activation attribute to match our activation ID
+        mock_fact.activation = activation_id
+        # Set up the fact to return appropriate values when accessed like a dictionary
+        mock_fact.__getitem__.side_effect = lambda key: {"value": "5", "type": "bonus"}[
+            key
+        ]
+
+        # Set up the environment to return our mock fact
+        self.expert.env.facts.return_value = [mock_fact]
+
+        # Call the method with the matching rule name
+        impact = self.expert._activation_score_impact("test_rule")
+
+        # Verify the impact dictionary is returned correctly
+        self.assertEqual(impact["value"], 5)
+        self.assertEqual(impact["type"], "bonus")
+
+    def test_activation_score_impact_no_matching_rule(self):
+        """Test that _activation_score_impact returns None when no rule name matches."""
+        # Set up rule activations for a different rule
+        self.expert.rule_activations = [
+            {"rule": "different_rule", "activation": "FIRE 1 different_rule"}
+        ]
+
+        # Call the method with a non-matching rule name
+        impact = self.expert._activation_score_impact("test_rule")
+
+        # Verify that None is returned when no rule matches
+        self.assertIsNone(impact)
+
+    def test_activation_score_impact_no_matching_fact(self):
+        """Test that _activation_score_impact returns None when no fact matches the activation."""
+        # Set up rule activations with a known activation ID
+        activation_id = "FIRE 1 test_rule"
+        self.expert.rule_activations = [
+            {"rule": "test_rule", "activation": activation_id}
+        ]
+
+        # Create a mock fact with non-matching activation attribute
+        mock_fact = MagicMock()
+        mock_fact.template.name = "score"
+        # Set a different activation attribute
+        mock_fact.activation = "different_activation"
+
+        # Set up the environment to return our mock fact
+        self.expert.env.facts.return_value = [mock_fact]
+
+        # Call the method with the rule name
+        impact = self.expert._activation_score_impact("test_rule")
+
+        # Verify that None is returned when no fact matches
+        self.assertIsNone(impact)
+
+
+class TestGetFindingsScoreFacts(unittest.TestCase):
+    def test_score_facts_integrated_in_findings(self):
+        """Ensure score facts populate score_facts and apply to findings."""
+        expert = SecurityExpertSystem(rules_dir=None)
+        # Create one score fact and one matching finding fact
+        score_fact = FakeFact(
+            "score", **{"rule-name": "foo", "value": "42", "type": "bonus"}
+        )
+        finding_fact = FakeFact(
+            "finding",
+            **{
+                "rule-name": "foo",
+                "level": "info",
+                "description": "desc",
+                "recommendation": "rec",
+                "details": (),
+            }
+        )
+        # Stub env.facts() to return our two facts
+        expert.env.facts = lambda: [score_fact, finding_fact]
+        findings = expert.get_findings()
+        self.assertEqual(len(findings), 1)
+        f = findings[0]
+        self.assertEqual(f["rule"], "foo")
+        # The score_impact must come from our score fact mapping
+        self.assertEqual(f["score_impact"], {"type": "bonus", "value": 42})
 
 
 if __name__ == "__main__":  # pragma: no cover

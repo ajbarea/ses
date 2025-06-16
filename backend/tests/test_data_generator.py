@@ -405,6 +405,16 @@ class TestSaveToCSV(unittest.TestCase):
         # Verify that open was called
         mock_open.assert_called_once_with(filepath, "w", newline="", encoding="utf-8")
 
+    def test_save_to_csv_empty_file_preexisting(self):
+        """Empty dataset should truncate an existing file to empty."""
+        filepath = Path(self.temp_dir.name) / "prepopulated.csv"
+        # pre-create with content
+        filepath.write_text("placeholder")
+        save_to_csv([], filepath)
+        self.assertTrue(filepath.exists())
+        # now must be empty
+        self.assertEqual(filepath.read_text().strip(), "")
+
 
 class TestSplitDataset(unittest.TestCase):
     """Tests for dataset splitting into training and testing sets."""

@@ -372,12 +372,10 @@ def save_to_csv(dataset: List[Dict[str, Any]], filepath: Path):
         dataset (List[dict]): The dataset to save.
         filepath (Path): The output CSV file path.
     """
-    if not dataset:
-        print("Dataset is empty.")
-        return
-
     try:
         with open(filepath, "w", newline="", encoding="utf-8") as csvfile:
+            if not dataset:
+                return
             writer = csv.DictWriter(csvfile, fieldnames=list(dataset[0].keys()))
             writer.writeheader()
             writer.writerows(dataset)
@@ -466,4 +464,5 @@ if __name__ == "__main__":  # pragma: no cover
     except ImportError as e:
         print(f"Error importing expert system: {e}")
     except Exception as e:
+        print(f"Error: {e}")
         print(f"Error: {e}")
