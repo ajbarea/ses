@@ -104,6 +104,27 @@ class TestMetricGenerators(unittest.TestCase):
             self.assertIn(key, metric_set)
             self.assertIsInstance(metric_set[key], dict)
 
+    @patch("src.data_generator.generate_antivirus_metric")
+    def test_generate_antivirus_metric_string_state(self, mock_generate):
+        """Tests handling of antivirus product with a string state."""
+        # Create a test scenario with a string state
+        test_scenario = [{"name": "Test Antivirus", "state": "UNKNOWN"}]
+
+        # Patch secrets.choice to return our test scenario
+        with patch("src.data_generator.secrets.choice", return_value=test_scenario):
+            metric = generate_antivirus_metric()
+
+            # Verify the product has the expected string state
+            self.assertIn("products", metric)
+            self.assertIsInstance(metric["products"], list)
+            self.assertEqual(len(metric["products"]), 1)
+
+            product = metric["products"][0]
+            self.assertIn("name", product)
+            self.assertIn("state", product)
+            self.assertIsInstance(product["state"], str)
+            self.assertEqual(product["state"], "UNKNOWN")
+
 
 class TestFlattenMetrics(unittest.TestCase):
     """Tests for metric flattening functionality that transforms nested metrics into ML-ready format."""
