@@ -15,7 +15,7 @@ try:
     import clips
 
     CLIPS_AVAILABLE = True
-except ImportError:
+except ImportError:  # pragma: no cover
     CLIPS_AVAILABLE = False
 
 from src.rules import (
@@ -187,6 +187,38 @@ class TestEngineConsistency(unittest.TestCase):
             f"Finding count differs too much: CLIPS={len(clips_result['findings'])}, "
             f"Legacy={len(legacy_result['findings'])}",
         )
+
+    @patch("src.rules.evaluate")
+    def test_engine_consistency_differences_detected(self, mock_evaluate):
+        """Test detection of differences between CLIPS and legacy evaluation."""
+        # Create mock results with known differences
+        clips_result = {
+            "score": 90,
+            "grade": "Good",
+            "findings": [{"level": "warning"}],
+            "summary": "Good result",
+        }
+        legacy_result = {
+            "score": 70,
+            "grade": "Fair",
+            "findings": [{"level": "critical"}],
+            "summary": "Fair result",
+        }
+
+        # Directly check differences without mocking
+        differences = self._get_key_differences(clips_result, legacy_result)
+
+        # Verify differences are detected
+        self.assertTrue(differences, "Expected to detect differences between engines")
+        self.assertIn("score", differences)
+        self.assertEqual(differences["score"]["clips"], 90)
+        self.assertEqual(differences["score"]["legacy"], 70)
+        self.assertIn("grade", differences)
+        self.assertEqual(differences["grade"]["clips"], "Good")
+        self.assertEqual(differences["grade"]["legacy"], "Fair")
+        self.assertIn("finding_counts", differences)
+        self.assertEqual(differences["finding_counts"]["clips"]["warning"], 1)
+        self.assertEqual(differences["finding_counts"]["legacy"]["critical"], 1)
 
 
 @unittest.skipIf(not CLIPS_AVAILABLE, "CLIPS is required for these tests")
@@ -374,6 +406,25 @@ class TestGetKeyDifferencesCoverage(unittest.TestCase):
         self.assertIn("grade", diffs)
         self.assertEqual(diffs["grade"]["clips"], "Good")
         self.assertEqual(diffs["grade"]["legacy"], "Poor")
+
+    def test_finding_counts_difference_branch(self):
+        """Trigger the finding counts difference branch."""
+        clips_result = {
+            "score": 50,
+            "grade": "Good",
+            "findings": [{"level": "critical"}, {"level": "warning"}],
+        }
+        legacy_result = {
+            "score": 50,
+            "grade": "Good",
+            "findings": [{"level": "warning"}, {"level": "info"}],
+        }
+        diffs = self.tc._get_key_differences(clips_result, legacy_result)
+        self.assertIn("finding_counts", diffs)
+        self.assertEqual(diffs["finding_counts"]["clips"]["critical"], 1)
+        self.assertEqual(diffs["finding_counts"]["legacy"]["critical"], 0)
+        self.assertEqual(diffs["finding_counts"]["clips"]["info"], 0)
+        self.assertEqual(diffs["finding_counts"]["legacy"]["info"], 1)
 
 
 class TestClipsAvailableFlag(unittest.TestCase):
