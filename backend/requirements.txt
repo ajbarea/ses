@@ -5,3 +5,7 @@ wmi ; platform_system=="Windows"
 psutil
 clipspy
 coverage
+torch
+pandas
+scikit-learn
+joblib

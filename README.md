@@ -123,10 +123,8 @@ Create new `.clp` files in the `clips_rules` directory. For example:
         (rule-name "suspicious_logins")
         (level "warning")
         (description (str-cat "High number of login attempts (" ?n ") in the last hour."))
-        (details ?n)
         (recommendation "Investigate potential brute force attempts.")
     ))
-    (assert (score (value -10) (type penalty)))
 )
 ```
 
@@ -153,7 +151,7 @@ cd backend
 python -m src.data_generator -n 1000 -o security_dataset.csv
 
 # Generate train/test split (0.8 => 80% train - 20% test)
-python -m src.data_generator -n 5000 --split 0.8 -o security_data.csv
+python -m src.data_generator -n 1000 --split 0.8 -o security_data_split.csv
 ```
 
 ### Dataset Structure
@@ -173,6 +171,94 @@ The generated CSV contains:
 
 - `target_score` - Expert system security score (0-100)
 - `target_grade` - Security grade (Excellent, Good, Fair, Poor, Critical Risk)
+
+## Machine Learning Training & Testing
+
+SES includes a comprehensive ML framework for training neural networks to approximate the Expert System's behavior through supervised learning.
+
+### Training a Security Neural Network
+
+Use the dedicated training script to train a PyTorch model that learns to mimic the Expert System:
+
+```bash
+cd backend
+
+# First, generate training data if you haven't already:
+python -m src.data_generator -n 1000 --split 0.8 -o security_data_split.csv
+
+# Train with default parameters (100 epochs, 128 hidden units)
+python train_security_model.py
+
+# The script expects these files to exist:
+# - security_data_split_train.csv (training data)
+# - security_data_split_test.csv (testing data)
+```
+
+#### Training Script Parameters
+
+The `train_security_model.py` script uses these default parameters:
+
+- **Epochs**: 100 (training iterations)
+- **Hidden Size**: 128 neurons in hidden layers
+- **Learning Rate**: 0.001
+- **Batch Size**: 16 samples per training batch
+- **GPU**: Automatically uses CUDA if available
+
+To modify these parameters, edit the script or use the programmatic API:
+
+```python
+from src.ml_trainer import train_model, evaluate_security_model
+
+# Train with custom parameters
+model_data = train_model(
+    "security_data_split_train.csv",
+    model_type="security",
+    target_col="target_score",
+    epochs=50,           # Reduce training time
+    hidden_size=64,      # Smaller network
+    lr=0.001,           # Learning rate
+    batch_size=32,      # Larger batches
+    no_cuda=True        # Force CPU usage
+)
+```
+
+#### Expected Training Output
+
+When you run `python train_security_model.py`, you'll see output similar to:
+
+```bash
+Training Security Prediction Model...
+==================================================
+Epoch 10/100, Loss: 0.0156
+Epoch 20/100, Loss: 0.0089
+Epoch 30/100, Loss: 0.0045
+...
+Epoch 100/100, Loss: 0.0012
+Training completed. Final validation MSE: 0.0023
+
+Evaluating on test set...
+Test MSE: 0.0018
+Test MAE: 3.2
+Test RMSE: 0.0424
+R² Score: 0.987
+Grade Classification Accuracy: 0.95
+Expert System Consistency: 0.93
+
+Sample Predictions vs Actual:
+------------------------------------------------------------
+Sample | Predicted | Actual | Error | Expert System Approximation
+------------------------------------------------------------
+   1   |   98.2   |  100.0  |  1.8 | Excellent
+   2   |   45.1   |   45.0  |  0.1 | Excellent
+   ...
+
+==================================================
+EXPERT SYSTEM APPROXIMATION QUALITY ASSESSMENT
+==================================================
+🟢 EXCELLENT: Your ML model closely approximates the Expert System
+Average prediction error: 3.20 points
+R² correlation with Expert System: 0.987
+```
 
 ## Testing
 

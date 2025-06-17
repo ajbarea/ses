@@ -1,0 +1,81 @@
+patch_status,patch_hotfixes_count,ports_count,services_total,services_running,services_stopped,firewall_domain,firewall_private,firewall_public,antivirus_count,antivirus_enabled,password_min_length,password_max_age,target_score,target_grade
+up-to-date,2,4,0,0,0,UNKNOWN,ON,ON,1,1,1,42,100,Excellent
+out-of-date,4,0,2,2,0,ON,ON,ON,1,1,6,90,100,Critical Risk
+up-to-date,0,4,2,2,0,ON,ON,OFF,0,0,8,60,100,Critical Risk
+out-of-date,2,14,0,0,0,ON,ON,OFF,1,1,8,60,100,Critical Risk
+out-of-date,2,14,2,2,0,ON,ON,ON,1,1,1,42,100,Critical Risk
+out-of-date,0,15,2,2,0,OFF,OFF,OFF,0,0,12,90,100,Critical Risk
+out-of-date,3,5,30,11,19,OFF,OFF,OFF,1,0,1,42,100,Critical Risk
+up-to-date,3,2,30,14,16,OFF,OFF,OFF,0,0,0,0,100,Critical Risk
+out-of-date,2,14,0,0,0,ON,ON,OFF,1,1,12,90,100,Critical Risk
+out-of-date,2,9,2,2,0,OFF,OFF,OFF,1,0,8,60,100,Critical Risk
+out-of-date,3,5,30,15,15,OFF,OFF,OFF,1,1,8,60,100,Critical Risk
+up-to-date,2,3,30,16,14,OFF,OFF,OFF,1,0,8,60,100,Critical Risk
+out-of-date,2,0,2,2,0,OFF,OFF,OFF,1,0,12,90,100,Critical Risk
+up-to-date,3,15,0,0,0,OFF,OFF,OFF,1,0,8,60,100,Critical Risk
+up-to-date,4,5,0,0,0,UNKNOWN,ON,ON,1,1,1,42,100,Excellent
+out-of-date,3,15,0,0,0,ON,ON,ON,1,1,8,60,100,Critical Risk
+up-to-date,0,14,98,91,7,ON,ON,OFF,0,0,12,90,100,Critical Risk
+up-to-date,0,9,98,89,9,ON,ON,ON,1,1,8,60,100,Excellent
+out-of-date,2,3,0,0,0,ON,ON,ON,1,0,1,42,100,Critical Risk
+out-of-date,0,3,30,15,15,ON,ON,OFF,0,0,12,90,100,Critical Risk
+out-of-date,4,3,2,2,0,ON,ON,OFF,0,0,0,0,100,Critical Risk
+up-to-date,0,9,30,15,15,ON,ON,ON,1,1,6,90,100,Excellent
+up-to-date,3,15,0,0,0,ON,ON,ON,1,1,8,60,100,Excellent
+out-of-date,4,5,98,86,12,ON,ON,ON,1,1,12,90,100,Critical Risk
+up-to-date,0,9,0,0,0,OFF,OFF,OFF,0,0,8,60,100,Critical Risk
+out-of-date,3,4,0,0,0,OFF,OFF,OFF,1,0,1,42,100,Critical Risk
+up-to-date,2,9,2,2,0,UNKNOWN,ON,ON,1,0,8,60,100,Critical Risk
+out-of-date,3,2,0,0,0,ON,ON,OFF,1,1,6,90,100,Critical Risk
+up-to-date,3,14,30,17,13,ON,ON,OFF,1,0,0,0,100,Critical Risk
+out-of-date,3,15,30,17,13,OFF,OFF,OFF,1,0,1,42,100,Critical Risk
+out-of-date,3,3,0,0,0,ON,ON,OFF,1,0,8,60,100,Critical Risk
+out-of-date,4,9,0,0,0,ON,ON,OFF,1,1,12,90,100,Critical Risk
+up-to-date,3,3,0,0,0,OFF,OFF,OFF,1,0,6,90,100,Critical Risk
+out-of-date,0,2,0,0,0,ON,ON,OFF,1,1,6,90,100,Critical Risk
+out-of-date,3,2,30,17,13,OFF,OFF,OFF,1,0,8,60,100,Critical Risk
+out-of-date,0,5,30,12,18,UNKNOWN,ON,ON,0,0,6,90,100,Critical Risk
+out-of-date,4,4,30,18,12,ON,ON,ON,1,1,0,0,100,Critical Risk
+out-of-date,2,15,98,87,11,UNKNOWN,ON,ON,0,0,8,60,100,Critical Risk
+out-of-date,3,4,2,2,0,ON,ON,OFF,0,0,8,60,100,Critical Risk
+up-to-date,2,5,0,0,0,UNKNOWN,ON,ON,1,1,6,90,100,Excellent
+out-of-date,3,5,0,0,0,UNKNOWN,ON,ON,0,0,6,90,100,Critical Risk
+up-to-date,4,9,98,88,10,UNKNOWN,ON,ON,1,1,12,90,100,Excellent
+up-to-date,4,2,2,2,0,OFF,OFF,OFF,0,0,8,60,100,Critical Risk
+up-to-date,4,5,2,2,0,ON,ON,ON,1,1,1,42,100,Excellent
+up-to-date,4,4,30,14,16,OFF,OFF,OFF,1,0,0,0,100,Critical Risk
+out-of-date,0,14,2,2,0,OFF,OFF,OFF,1,0,1,42,100,Critical Risk
+out-of-date,0,9,2,2,0,ON,ON,ON,1,0,12,90,100,Critical Risk
+out-of-date,2,9,98,86,12,UNKNOWN,ON,ON,1,0,12,90,100,Critical Risk
+up-to-date,3,0,0,0,0,ON,ON,OFF,1,1,1,42,100,Excellent
+out-of-date,3,9,98,88,10,ON,ON,OFF,1,0,1,42,100,Critical Risk
+up-to-date,0,2,2,2,0,ON,ON,OFF,1,0,6,90,100,Critical Risk
+out-of-date,4,15,0,0,0,ON,ON,OFF,1,1,12,90,100,Critical Risk
+out-of-date,4,0,2,2,0,OFF,OFF,OFF,1,0,6,90,100,Critical Risk
+up-to-date,3,5,30,15,15,ON,ON,ON,1,0,12,90,100,Critical Risk
+up-to-date,4,4,30,15,15,ON,ON,OFF,1,1,0,0,100,Excellent
+up-to-date,2,2,98,92,6,ON,ON,ON,1,0,1,42,100,Critical Risk
+up-to-date,2,5,98,90,8,ON,ON,ON,1,1,1,42,100,Excellent
+out-of-date,0,14,98,87,11,UNKNOWN,ON,ON,1,1,6,90,100,Critical Risk
+out-of-date,3,5,2,2,0,OFF,OFF,OFF,0,0,6,90,100,Critical Risk
+up-to-date,4,2,98,83,15,OFF,OFF,OFF,1,1,6,90,100,Critical Risk
+up-to-date,4,5,30,15,15,UNKNOWN,ON,ON,0,0,1,42,100,Critical Risk
+out-of-date,2,3,0,0,0,OFF,OFF,OFF,1,1,0,0,100,Critical Risk
+up-to-date,2,5,30,16,14,ON,ON,OFF,0,0,12,90,100,Critical Risk
+out-of-date,0,9,0,0,0,ON,ON,OFF,1,0,6,90,100,Critical Risk
+out-of-date,3,0,2,2,0,UNKNOWN,ON,ON,0,0,6,90,100,Critical Risk
+up-to-date,0,4,2,2,0,ON,ON,ON,1,1,0,0,100,Excellent
+out-of-date,0,2,30,15,15,ON,ON,ON,0,0,12,90,100,Critical Risk
+out-of-date,2,0,98,88,10,OFF,OFF,OFF,1,0,0,0,100,Critical Risk
+up-to-date,2,4,0,0,0,OFF,OFF,OFF,1,0,8,60,100,Critical Risk
+out-of-date,0,4,98,89,9,UNKNOWN,ON,ON,0,0,8,60,100,Critical Risk
+up-to-date,3,14,98,89,9,UNKNOWN,ON,ON,1,1,0,0,100,Excellent
+out-of-date,2,0,30,14,16,UNKNOWN,ON,ON,0,0,1,42,100,Critical Risk
+out-of-date,0,2,30,18,12,UNKNOWN,ON,ON,1,0,12,90,100,Critical Risk
+out-of-date,2,3,0,0,0,UNKNOWN,ON,ON,0,0,1,42,100,Critical Risk
+up-to-date,3,3,98,85,13,ON,ON,ON,1,0,1,42,100,Excellent
+out-of-date,2,15,98,91,7,ON,ON,OFF,0,0,1,42,100,Critical Risk
+up-to-date,4,2,30,13,17,ON,ON,ON,1,0,12,90,100,Critical Risk
+out-of-date,4,15,0,0,0,ON,ON,ON,1,0,12,90,100,Critical Risk
+out-of-date,0,9,2,2,0,OFF,OFF,OFF,1,0,12,90,100,Critical Risk
+out-of-date,4,9,0,0,0,OFF,OFF,OFF,1,0,6,90,100,Critical Risk
