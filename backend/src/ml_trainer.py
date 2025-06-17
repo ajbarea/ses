@@ -116,11 +116,11 @@ class SecurityNN(nn.Module):
         super().__init__()
         self.score_predictor = nn.Sequential(
             nn.Linear(input_size, hidden_size),
-            nn.BatchNorm1d(hidden_size),
+            nn.LayerNorm(hidden_size),
             nn.ReLU(),
             nn.Dropout(dropout_rate),
             nn.Linear(hidden_size, hidden_size // 2),
-            nn.BatchNorm1d(hidden_size // 2),
+            nn.LayerNorm(hidden_size // 2),
             nn.ReLU(),
             nn.Dropout(dropout_rate),
             nn.Linear(hidden_size // 2, 1),
@@ -132,7 +132,7 @@ class SecurityNN(nn.Module):
             nn.Linear(input_size, hidden_size),
             nn.ReLU(),
             nn.Dropout(dropout_rate),
-            nn.Linear(hidden_size, 5),  # Assuming 5 grade categories
+            nn.Linear(hidden_size, 5),
         )
 
     def forward(self, x: torch.Tensor, predict_grade: bool = False):
@@ -319,18 +319,44 @@ def train_model(*args, **kwargs):
         # Create security dataset with preprocessing
         dataset = SecurityDataset(train_csv, target_col, fit_encoders=True)
 
+        # Handle empty dataset
+        if len(dataset) == 0:
+            print("Warning: Dataset is empty. Creating minimal training setup.")
+            model = SecurityNN(1, kwargs.get("hidden_size", 64))  # Minimal model
+            return {
+                "model": model,
+                "dataset": dataset,
+                "val_mse": float("inf"),
+                "losses": [],
+                "encoders": dataset.encoders,
+                "scaler": dataset.scaler,
+                "grade_encoder": getattr(dataset, "grade_encoder", None),
+            }
+
         # Split for validation
         train_size = int(0.8 * len(dataset))
         val_size = len(dataset) - train_size
+
+        # Ensure at least one sample in each split if dataset is very small
+        if train_size == 0:
+            train_size = 1
+            val_size = max(0, len(dataset) - 1)
+        elif val_size == 0 and len(dataset) > 1:
+            val_size = 1
+            train_size = len(dataset) - 1
+
         train_ds, val_ds = torch.utils.data.random_split(
             dataset, [train_size, val_size]
         )
 
-        train_loader = DataLoader(
-            train_ds, batch_size=kwargs.get("batch_size", 32), shuffle=True
-        )
-        val_loader = DataLoader(
-            val_ds, batch_size=kwargs.get("batch_size", 32), shuffle=False
+        # Use smaller batch size for small datasets
+        batch_size = min(kwargs.get("batch_size", 32), max(1, len(dataset) // 4))
+
+        train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
+        val_loader = (
+            DataLoader(val_ds, batch_size=batch_size, shuffle=False)
+            if val_size > 0
+            else None
         )
 
         # Create model
@@ -357,21 +383,26 @@ def train_model(*args, **kwargs):
         val_predictions = []
         val_targets = []
 
-        with torch.no_grad():
-            for batch in val_loader:
-                if len(batch) == 3:
-                    x, y_score, y_grade = batch
-                else:
-                    x, y_score = batch
+        if val_loader:
+            with torch.no_grad():
+                for batch in val_loader:
+                    if len(batch) == 3:
+                        x, y_score, y_grade = batch
+                    else:
+                        x, y_score = batch
 
-                x, y_score = x.to(device), y_score.to(device)
-                pred = model(x)
-                val_loss += criterion(pred, y_score).item()
+                    x, y_score = x.to(device), y_score.to(device)
+                    pred = model(x)
+                    val_loss += criterion(pred, y_score).item()
 
-                val_predictions.extend(pred.cpu().numpy())
-                val_targets.extend(y_score.cpu().numpy())
+                    val_predictions.extend(pred.cpu().numpy())
+                    val_targets.extend(y_score.cpu().numpy())
 
-        val_mse = mean_squared_error(val_targets, val_predictions)
+        val_mse = (
+            mean_squared_error(val_targets, val_predictions)
+            if val_predictions
+            else float("inf")
+        )
         print(f"Validation MSE: {val_mse:.4f}")
 
         return {
@@ -492,7 +523,11 @@ def evaluate_security_model(
 
         # Measure consistency between predicted scores and grades
         consistent_predictions = 0
-        for pred_score, target_grade_idx in zip(predictions, grade_targets):
+        total_predictions = len(predictions)
+
+        for i, (pred_score, target_grade_idx) in enumerate(
+            zip(predictions, grade_targets)
+        ):
             if hasattr(model_data.get("dataset"), "grade_encoder"):
                 target_grade = model_data["dataset"].grade_encoder.inverse_transform(
                     [target_grade_idx]
@@ -501,12 +536,19 @@ def evaluate_security_model(
                 # This assumes consistent grading in our system
                 for grade_name, (min_val, max_val) in score_ranges.items():
                     # Simple matching for now - could be enhanced with fuzzy matching
-                    if grade_name.startswith(target_grade):
-                        if min_val <= pred_score <= max_val:
+                    if grade_name.startswith(target_grade) or target_grade.startswith(
+                        grade_name
+                    ):
+                        if min_val <= pred_score[0] <= max_val:
                             consistent_predictions += 1
                         break
 
-        results["expert_system_consistency"] = consistent_predictions / len(predictions)
+        results["expert_system_consistency"] = (
+            consistent_predictions / total_predictions if total_predictions > 0 else 0.0
+        )
+    else:
+        # Set default expert_system_consistency when no grade predictions are available
+        results["expert_system_consistency"] = 0.0
 
     return results
 
