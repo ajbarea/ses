@@ -3,7 +3,9 @@
 import unittest
 import os
 from unittest.mock import Mock, patch
+import joblib
 import pandas as pd
+from sklearn.linear_model import LinearRegression
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -16,11 +18,13 @@ from src.ml_trainer import (
     CSVDataset,
     SimpleNN,
     evaluate_security_model,
+    save_model,
     train_model,
     evaluate_model,
     SecurityDataset,
     SecurityNN,
     _train_security_model,
+    load_model,
 )
 
 
@@ -263,6 +267,44 @@ class TestSecurityDataset(unittest.TestCase):
         self.assertEqual(ds3.features[1, 0].item(), float(orig_a))
 
         os.unlink(tmp3.name)
+
+    def test_unseen_categorical_column_without_encoder(self):
+        """Test handling of a categorical column not present in provided encoders."""
+        # ds1 has 'cat1' and 'num'
+        tmp1 = tempfile.NamedTemporaryFile(suffix=".csv", delete=False)
+        tmp1.close()
+        df1 = pd.DataFrame(
+            {
+                "cat1": ["a", "b"],
+                "num": [1.0, 2.0],
+                "target_score": [10.0, 20.0],
+            }
+        )
+        df1.to_csv(tmp1.name, index=False)
+        ds1 = SecurityDataset(tmp1.name)
+
+        # ds2 has 'cat2' and 'num' but will use encoders from ds1
+        tmp2 = tempfile.NamedTemporaryFile(suffix=".csv", delete=False)
+        tmp2.close()
+        df2 = pd.DataFrame(
+            {
+                "cat2": ["x", "y"],
+                "num": [3.0, 4.0],
+                "target_score": [30.0, 40.0],
+            }
+        )
+        df2.to_csv(tmp2.name, index=False)
+
+        ds2 = SecurityDataset(
+            tmp2.name, fit_encoders=False, encoders=ds1.encoders, scaler=ds1.scaler
+        )
+
+        # The 'cat2' column should be encoded as all zeros.
+        # In df2, feature columns are 'cat2', 'num'. 'cat2' is at index 0.
+        self.assertTrue((ds2.features[:, 0] == 0).all())
+
+        os.unlink(tmp1.name)
+        os.unlink(tmp2.name)
 
     def test_blank_encoder_handling(self):
         """Test encoder handling with empty data."""
@@ -828,7 +870,7 @@ class TestMLTrainerCoverage(unittest.TestCase):
             "model": mock_model,
             "encoders": dataset.encoders,
             "scaler": dataset.scaler,
-            "grade_encoder": dataset.grade_encoder,
+            "grade_encoder": None,
             "dataset": dataset,
         }
 
@@ -924,5 +966,92 @@ class TestMLTrainerCoverage(unittest.TestCase):
             self.assertEqual(results["expert_system_consistency"], 0.0)
 
 
-if __name__ == "__main__":  # pragma: no cover
-    unittest.main()
+class TestSaveLoadModel(unittest.TestCase):
+    """Test save_model and load_model functions."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.tmpdir = tempfile.TemporaryDirectory()
+        self.model_path = os.path.join(self.tmpdir.name, "test_model.joblib")
+
+    def tearDown(self):
+        """Clean up test fixtures."""
+        self.tmpdir.cleanup()
+
+    def test_save_model(self):
+        """Test that save_model creates a file at the specified path."""
+        # Create a simple model
+        model = LinearRegression()
+        model.fit([[0], [1], [2]], [0, 1, 2])  # Fit with simple data
+
+        # Save the model
+        save_model(model, self.model_path)
+
+        # Check that file exists
+        self.assertTrue(os.path.exists(self.model_path), "Model file was not created")
+
+        # Verify the model can be loaded and is the same
+        loaded_model = joblib.load(self.model_path)
+        self.assertIsInstance(
+            loaded_model,
+            LinearRegression,
+            "Loaded model is not of expected type",
+        )
+
+        # Verify model parameters
+        self.assertEqual(
+            model.coef_.tolist(),
+            loaded_model.coef_.tolist(),
+            "Model coefficients differ",
+        )
+        self.assertEqual(
+            model.intercept_,
+            loaded_model.intercept_,
+            "Model intercept differs",
+        )
+
+    def test_load_model(self):
+        """Test that load_model correctly loads a saved model."""
+        # Create and save a model first
+        model = LinearRegression()
+        model.fit([[0], [1], [2]], [0, 1, 2])  # Fit with simple data
+        save_model(model, self.model_path)
+
+        # Test load_model function
+        loaded_model = load_model(self.model_path)
+
+        # Verify the loaded model is correct
+        self.assertIsInstance(
+            loaded_model,
+            LinearRegression,
+            "Loaded model is not of expected type",
+        )
+
+        # Verify model parameters match
+        self.assertEqual(
+            model.coef_.tolist(),
+            loaded_model.coef_.tolist(),
+            "Model coefficients differ after loading",
+        )
+        self.assertEqual(
+            model.intercept_,
+            loaded_model.intercept_,
+            "Model intercept differs after loading",
+        )
+
+        # Test predictions are the same
+        test_input = [[1.5]]
+        original_pred = model.predict(test_input)
+        loaded_pred = loaded_model.predict(test_input)
+        self.assertEqual(
+            original_pred[0],
+            loaded_pred[0],
+            "Predictions differ between original and loaded model",
+        )
+
+    def test_load_model_nonexistent_file(self):
+        """Test that load_model raises appropriate error for nonexistent file."""
+        nonexistent_path = os.path.join(self.tmpdir.name, "nonexistent.joblib")
+
+        with self.assertRaises(FileNotFoundError):
+            load_model(nonexistent_path)

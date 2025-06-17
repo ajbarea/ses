@@ -263,17 +263,12 @@ def _train_torch_model(
     return losses
 
 
-def _train_sklearn_model(
-    csv_file: str, feature_cols: list = None, target_col: str = "target_score"
-):
+def _train_sklearn_model(csv_file: str, target_col: str = "target_score"):
     """Train a linear regression model on CSV and return (model, MSE)."""
     df = pd.read_csv(csv_file)
     # Select numeric feature columns, drop target and any grade column
-    if feature_cols is None:
-        X_df = df.drop(columns=[target_col, "target_grade"], errors="ignore")
-        X_df = X_df.select_dtypes(include=["number"])
-    else:
-        X_df = df[feature_cols]
+    X_df = df.drop(columns=[target_col, "target_grade"], errors="ignore")
+    X_df = X_df.select_dtypes(include=["number"])
     # Prepare data arrays
     X = X_df.values
     y = df[target_col].values
@@ -453,6 +448,10 @@ def evaluate_security_model(
             "Expected model_data to be a dictionary from security model training"
         )
 
+    # If grade_encoder isn't in model_data, try to get it from the dataset object
+    if grade_encoder is None:
+        grade_encoder = getattr(model_data.get("dataset"), "grade_encoder", None)
+
     # Create test dataset using fitted encoders
     test_dataset = SecurityDataset(
         test_csv,
@@ -508,16 +507,28 @@ def evaluate_security_model(
     mse = mean_squared_error(targets, predictions)
     mae = np.mean(np.abs(np.array(targets) - np.array(predictions)))
 
-    # Calculate additional approximation quality metrics
+    # Calculate denominator for R² score
+    targets_array = np.array(targets)
+    denominator = np.sum((targets_array - np.mean(targets_array)) ** 2)
+
+    # Calculate denominator for R² score
+    targets_array = np.array(targets)
+    denominator = np.sum((targets_array - np.mean(targets_array)) ** 2)
+
+    # Calculate R² score with division by zero protection
+    if denominator == 0:
+        # If all target values are identical, R² is undefined
+        # Common conventions: set to 0 or NaN
+        r2_score = 0  # or np.nan
+    else:
+        numerator = np.sum((targets_array - np.array(predictions)) ** 2)
+        r2_score = 1 - (numerator / denominator)
+
     results = {
         "mse": mse,
         "mae": mae,
         "rmse": np.sqrt(mse),  # Root Mean Square Error
-        "r2_score": 1
-        - (
-            np.sum((np.array(targets) - np.array(predictions)) ** 2)
-            / np.sum((np.array(targets) - np.mean(targets)) ** 2)
-        ),  # R² score
+        "r2_score": r2_score,
         "predictions": predictions,
         "targets": targets,
     }
