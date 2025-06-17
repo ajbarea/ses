@@ -267,9 +267,15 @@ def _train_sklearn_model(
 ):
     """Train a linear regression model on CSV and return (model, MSE)."""
     df = pd.read_csv(csv_file)
+    # Select numeric feature columns, drop target and any grade column
     if feature_cols is None:
-        feature_cols = [c for c in df.columns if c != target_col]
-    X, y = df[feature_cols].values, df[target_col].values
+        X_df = df.drop(columns=[target_col, "target_grade"], errors="ignore")
+        X_df = X_df.select_dtypes(include=["number"])
+    else:
+        X_df = df[feature_cols]
+    # Prepare data arrays
+    X = X_df.values
+    y = df[target_col].values
     model = LinearRegression().fit(X, y)
     preds = model.predict(X)
     return model, mean_squared_error(y, preds)
@@ -384,11 +390,7 @@ def train_model(*args, **kwargs):
         target_col = (
             args[1] if len(args) == 2 else kwargs.get("target_col", "target_score")
         )
-        X_train, y_train = _load_xy(train_csv, target_col)
-        model = LinearRegression().fit(X_train, y_train)
-        preds = model.predict(X_train)
-        mse = mean_squared_error(y_train, preds)
-        return model, mse
+        return _train_sklearn_model(train_csv, target_col=target_col)
     else:
         raise ValueError(
             f"Invalid number of arguments: {len(args)}. Expected 1-2 for sklearn or 6 for PyTorch."
@@ -470,7 +472,9 @@ def evaluate_security_model(
         "targets": targets,
     }
 
-    # Add Expert System approximation quality assessment
+    if grade_encoder is not None:
+        results["grade_accuracy"] = 0.0
+
     if grade_predictions and grade_targets:
         accuracy = accuracy_score(grade_targets, grade_predictions)
         results["grade_accuracy"] = accuracy
@@ -490,12 +494,17 @@ def evaluate_security_model(
         consistent_predictions = 0
         for pred_score, target_grade_idx in zip(predictions, grade_targets):
             if hasattr(model_data.get("dataset"), "grade_encoder"):
-                grade_encoder = model_data["dataset"].grade_encoder
-                target_grade = grade_encoder.inverse_transform([target_grade_idx])[0]
-                if target_grade in score_ranges:
-                    min_score, max_score = score_ranges[target_grade]
-                    if min_score <= pred_score[0] <= max_score:
-                        consistent_predictions += 1
+                target_grade = model_data["dataset"].grade_encoder.inverse_transform(
+                    [target_grade_idx]
+                )[0]
+                # Map each grade to its score range and check if prediction falls within it
+                # This assumes consistent grading in our system
+                for grade_name, (min_val, max_val) in score_ranges.items():
+                    # Simple matching for now - could be enhanced with fuzzy matching
+                    if grade_name.startswith(target_grade):
+                        if min_val <= pred_score <= max_val:
+                            consistent_predictions += 1
+                        break
 
         results["expert_system_consistency"] = consistent_predictions / len(predictions)
 

@@ -6,7 +6,7 @@ import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, TensorDataset
 import tempfile
 import argparse
 from pathlib import Path
@@ -14,8 +14,12 @@ from pathlib import Path
 from src.ml_trainer import (
     CSVDataset,
     SimpleNN,
+    evaluate_security_model,
     train_model,
     evaluate_model,
+    SecurityDataset,
+    SecurityNN,
+    _train_security_model,
 )
 
 
@@ -187,5 +191,237 @@ class TestMLPipeline(unittest.TestCase):
         self.assertLess(mse, 1e-6, f"MSE too high: {mse}")
 
 
-if __name__ == "__main__":
+class TestSecurityDataset(unittest.TestCase):
+    def setUp(self):
+        # create a CSV with one categorical, one numeric, target_score and target_grade
+        self.tmp = tempfile.NamedTemporaryFile(suffix=".csv", delete=False)
+        self.tmp.close()  # release handle on Windows
+        df = pd.DataFrame(
+            {
+                "cat": ["a", "b", "a"],
+                "num": [1.0, 2.0, 3.0],
+                "target_score": [10.0, 20.0, 30.0],
+                "target_grade": ["X", "Y", "X"],
+            }
+        )
+        df.to_csv(self.tmp.name, index=False)
+
+    def tearDown(self):
+        os.unlink(self.tmp.name)
+
+    def test_len_and_getitem_with_grade(self):
+        ds = SecurityDataset(self.tmp.name)
+        self.assertEqual(len(ds), 3)
+        feat, tgt, grade = ds[1]
+        self.assertIsInstance(feat, torch.Tensor)
+        self.assertEqual(tgt.item(), 20.0)
+        self.assertIsInstance(grade, torch.Tensor)
+
+    def test_len_and_getitem_without_grade(self):
+        tmp2 = tempfile.NamedTemporaryFile(suffix=".csv", delete=False)
+        tmp2.close()  # release handle
+        df2 = pd.DataFrame(
+            {
+                "cat": ["x", "y"],
+                "num": [5.0, 6.0],
+                "target_score": [50.0, 60.0],
+            }
+        )
+        df2.to_csv(tmp2.name, index=False)
+
+        ds2 = SecurityDataset(tmp2.name)
+        self.assertEqual(len(ds2), 2)
+        feat, tgt = ds2[0]
+        self.assertEqual(tgt.item(), 50.0)
+
+        os.unlink(tmp2.name)
+
+    def test_fit_encoders_false_branch(self):
+        ds1 = SecurityDataset(self.tmp.name)
+        encs, scaler = ds1.encoders, ds1.scaler
+
+        tmp3 = tempfile.NamedTemporaryFile(suffix=".csv", delete=False)
+        tmp3.close()  # release handle
+        df3 = pd.DataFrame(
+            {
+                "cat": ["z", "a"],
+                "num": [7.0, 8.0],
+                "target_score": [70.0, 80.0],
+            }
+        )
+        df3.to_csv(tmp3.name, index=False)
+
+        ds3 = SecurityDataset(
+            tmp3.name, fit_encoders=False, encoders=encs, scaler=scaler
+        )
+
+        # unseen 'z' → encoded as 0
+        self.assertEqual(ds3.features[0, 0].item(), 0.0)
+        # known 'a' should match the original encoder mapping
+        orig_a = encs["cat"].transform(["a"])[0]
+        self.assertEqual(ds3.features[1, 0].item(), float(orig_a))
+
+        os.unlink(tmp3.name)
+
+
+class TestSecurityNN(unittest.TestCase):
+    def setUp(self):
+        self.batch = 4
+        self.input_size = 3
+        self.hidden_size = 8
+        # disable dropout for deterministic output
+        self.model = SecurityNN(self.input_size, self.hidden_size, dropout_rate=0.0)
+        self.x = torch.randn(self.batch, self.input_size)
+
+    def test_init_creates_heads(self):
+        # ensure both heads exist
+        self.assertTrue(hasattr(self.model, "score_predictor"))
+        self.assertTrue(hasattr(self.model, "grade_classifier"))
+
+    def test_forward_score_only(self):
+        # default predict_grade=False
+        out = self.model(self.x)
+        self.assertIsInstance(out, torch.Tensor)
+        self.assertEqual(out.shape, (self.batch, 1))
+        # values should lie between 0 and 100
+        self.assertTrue((out >= 0).all().item())
+        self.assertTrue((out <= 100).all().item())
+
+    def test_forward_with_grade(self):
+        score, logits = self.model(self.x, predict_grade=True)
+        # score branch
+        self.assertEqual(score.shape, (self.batch, 1))
+        self.assertTrue((score >= 0).all().item())
+        self.assertTrue((score <= 100).all().item())
+        # grade logits branch: 5 categories
+        self.assertIsInstance(logits, torch.Tensor)
+        self.assertEqual(logits.shape, (self.batch, 5))
+
+
+class TestTrainSecurityModel(unittest.TestCase):
+    def test_train_security_model_score_only(self):
+        # Build a simple score-only DataLoader
+        x = torch.randn(10, 3)
+        y = torch.randn(10, 1)
+        ds = TensorDataset(x, y)
+        loader = DataLoader(ds, batch_size=5)
+        model = SecurityNN(3, hidden_size=4, dropout_rate=0.0)
+        criterion = nn.MSELoss()
+        optimizer = optim.Adam(model.parameters(), lr=0.01)
+        losses = _train_security_model(
+            model,
+            loader,
+            criterion,
+            optimizer,
+            epochs=3,
+            device=torch.device("cpu"),
+            classification_loss=None,
+        )
+        self.assertEqual(len(losses), 3)
+        self.assertTrue(all(isinstance(loss_value, float) for loss_value in losses))
+
+    def test_train_security_model_with_classification(self):
+        # Build a DataLoader with (x, score, grade) tuples
+        x = torch.randn(8, 3)
+        y_score = torch.randn(8, 1)
+        y_grade = torch.randint(0, 5, (8,))  # 5 classes
+        ds = TensorDataset(x, y_score, y_grade)
+        loader = DataLoader(ds, batch_size=4)
+        model = SecurityNN(3, hidden_size=4, dropout_rate=0.0)
+        criterion = nn.MSELoss()
+        class_loss = nn.CrossEntropyLoss()
+        optimizer = optim.SGD(model.parameters(), lr=0.1)
+
+        losses = _train_security_model(
+            model,
+            loader,
+            criterion,
+            optimizer,
+            epochs=2,
+            device=torch.device("cpu"),
+            classification_loss=class_loss,
+        )
+        self.assertEqual(len(losses), 2)
+        # loss should be non-negative
+        self.assertTrue(all(loss_value >= 0.0 for loss_value in losses))
+
+
+class TestSecurityModelBranch(unittest.TestCase):
+    def setUp(self):
+        # Create a dataset with numeric features only (no grades)
+        self.tmp_no_grade = tempfile.NamedTemporaryFile(suffix=".csv", delete=False)
+        df_num = pd.DataFrame(
+            {
+                "feat1": range(10),
+                "feat2": [i * 0.5 for i in range(10)],
+                "target_score": [2 * x + 1 for x in range(10)],
+            }
+        )
+        df_num.to_csv(self.tmp_no_grade.name, index=False)
+        self.tmp_no_grade.close()
+
+        # Create a dataset with categorical and grade for classification
+        self.tmp_with_grade = tempfile.NamedTemporaryFile(suffix=".csv", delete=False)
+        df_cat = pd.DataFrame(
+            {
+                "cat": ["a", "b"] * 5,
+                "num": [i for i in range(10)],
+                "target_score": [i * 3 for i in range(10)],
+                "target_grade": ["X", "Y"] * 5,
+            }
+        )
+        df_cat.to_csv(self.tmp_with_grade.name, index=False)
+        self.tmp_with_grade.close()
+
+    def tearDown(self):
+        os.unlink(self.tmp_no_grade.name)
+        os.unlink(self.tmp_with_grade.name)
+
+    def test_train_model_security_no_grade(self):
+        # Exercise security branch without grade classification
+        res = train_model(
+            self.tmp_no_grade.name,
+            model_type="security",
+            batch_size=4,
+            hidden_size=4,
+            lr=0.01,
+            epochs=2,
+            no_cuda=True,
+        )
+        # Validate returned dict
+        self.assertIsInstance(res, dict)
+        self.assertIn("model", res)
+        self.assertIn("dataset", res)
+        self.assertIn("val_mse", res)
+        self.assertIsInstance(res["val_mse"], float)
+        self.assertIn("losses", res)
+        self.assertEqual(len(res["losses"]), 2)
+        # No grade encoder for numeric-only dataset
+        self.assertIsNone(res.get("grade_encoder"))
+
+    def test_train_model_security_with_grade_and_evaluate(self):
+        # Exercise security branch with classification head
+        res = train_model(
+            self.tmp_with_grade.name,
+            model_type="security",
+            batch_size=4,
+            hidden_size=4,
+            lr=0.01,
+            epochs=2,
+            no_cuda=True,
+        )
+        # Validate returned dict includes grade_encoder
+        self.assertIn("grade_encoder", res)
+        self.assertIsNotNone(res["grade_encoder"])
+        # Evaluate on same data for consistency
+        eval_res = evaluate_security_model(res, self.tmp_with_grade.name)
+        # Check evaluation metrics
+        self.assertIsInstance(eval_res, dict)
+        self.assertIn("mse", eval_res)
+        self.assertIn("grade_accuracy", eval_res)
+        self.assertGreaterEqual(eval_res["mse"], 0.0)
+        self.assertGreaterEqual(eval_res["grade_accuracy"], 0.0)
+
+
+if __name__ == "__main__":  # pragma: no cover
     unittest.main()
