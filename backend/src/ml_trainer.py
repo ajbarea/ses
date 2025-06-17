@@ -22,6 +22,7 @@ class SecurityDataset(Dataset):
         fit_encoders=True,
         encoders=None,
         scaler=None,
+        grade_encoder=None,
     ):
         df = pd.read_csv(csv_file)
 
@@ -87,7 +88,7 @@ class SecurityDataset(Dataset):
                     dtype=torch.long,
                 )
             else:
-                self.grade_encoder = encoders.get("grade_encoder") if encoders else None
+                self.grade_encoder = grade_encoder
                 if self.grade_encoder:
                     self.target_grades = torch.tensor(
                         self.grade_encoder.transform(df["target_grade"]),
@@ -454,7 +455,12 @@ def evaluate_security_model(
 
     # Create test dataset using fitted encoders
     test_dataset = SecurityDataset(
-        test_csv, target_col, fit_encoders=False, encoders=encoders, scaler=scaler
+        test_csv,
+        target_col,
+        fit_encoders=False,
+        encoders=encoders,
+        scaler=scaler,
+        grade_encoder=grade_encoder,
     )
 
     test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
@@ -484,6 +490,19 @@ def evaluate_security_model(
 
             predictions.extend(score_pred.cpu().numpy())
             targets.extend(y_score.cpu().numpy())
+
+    # Handle empty test set
+    if not targets:
+        return {
+            "mse": float("inf"),
+            "mae": float("inf"),
+            "rmse": float("inf"),
+            "r2_score": 0.0,
+            "predictions": [],
+            "targets": [],
+            "grade_accuracy": 0.0,
+            "expert_system_consistency": 0.0,
+        }
 
     # Calculate metrics
     mse = mean_squared_error(targets, predictions)
@@ -563,7 +582,7 @@ def load_model(path: str):
     return joblib.load(path)
 
 
-def main():
+def main():  # pragma: no cover
     """Command-line entry point for model training."""
     parser = argparse.ArgumentParser(description="Model Trainer")
     parser.add_argument(

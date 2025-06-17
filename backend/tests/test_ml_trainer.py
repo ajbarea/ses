@@ -2,6 +2,7 @@
 
 import unittest
 import os
+from unittest.mock import Mock, patch
 import pandas as pd
 import torch
 import torch.nn as nn
@@ -645,6 +646,282 @@ class TestEvaluationBranches(unittest.TestCase):
         self.assertIn("expert_system_consistency", eval_results)
         self.assertTrue(0 <= eval_results["expert_system_consistency"] <= 1.0)
         self.assertTrue(0 <= eval_results["grade_accuracy"] <= 1.0)
+
+
+class TestMLTrainerCoverage(unittest.TestCase):
+    """Test cases to cover untested branches in ml_trainer.py"""
+
+    def setUp(self):
+        """Set up test fixtures"""
+        # Create temporary CSV files for testing
+        self.test_dir = tempfile.mkdtemp()
+
+        # Create test data with grades
+        self.test_data_with_grades = pd.DataFrame(
+            {
+                "feature1": [1.0, 2.0, 3.0, 4.0, 5.0],
+                "feature2": [0.5, 1.5, 2.5, 3.5, 4.5],
+                "target_score": [95.0, 85.0, 70.0, 50.0, 30.0],
+                "target_grade": ["Excellent", "Good", "Fair", "Poor", "Critical Risk"],
+            }
+        )
+
+        self.csv_with_grades = os.path.join(self.test_dir, "test_with_grades.csv")
+        self.test_data_with_grades.to_csv(self.csv_with_grades, index=False)
+
+    def tearDown(self):
+        """Clean up test fixtures"""
+        import shutil
+
+        shutil.rmtree(self.test_dir)
+
+    def test_evaluate_security_model_with_grade_predictions(self):
+        """Test the branch where grade_predictions and grade_targets exist"""
+        # Create a mock model that returns both score and grade predictions
+        mock_model = Mock(spec=SecurityNN)
+        mock_model.eval.return_value = None
+
+        # Mock the forward pass to return both score and grade predictions
+        def mock_forward(x, predict_grade=False):
+            batch_size = x.shape[0]
+            scores = torch.tensor([[95.0], [85.0], [70.0], [50.0], [30.0]][:batch_size])
+            if predict_grade:
+                # Return logits for 5 classes (corresponding to grade categories)
+                grade_logits = torch.tensor(
+                    [
+                        [5.0, 1.0, 1.0, 1.0, 1.0],  # Excellent
+                        [1.0, 5.0, 1.0, 1.0, 1.0],  # Good
+                        [1.0, 1.0, 5.0, 1.0, 1.0],  # Fair
+                        [1.0, 1.0, 1.0, 5.0, 1.0],  # Poor
+                        [1.0, 1.0, 1.0, 1.0, 5.0],  # Critical Risk
+                    ][:batch_size]
+                )
+                return scores, grade_logits
+            return scores
+
+        mock_model.side_effect = mock_forward
+
+        # Mock parameters method to return an iterator with device
+        mock_param = Mock()
+        mock_param.device = torch.device("cpu")
+        mock_model.parameters.return_value = iter([mock_param])
+
+        # Create dataset with encoders
+        dataset = SecurityDataset(self.csv_with_grades, fit_encoders=True)
+
+        # Create model_data dictionary
+        model_data = {
+            "model": mock_model,
+            "encoders": dataset.encoders,
+            "scaler": dataset.scaler,
+            "grade_encoder": dataset.grade_encoder,
+            "dataset": dataset,
+        }
+
+        # Test the evaluation
+        results = evaluate_security_model(model_data, self.csv_with_grades)
+
+        # Verify that grade accuracy was calculated
+        self.assertIn("grade_accuracy", results)
+        self.assertIn("grade_predictions", results)
+        self.assertIn("grade_targets", results)
+        self.assertIn("expert_system_consistency", results)
+
+        # Verify expert system consistency calculation was performed
+        self.assertIsInstance(results["expert_system_consistency"], float)
+        self.assertGreaterEqual(results["expert_system_consistency"], 0.0)
+        self.assertLessEqual(results["expert_system_consistency"], 1.0)
+
+    def test_expert_system_consistency_calculation(self):
+        """Test the expert system consistency calculation logic"""
+        # Create a more controlled test scenario
+        mock_model = Mock(spec=SecurityNN)
+        mock_model.eval.return_value = None
+
+        def mock_forward(x, predict_grade=False):
+            # Return scores that should match the grade categories
+            scores = torch.tensor(
+                [[92.0], [83.0], [65.0]]
+            )  # Should match Excellent, Good, Fair
+            if predict_grade:
+                grade_logits = torch.tensor(
+                    [
+                        [5.0, 1.0, 1.0, 1.0, 1.0],  # Predicts Excellent (index 0)
+                        [1.0, 5.0, 1.0, 1.0, 1.0],  # Predicts Good (index 1)
+                        [1.0, 1.0, 5.0, 1.0, 1.0],  # Predicts Fair (index 2)
+                    ]
+                )
+                return scores, grade_logits
+            return scores
+
+        mock_model.side_effect = mock_forward
+
+        mock_param = Mock()
+        mock_param.device = torch.device("cpu")
+        mock_model.parameters.return_value = iter([mock_param])
+
+        # Create test data that should have perfect consistency
+        consistent_data = pd.DataFrame(
+            {
+                "feature1": [1.0, 2.0, 3.0],
+                "feature2": [0.5, 1.5, 2.5],
+                "target_score": [95.0, 85.0, 70.0],
+                "target_grade": ["Excellent", "Good", "Fair"],
+            }
+        )
+
+        csv_consistent = os.path.join(self.test_dir, "consistent.csv")
+        consistent_data.to_csv(csv_consistent, index=False)
+
+        dataset = SecurityDataset(csv_consistent, fit_encoders=True)
+
+        model_data = {
+            "model": mock_model,
+            "encoders": dataset.encoders,
+            "scaler": dataset.scaler,
+            "grade_encoder": dataset.grade_encoder,
+            "dataset": dataset,
+        }
+
+        results = evaluate_security_model(model_data, csv_consistent)
+
+        # With perfect score-grade alignment, consistency should be high
+        self.assertGreater(results["expert_system_consistency"], 0.5)
+
+    def test_grade_name_matching_logic(self):
+        """Test the grade name matching logic in expert system consistency"""
+        mock_model = Mock(spec=SecurityNN)
+        mock_model.eval.return_value = None
+
+        def mock_forward(x, predict_grade=False):
+            # Return a score that falls in Critical Risk range (0-39)
+            scores = torch.tensor([[25.0]])
+            if predict_grade:
+                grade_logits = torch.tensor(
+                    [[1.0, 1.0, 1.0, 1.0, 5.0]]
+                )  # Predicts Critical Risk
+                return scores, grade_logits
+            return scores
+
+        mock_model.side_effect = mock_forward
+
+        mock_param = Mock()
+        mock_param.device = torch.device("cpu")
+        mock_model.parameters.return_value = iter([mock_param])
+
+        # Test with "Critical Risk" grade
+        critical_data = pd.DataFrame(
+            {
+                "feature1": [1.0],
+                "feature2": [0.5],
+                "target_score": [25.0],
+                "target_grade": ["Critical Risk"],
+            }
+        )
+
+        csv_critical = os.path.join(self.test_dir, "critical.csv")
+        critical_data.to_csv(csv_critical, index=False)
+
+        dataset = SecurityDataset(csv_critical, fit_encoders=True)
+
+        model_data = {
+            "model": mock_model,
+            "encoders": dataset.encoders,
+            "scaler": dataset.scaler,
+            "grade_encoder": dataset.grade_encoder,
+            "dataset": dataset,
+        }
+
+        results = evaluate_security_model(model_data, csv_critical)
+
+        # Should have good consistency since score (25) falls in Critical Risk range (0-39)
+        self.assertGreater(results["expert_system_consistency"], 0.0)
+
+    def test_no_grade_encoder_branch(self):
+        """Test the branch where grade_encoder is None"""
+        mock_model = Mock(spec=SecurityNN)
+        mock_model.eval.return_value = None
+
+        def mock_forward(x, predict_grade=False):
+            return torch.tensor([[50.0]])
+
+        mock_model.side_effect = mock_forward
+
+        mock_param = Mock()
+        mock_param.device = torch.device("cpu")
+        mock_model.parameters.return_value = iter([mock_param])
+
+        # Create dataset without grades
+        no_grade_data = pd.DataFrame(
+            {"feature1": [1.0], "feature2": [0.5], "target_score": [50.0]}
+        )
+
+        csv_no_grade = os.path.join(self.test_dir, "no_grade.csv")
+        no_grade_data.to_csv(csv_no_grade, index=False)
+
+        dataset = SecurityDataset(csv_no_grade, fit_encoders=True)
+
+        model_data = {
+            "model": mock_model,
+            "encoders": dataset.encoders,
+            "scaler": dataset.scaler,
+            "grade_encoder": None,  # No grade encoder
+            "dataset": dataset,
+        }
+
+        results = evaluate_security_model(model_data, csv_no_grade)
+
+        # Should have default expert_system_consistency of 0.0
+        self.assertEqual(results["expert_system_consistency"], 0.0)
+
+    def test_empty_predictions_edge_case(self):
+        """Test edge case with empty predictions"""
+        mock_model = Mock(spec=SecurityNN)
+        mock_model.eval.return_value = None
+
+        def mock_forward(x, predict_grade=False):
+            # Return empty tensors
+            if predict_grade:
+                return torch.tensor([]).reshape(0, 1), torch.tensor([]).reshape(0, 5)
+            return torch.tensor([]).reshape(0, 1)
+
+        mock_model.side_effect = mock_forward
+
+        mock_param = Mock()
+        mock_param.device = torch.device("cpu")
+        mock_model.parameters.return_value = iter([mock_param])
+
+        # Create minimal dataset
+        empty_data = pd.DataFrame(
+            {
+                "feature1": [1.0],
+                "feature2": [0.5],
+                "target_score": [50.0],
+                "target_grade": ["Fair"],
+            }
+        )
+
+        csv_empty = os.path.join(self.test_dir, "empty.csv")
+        empty_data.to_csv(csv_empty, index=False)
+
+        dataset = SecurityDataset(csv_empty, fit_encoders=True)
+
+        model_data = {
+            "model": mock_model,
+            "encoders": dataset.encoders,
+            "scaler": dataset.scaler,
+            "grade_encoder": dataset.grade_encoder,
+            "dataset": dataset,
+        }
+
+        # Mock DataLoader to return empty batches
+        with patch("src.ml_trainer.DataLoader") as mock_dataloader:
+            mock_dataloader.return_value = []  # Empty iterator
+
+            results = evaluate_security_model(model_data, csv_empty)
+
+            # Should handle empty case gracefully
+            self.assertEqual(results["expert_system_consistency"], 0.0)
 
 
 if __name__ == "__main__":  # pragma: no cover
