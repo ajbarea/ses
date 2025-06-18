@@ -10,12 +10,16 @@ from typing import Dict, List, Any
 
 def generate_patch_metric() -> Dict[str, Any]:
     """
-    Generate a patch metric with random status and hotfix list.
+    Generate a patch metric with weighted realistic status distribution.
 
     Returns:
         dict: Contains 'status' (patch state) and 'hotfixes' (list of hotfix identifiers).
     """
-    status_choices = ["up-to-date", "out-of-date"]
+    status_weights = [("up-to-date", 7), ("out-of-date", 3)]
+    weighted_statuses = []
+    for status, weight in status_weights:
+        weighted_statuses.extend([status] * weight)
+
     hotfix_strategies = [
         [],
         ["KB5056579", "KB5048779"],
@@ -23,7 +27,7 @@ def generate_patch_metric() -> Dict[str, Any]:
         ["KB1234567", "KB2345678", "KB3456789"],
     ]
     return {
-        "status": secrets.choice(status_choices),
+        "status": secrets.choice(weighted_statuses),
         "hotfixes": secrets.choice(hotfix_strategies),
     }
 
@@ -212,52 +216,92 @@ def generate_services_metric() -> Dict[str, Any]:
 
 def generate_firewall_metric() -> Dict[str, Any]:
     """
-    Generate a firewall metric with random profile states.
+    Generate a firewall metric with realistic weighted profile states.
 
     Returns:
         dict: Contains 'profiles', a dict with 'domain', 'private', and 'public' statuses.
     """
-    scenarios = [
-        {"domain": "ON", "private": "ON", "public": "ON"},  # All enabled
-        {"domain": "ON", "private": "ON", "public": "OFF"},  # Public disabled
-        {"domain": "OFF", "private": "OFF", "public": "OFF"},  # All disabled (risky)
-        {"domain": "UNKNOWN", "private": "ON", "public": "ON"},  # Domain unknown
+    # More realistic distribution - most systems have some firewall protection
+    scenarios_weighted = [
+        (
+            {"domain": "ON", "private": "ON", "public": "ON"},
+            4,
+        ),  # 40% - All enabled (most secure)
+        (
+            {"domain": "ON", "private": "ON", "public": "OFF"},
+            3,
+        ),  # 30% - Public disabled (common)
+        (
+            {"domain": "UNKNOWN", "private": "ON", "public": "ON"},
+            2,
+        ),  # 20% - Domain unknown
+        (
+            {"domain": "OFF", "private": "OFF", "public": "OFF"},
+            1,
+        ),  # 10% - All disabled (risky)
     ]
-    return {"profiles": secrets.choice(scenarios)}
+
+    weighted_scenarios = []
+    for scenario, weight in scenarios_weighted:
+        weighted_scenarios.extend([scenario] * weight)
+
+    return {"profiles": secrets.choice(weighted_scenarios)}
 
 
 def generate_antivirus_metric() -> Dict[str, Any]:
     """
-    Generate an antivirus metric with random product information.
+    Generate an antivirus metric with realistic weighted product information.
 
     Returns:
         dict: Contains 'products', a list of antivirus product dictionaries.
     """
-    scenarios = [
-        [],  # No products
-        [{"name": "Windows Defender", "state": 397568}],  # Fully enabled
-        [{"name": "Windows Defender", "state": 397312}],  # Enabled different config
-        [{"name": "Windows Defender", "state": 262144}],  # Disabled
-        [{"name": "Windows Defender", "state": "UNKNOWN"}],  # Unknown state
+    # More realistic distribution - most systems have some antivirus
+    scenarios_weighted = [
+        ([{"name": "Windows Defender", "state": 397568}], 4),  # 40% - Fully enabled
+        (
+            [{"name": "Windows Defender", "state": 397312}],
+            3,
+        ),  # 30% - Enabled different config
+        ([{"name": "Windows Defender", "state": 262144}], 2),  # 20% - Disabled
+        ([{"name": "Windows Defender", "state": "UNKNOWN"}], 1),  # 10% - Unknown state
+        ([], 0),  # 0% - No products (very rare)
     ]
-    return {"products": secrets.choice(scenarios)}
+
+    weighted_scenarios = []
+    for scenario, weight in scenarios_weighted:
+        if weight > 0:  # Only include scenarios with positive weight
+            weighted_scenarios.extend([scenario] * weight)
+
+    return {"products": secrets.choice(weighted_scenarios)}
 
 
 def generate_password_policy_metric() -> Dict[str, Any]:
     """
-    Generate a password policy metric with random settings.
+    Generate a password policy metric with realistic weighted settings.
 
     Returns:
         dict: Contains 'policy', a dictionary with password policy settings.
     """
-    scenarios = [
-        {"min_password_length": 0, "max_password_age": 0},  # No policy enforcement
-        {"min_password_length": 1, "max_password_age": 42},  # Minimal enforcement
-        {"min_password_length": 6, "max_password_age": 90},  # Basic security
-        {"min_password_length": 8, "max_password_age": 60},  # Medium security
-        {"min_password_length": 12, "max_password_age": 90},  # High security
+    # More realistic distribution - most corporate systems have some password policy
+    scenarios_weighted = [
+        ({"min_password_length": 8, "max_password_age": 60}, 3),  # 30% - Good policy
+        ({"min_password_length": 12, "max_password_age": 90}, 2),  # 20% - Strong policy
+        (
+            {"min_password_length": 6, "max_password_age": 90},
+            2,
+        ),  # 20% - Moderate policy
+        ({"min_password_length": 1, "max_password_age": 42}, 2),  # 20% - Weak policy
+        (
+            {"min_password_length": 0, "max_password_age": 0},
+            1,
+        ),  # 10% - No policy (risky)
     ]
-    return {"policy": secrets.choice(scenarios)}
+
+    weighted_scenarios = []
+    for scenario, weight in scenarios_weighted:
+        weighted_scenarios.extend([scenario] * weight)
+
+    return {"policy": secrets.choice(weighted_scenarios)}
 
 
 def generate_single_metric_set() -> Dict[str, Any]:
