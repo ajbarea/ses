@@ -22,7 +22,7 @@ python -m venv .venv
 source .venv/Scripts/activate  # Windows
 python -m pip install --upgrade pip
 pip install -r requirements.txt
-uvicorn main:app --reload
+uvicorn main:app --reload --reload-exclude logs/
 ```
 
 ### Frontend Setup

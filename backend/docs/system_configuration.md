@@ -98,7 +98,7 @@ curl http://localhost:8000/
 curl http://localhost:8000/metrics
 
 # Run evaluation
-curl -X POST http://localhost:8000/evaluate
+curl http://localhost:8000/evaluate
 ```
 
 ### Performance Monitoring
