@@ -284,23 +284,61 @@ def _train_torch_model(
 def _train_sklearn_model(csv_file: str, target_col: str = "target_score"):
     """Train a linear regression model on CSV and return (model, MSE)."""
     df = pd.read_csv(csv_file)
-    # Select numeric feature columns, drop target and any grade column
-    X_df = df.drop(columns=[target_col, "target_grade"], errors="ignore")
-    X_df = X_df.select_dtypes(include=["number"])
+
+    feature_cols = [col for col in df.columns if not col.startswith("target_")]
+
+    # Handle categorical variables
+    categorical_cols = df[feature_cols].select_dtypes(include=["object"]).columns
+    numerical_cols = df[feature_cols].select_dtypes(include=["number"]).columns
+
+    # Encode categorical variables
+    encoders = {}
+    df_encoded = df[feature_cols].copy()
+    for col in categorical_cols:
+        le = LabelEncoder()
+        df_encoded[col] = le.fit_transform(df[col].astype(str))
+        encoders[col] = le
+
+    # Scale numerical features
+    scaler = StandardScaler()
+    if len(numerical_cols) > 0:
+        df_encoded[numerical_cols] = scaler.fit_transform(df[numerical_cols])
+
     # Prepare data arrays
-    X = X_df.values
+    X = df_encoded.values
     y = df[target_col].values
+
     model = LinearRegression().fit(X, y)
     preds = model.predict(X)
-    return model, mean_squared_error(y, preds)
+
+    return (model, encoders, scaler, feature_cols), mean_squared_error(y, preds)
 
 
 def _load_xy(csv_file: str, target_col: str = "target_score"):
     """Load X and y from a CSV, removing the target column and ignoring 'target_grade'."""
     df = pd.read_csv(csv_file)
     y = df[target_col]
-    X = df.drop(columns=[target_col, "target_grade"], errors="ignore")
-    X = X.select_dtypes(include="number")
+
+    feature_cols = [col for col in df.columns if not col.startswith("target_")]
+
+    # Handle categorical variables
+    categorical_cols = df[feature_cols].select_dtypes(include=["object"]).columns
+    numerical_cols = df[feature_cols].select_dtypes(include=["number"]).columns
+
+    # Encode categorical variables
+    encoders = {}
+    df_encoded = df[feature_cols].copy()
+    for col in categorical_cols:
+        le = LabelEncoder()
+        df_encoded[col] = le.fit_transform(df[col].astype(str))
+        encoders[col] = le
+
+    # Scale numerical features
+    scaler = StandardScaler()
+    if len(numerical_cols) > 0:
+        df_encoded[numerical_cols] = scaler.fit_transform(df[numerical_cols])
+
+    X = df_encoded
     return X, y
 
 
@@ -454,7 +492,56 @@ def evaluate_model(
     model_or_tuple, test_csv: str, target_col: str = "target_score"
 ) -> float:
     """Compute MSE on test CSV for a scikit-learn model."""
-    model = model_or_tuple[0] if isinstance(model_or_tuple, tuple) else model_or_tuple
+    if isinstance(model_or_tuple, tuple) and len(model_or_tuple) == 2:
+        # New format: ((model, encoders, scaler, feature_cols), mse)
+        model_data, _ = model_or_tuple
+        if isinstance(model_data, tuple) and len(model_data) == 4:
+            model, encoders, scaler, feature_cols = model_data
+
+            # Load test data and apply same preprocessing
+            df = pd.read_csv(test_csv)
+            y_test = df[target_col].values
+
+            # Apply same preprocessing as training
+            categorical_cols = (
+                df[feature_cols].select_dtypes(include=["object"]).columns
+            )
+            numerical_cols = df[feature_cols].select_dtypes(include=["number"]).columns
+
+            df_encoded = df[feature_cols].copy()
+
+            # Apply encoders to categorical columns
+            for col in categorical_cols:
+                if col in encoders:
+                    # Handle unseen categories gracefully
+                    df_encoded[col] = (
+                        df[col]
+                        .astype(str)
+                        .map(
+                            lambda x: (
+                                encoders[col].transform([x])[0]
+                                if x in encoders[col].classes_
+                                else 0
+                            )
+                        )
+                    )
+                else:
+                    df_encoded[col] = 0
+
+            # Apply scaler to numerical columns
+            if len(numerical_cols) > 0:
+                df_encoded[numerical_cols] = scaler.transform(df[numerical_cols])
+
+            X_test = df_encoded.values
+            preds = model.predict(X_test)
+            return mean_squared_error(y_test, preds)
+        else:
+            # Old format: just (model, mse)
+            model = model_or_tuple[0]
+    else:
+        model = model_or_tuple
+
+    # Fallback to old behavior for backward compatibility
     X_test, y_test = _load_xy(test_csv, target_col)
     preds = model.predict(X_test)
     return mean_squared_error(y_test, preds)
