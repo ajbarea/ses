@@ -112,21 +112,30 @@ class SecurityNN(nn.Module):
     """A PyTorch module for predicting security scores and optionally classifying security grades."""
 
     def __init__(
-        self, input_size: int, hidden_size: int = 64, dropout_rate: float = 0.2
+        self,
+        input_size: int,
+        hidden_size: int = 64,
+        hidden_layers: int = 2,
+        dropout_rate: float = 0.2,
     ):
         super().__init__()
-        self.score_predictor = nn.Sequential(
-            nn.Linear(input_size, hidden_size),
-            nn.LayerNorm(hidden_size),
-            nn.ReLU(),
-            nn.Dropout(dropout_rate),
-            nn.Linear(hidden_size, hidden_size // 2),
-            nn.LayerNorm(hidden_size // 2),
-            nn.ReLU(),
-            nn.Dropout(dropout_rate),
-            nn.Linear(hidden_size // 2, 1),
-            nn.Sigmoid(),  # Output between 0 and 1, will be scaled to 0-100
-        )
+
+        # Build score predictor with a configurable number of hidden layers
+        layers = []
+        in_features = input_size
+        for _ in range(max(1, hidden_layers)):
+            layers.extend(
+                [
+                    nn.Linear(in_features, hidden_size),
+                    nn.LayerNorm(hidden_size),
+                    nn.ReLU(),
+                    nn.Dropout(dropout_rate),
+                ]
+            )
+            in_features = hidden_size
+
+        layers.extend([nn.Linear(in_features, 1), nn.Sigmoid()])
+        self.score_predictor = nn.Sequential(*layers)
 
         # Optional classification head for grades
         self.grade_classifier = nn.Sequential(
@@ -145,15 +154,24 @@ class SecurityNN(nn.Module):
 
 
 class SimpleNN(nn.Module):
-    """A simple feed-forward network with one hidden layer."""
+    """A simple feed-forward network with a configurable number of hidden layers."""
 
-    def __init__(self, input_size: int, hidden_size: int, output_size: int):
+    def __init__(
+        self,
+        input_size: int,
+        hidden_size: int,
+        output_size: int,
+        hidden_layers: int = 1,
+    ):
         super().__init__()
-        self.net = nn.Sequential(
-            nn.Linear(input_size, hidden_size),
-            nn.ReLU(),
-            nn.Linear(hidden_size, output_size),
-        )
+        layers = []
+        in_features = input_size
+        for _ in range(max(1, hidden_layers)):
+            layers.append(nn.Linear(in_features, hidden_size))
+            layers.append(nn.ReLU())
+            in_features = hidden_size
+        layers.append(nn.Linear(in_features, output_size))
+        self.net = nn.Sequential(*layers)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.net(x)
@@ -318,7 +336,11 @@ def train_model(*args, **kwargs):
         # Handle empty dataset
         if len(dataset) == 0:
             print("Warning: Dataset is empty. Creating minimal training setup.")
-            model = SecurityNN(1, kwargs.get("hidden_size", 64))  # Minimal model
+            model = SecurityNN(
+                1,
+                kwargs.get("hidden_size", 64),
+                kwargs.get("hidden_layers", 2),
+            )  # Minimal model
             return {
                 "model": model,
                 "dataset": dataset,
@@ -357,7 +379,11 @@ def train_model(*args, **kwargs):
 
         # Create model
         input_size = dataset.features.shape[1]
-        model = SecurityNN(input_size, kwargs.get("hidden_size", 64))
+        model = SecurityNN(
+            input_size,
+            kwargs.get("hidden_size", 64),
+            kwargs.get("hidden_layers", 2),
+        )
 
         # Training setup
         device = torch.device(
@@ -624,7 +650,16 @@ def main():  # pragma: no cover
         help="Number of input features (auto-detected if -1)",
     )
     parser.add_argument(
-        "--hidden_size", type=int, default=64, help="Number of neurons in hidden layer"
+        "--hidden_size",
+        type=int,
+        default=64,
+        help="Number of neurons in each hidden layer",
+    )
+    parser.add_argument(
+        "--hidden_layers",
+        type=int,
+        default=1,
+        help="Number of hidden layers for the simple model",
     )
     parser.add_argument(
         "--output_size",
@@ -733,10 +768,15 @@ def main():  # pragma: no cover
         f"Hyperparameters: LR={args.lr}, Epochs={args.epochs}, BatchSize={args.batch_size}"
     )
     print(
-        f"Model: Input={args.input_size}, Hidden={args.hidden_size}, Output={args.output_size}"
+        f"Model: Input={args.input_size}, Hidden={args.hidden_size}x{args.hidden_layers}, Output={args.output_size}"
     )
 
-    model = SimpleNN(args.input_size, args.hidden_size, args.output_size).to(device)
+    model = SimpleNN(
+        args.input_size,
+        args.hidden_size,
+        args.output_size,
+        hidden_layers=args.hidden_layers,
+    ).to(device)
 
     # Assuming regression for now. This could be a parameter too.
     # For binary classification, nn.BCELoss() with a Sigmoid in the model's output.

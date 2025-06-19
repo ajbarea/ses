@@ -21,6 +21,7 @@ def main():
         target_col="target_score",
         epochs=100,
         hidden_size=128,
+        hidden_layers=3,
         lr=0.001,
         batch_size=16,
         no_cuda=False,
