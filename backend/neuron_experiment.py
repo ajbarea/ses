@@ -110,5 +110,8 @@ if __name__ == "__main__":
     for res in results:
         print(res)
 
-    plot_path = Path(__file__).parent / "neuron_experiment.png"
+    docs_dir = Path(__file__).parent / "docs" / "experiments"
+    docs_dir.mkdir(parents=True, exist_ok=True)
+
+    plot_path = docs_dir / "neuron_experiment.png"
     plot_results(results, plot_path)

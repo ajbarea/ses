@@ -106,10 +106,13 @@ def plot_results(results, path: Path):
 
 
 if __name__ == "__main__":
-    layers_to_test = [1, 2, 3, 4, 5]  # Number of hidden layers to test
+    layers_to_test = [1, 2, 4, 8, 16]  # Number of hidden layers to test
     results = run_experiment(layers_to_test)
     for res in results:
         print(res)
 
-    plot_path = Path(__file__).parent / "layer_experiment.png"
+    docs_dir = Path(__file__).parent / "docs" / "experiments"
+    docs_dir.mkdir(parents=True, exist_ok=True)
+
+    plot_path = docs_dir / "layer_experiment.png"
     plot_results(results, plot_path)
