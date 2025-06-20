@@ -22,6 +22,7 @@ def run_experiment(neuron_counts):
 
     for neurons in neuron_counts:
         print(f"\nTraining with {neurons} neurons per layer")
+        tracemalloc.start()
         start_train = time.time()
         model_data = train_model(
             str(train_csv),
@@ -32,36 +33,16 @@ def run_experiment(neuron_counts):
             hidden_layers=HIDDEN_LAYERS_COUNT,
             lr=0.001,
             batch_size=16,
-            no_cuda=True,
         )
         train_time = time.time() - start_train
 
-        # capture detailed training loss per epoch
-        dataset = SecurityDataset(str(train_csv), target_col="target_score")
-        loader = DataLoader(dataset, batch_size=16, shuffle=True)
-        model = SecurityNN(
-            input_size=dataset.features.shape[1],
-            hidden_size=neurons,
-            hidden_layers=HIDDEN_LAYERS_COUNT,
-        )
-        criterion = nn.MSELoss()
-        classification_loss = nn.CrossEntropyLoss()
-        optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-        epoch_losses = _train_security_model(
-            model,
-            loader,
-            criterion,
-            optimizer,
-            epochs=TRAINING_EPOCHS,
-            device=torch.device("cpu"),
-            classification_loss=classification_loss,
-        )
+        # Extract epoch losses from the trained model data
+        epoch_losses = model_data.get("losses", [])
 
-        tracemalloc.start()
         start_eval = time.time()
         eval_res = evaluate_security_model(model_data, str(test_csv))
         eval_time = time.time() - start_eval
-        current, peak = tracemalloc.get_traced_memory()
+        _, peak = tracemalloc.get_traced_memory()
         tracemalloc.stop()
 
         results.append(
@@ -124,7 +105,7 @@ def plot_results(results, path: Path):
 
 
 if __name__ == "__main__":
-    neurons_to_test = [32, 64, 128, 256]
+    neurons_to_test = [32, 64, 128, 256]  # Number of neurons to test
     results = run_experiment(neurons_to_test)
     for res in results:
         print(res)

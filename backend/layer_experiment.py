@@ -26,7 +26,7 @@ def run_experiment(layer_counts):
 
     for layers in layer_counts:
         print(f"\nTraining with {layers} hidden layer(s)")
-        # 1) Summary training to measure final metrics
+        tracemalloc.start()
         start_train = time.time()
         model_data = train_model(
             str(train_csv),
@@ -37,35 +37,13 @@ def run_experiment(layer_counts):
             hidden_layers=layers,
             lr=0.001,
             batch_size=16,
-            no_cuda=True,
         )
         train_time = time.time() - start_train
-        # 2) Detailed training to capture loss per epoch
-        dataset = SecurityDataset(str(train_csv), target_col="target_score")
-        loader = DataLoader(dataset, batch_size=16, shuffle=True)
-        model = SecurityNN(
-            input_size=dataset.features.shape[1],
-            hidden_size=NEURONS_PER_LAYER,
-            hidden_layers=layers,
-        )
-        criterion = nn.MSELoss()
-        classification_loss = nn.CrossEntropyLoss()
-        optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-        epoch_losses = _train_security_model(
-            model,
-            loader,
-            criterion,
-            optimizer,
-            epochs=TRAINING_EPOCHS,
-            device=torch.device("cpu"),
-            classification_loss=classification_loss,
-        )
-
-        tracemalloc.start()
+        epoch_losses = model_data.get("losses", [])
         start_eval = time.time()
         eval_res = evaluate_security_model(model_data, str(test_csv))
         eval_time = time.time() - start_eval
-        current, peak = tracemalloc.get_traced_memory()
+        _, peak = tracemalloc.get_traced_memory()
         tracemalloc.stop()
 
         results.append(
@@ -122,13 +100,13 @@ def plot_results(results, path: Path):
     ax.set_title("Training Loss per Epoch for Different Hidden Layer Counts")
     ax.legend()
     fig2.tight_layout()
-    loss_plot = path.parent / "training_curves.png"
+    loss_plot = path.parent / "layer_training_curves.png"
     plt.savefig(loss_plot)
     print(f"Training curves saved to {loss_plot}")
 
 
 if __name__ == "__main__":
-    layers_to_test = [1, 2]
+    layers_to_test = [1, 2, 3, 4, 5]  # Number of hidden layers to test
     results = run_experiment(layers_to_test)
     for res in results:
         print(res)
