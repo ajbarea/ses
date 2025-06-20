@@ -106,7 +106,7 @@ class TestMLTrainer(unittest.TestCase):
             dataset = CSVDataset(csv_file=self.args.csv_file)
             # For this test, we'll use the whole dataset for training to ensure enough data
             train_loader = DataLoader(
-                dataset, batch_size=self.args.batch_size, shuffle=True
+                dataset, batch_size=self.args.batch_size, shuffle=True, num_workers=0
             )
         except Exception as e:
             self.fail(f"Failed to initialize SecurityDataset or DataLoader: {e}")
@@ -125,13 +125,10 @@ class TestMLTrainer(unittest.TestCase):
             self.args.input_size, self.args.hidden_size, self.args.output_size
         ).to(self.device)
         criterion = nn.MSELoss()
-        optimizer = optim.Adam(model.parameters(), lr=self.args.lr)
+        optimizer = optim.Adam(model.parameters(), lr=self.args.lr, weight_decay=1e-4)
 
         # 3. Call train_model
         try:
-            # Suppress print statements from train_model during test
-            # by redirecting stdout temporarily for the call if desired, or just let them print.
-            # For now, allow prints as they can be useful for debugging.
             epoch_losses = train_model(
                 model, train_loader, criterion, optimizer, self.args.epochs, self.device
             )
@@ -165,7 +162,7 @@ class TestMLTrainer(unittest.TestCase):
                 f"Loss did not decrease significantly. Initial: {epoch_losses[0]:.4f}, Final: {epoch_losses[-1]:.4f}. Losses: {epoch_losses}",
             )
         elif self.args.epochs == 1 and len(epoch_losses) == 1:
-            self.assertTrue(epoch_losses[0] > 0, "Loss should be positive.")
+            self.assertGreater(epoch_losses[0], 0, "Loss should be positive.")
         elif len(epoch_losses) <= 1 and self.args.epochs > 1:
             self.fail(
                 f"Training did not produce enough epoch_losses. Expected {self.args.epochs}, Got: {len(epoch_losses)}"
@@ -236,7 +233,7 @@ class TestSecurityDataset(unittest.TestCase):
 
         ds2 = SecurityDataset(tmp2.name)
         self.assertEqual(len(ds2), 2)
-        feat, tgt = ds2[0]
+        _, tgt = ds2[0]
         self.assertEqual(tgt.item(), 50.0)
 
         os.unlink(tmp2.name)
@@ -345,7 +342,7 @@ class TestSecurityDataset(unittest.TestCase):
         self.assertIsNotNone(ds1.grade_encoder)
 
         # Capture initial encoded values and state
-        feat1, score1, grade1 = ds1[0]
+        _, _, grade1 = ds1[0]
         grade_encoder = ds1.grade_encoder
 
         # Second dataset - reuses encoders including grade encoder
@@ -360,7 +357,7 @@ class TestSecurityDataset(unittest.TestCase):
         )
 
         # Test that both datasets encode grades the same way
-        feat2, score2, grade2 = ds2[0]
+        _, _, grade2 = ds2[0]
         self.assertEqual(grade1.item(), grade2.item())
 
         # Additional verification
@@ -442,7 +439,7 @@ class TestTrainSecurityModel(unittest.TestCase):
         loader = DataLoader(ds, batch_size=5)
         model = SecurityNN(3, hidden_size=4, dropout_rate=0.0)
         criterion = nn.MSELoss()
-        optimizer = optim.Adam(model.parameters(), lr=0.01)
+        optimizer = optim.Adam(model.parameters(), lr=0.01, weight_decay=1e-4)
         losses = _train_security_model(
             model,
             loader,
@@ -461,11 +458,13 @@ class TestTrainSecurityModel(unittest.TestCase):
         y_score = torch.randn(8, 1)
         y_grade = torch.randint(0, 5, (8,))  # 5 classes
         ds = TensorDataset(x, y_score, y_grade)
-        loader = DataLoader(ds, batch_size=4)
+        loader = DataLoader(ds, batch_size=4, num_workers=0)
         model = SecurityNN(3, hidden_size=4, dropout_rate=0.0)
         criterion = nn.MSELoss()
         class_loss = nn.CrossEntropyLoss()
-        optimizer = optim.SGD(model.parameters(), lr=0.1)
+        optimizer = optim.SGD(
+            model.parameters(), lr=0.1, momentum=0.9, weight_decay=1e-4
+        )
 
         losses = _train_security_model(
             model,
@@ -500,7 +499,7 @@ class TestSecurityModelBranch(unittest.TestCase):
         df_cat = pd.DataFrame(
             {
                 "cat": ["a", "b"] * 5,
-                "num": [i for i in range(10)],
+                "num": list(range(10)),
                 "target_score": [i * 3 for i in range(10)],
                 "target_grade": ["X", "Y"] * 5,
             }

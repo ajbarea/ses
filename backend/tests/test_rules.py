@@ -450,31 +450,6 @@ class TestEvaluateLegacyRules(unittest.TestCase):
             result = _evaluate_legacy(metrics)
             self.assertEqual(result["grade"], "Critical Risk")
 
-    def test_critical_risk_with_three_critical_findings(self):
-        """Test 'Critical Risk' grade assignment with 3+ critical findings (automatic Critical Risk)."""
-        metrics = {
-            "patch": {"status": "out-of-date", "hotfixes": []},
-            "ports": {"ports": []},
-            "services": {"services": []},
-        }
-
-        # Mock a scenario where there would be 3 critical findings
-        def mock_assign_grade(score, findings):
-            from src.scoring import CRITICAL_RISK_GRADE
-
-            # Simulate 3 critical findings
-            critical_count = 3
-            if critical_count >= 3:
-                return CRITICAL_RISK_GRADE
-            # Otherwise use normal logic
-            from src.scoring import assign_grade as original_assign_grade
-
-            return original_assign_grade(score, findings)
-
-        with patch("src.rules.assign_grade", side_effect=mock_assign_grade):
-            result = _evaluate_legacy(metrics)
-            self.assertEqual(result["grade"], "Critical Risk")
-
 
 class TestEvaluateWrapper(unittest.TestCase):
     """Tests for the evaluate wrapper function with auto-detection features."""

@@ -7,6 +7,9 @@ import argparse
 import json
 from typing import Dict, List, Any
 
+# Constants
+WINDOWS_DEFENDER = "Windows Defender"
+
 
 def generate_patch_metric(excellent_bias: bool = False) -> Dict[str, Any]:
     """
@@ -343,23 +346,23 @@ def generate_antivirus_metric(excellent_bias: bool = False) -> Dict[str, Any]:
     if excellent_bias:
         # Excellent systems have properly configured antivirus
         scenarios_weighted = [
-            ([{"name": "Windows Defender", "state": 397568}], 7),  # 70% - Fully enabled
+            ([{"name": WINDOWS_DEFENDER, "state": 397568}], 7),  # 70% - Fully enabled
             (
-                [{"name": "Windows Defender", "state": 397312}],
+                [{"name": WINDOWS_DEFENDER, "state": 397312}],
                 3,
             ),  # 30% - Enabled different config
         ]
     else:
         # More realistic distribution - most systems have some antivirus
         scenarios_weighted = [
-            ([{"name": "Windows Defender", "state": 397568}], 4),  # 40% - Fully enabled
+            ([{"name": WINDOWS_DEFENDER, "state": 397568}], 4),  # 40% - Fully enabled
             (
-                [{"name": "Windows Defender", "state": 397312}],
+                [{"name": WINDOWS_DEFENDER, "state": 397312}],
                 3,
             ),  # 30% - Enabled different config
-            ([{"name": "Windows Defender", "state": 262144}], 2),  # 20% - Disabled
+            ([{"name": WINDOWS_DEFENDER, "state": 262144}], 2),  # 20% - Disabled
             (
-                [{"name": "Windows Defender", "state": "UNKNOWN"}],
+                [{"name": WINDOWS_DEFENDER, "state": "UNKNOWN"}],
                 1,
             ),  # 10% - Unknown state
             ([], 0),  # 0% - No products (very rare)

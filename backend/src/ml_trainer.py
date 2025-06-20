@@ -270,7 +270,7 @@ class CSVDataset(Dataset):
     def __init__(self, csv_file: str, target_col: str = "target_score"):
         df = pd.read_csv(csv_file)
         self.features = torch.tensor(
-            df.drop(columns=[target_col]).values, dtype=torch.float32
+            df.drop(columns=[target_col]).to_numpy(), dtype=torch.float32
         )
         self.targets = torch.tensor(
             df[target_col].values, dtype=torch.float32
@@ -567,9 +567,11 @@ def train_model(*args, **kwargs):
         # Use smaller batch size for small datasets
         batch_size = min(kwargs.get("batch_size", 32), max(1, len(dataset) // 4))
 
-        train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
+        train_loader = DataLoader(
+            train_ds, batch_size=batch_size, shuffle=True, num_workers=0
+        )
         val_loader = (
-            DataLoader(val_ds, batch_size=batch_size, shuffle=False)
+            DataLoader(val_ds, batch_size=batch_size, shuffle=False, num_workers=0)
             if val_size > 0
             else None
         )
@@ -590,7 +592,9 @@ def train_model(*args, **kwargs):
         )
         criterion = nn.MSELoss()
         optimizer = torch.optim.Adam(
-            model.parameters(), lr=kwargs.get("lr", 0.001)
+            model.parameters(),
+            lr=kwargs.get("lr", 0.001),
+            weight_decay=kwargs.get("weight_decay", 1e-4),
         )  # Train
         losses = train_model(
             model, train_loader, criterion, optimizer, kwargs.get("epochs", 50), device
@@ -598,7 +602,6 @@ def train_model(*args, **kwargs):
 
         # Evaluate
         model.eval()
-        val_loss = 0
         val_predictions = []
         val_targets = []
 
@@ -606,13 +609,12 @@ def train_model(*args, **kwargs):
             with torch.no_grad():
                 for batch in val_loader:
                     if len(batch) == 3:
-                        x, y_score, y_grade = batch
+                        x, y_score, _ = batch
                     else:
                         x, y_score = batch
 
                     x, y_score = x.to(device), y_score.to(device)
                     pred = model(x)
-                    val_loss += criterion(pred, y_score).item()
 
                     val_predictions.extend(pred.cpu().numpy().flatten())
                     val_targets.extend(y_score.cpu().numpy().flatten())
@@ -708,8 +710,8 @@ def evaluate_model(
             if len(numerical_cols) > 0:
                 df_encoded[numerical_cols] = scaler.transform(df[numerical_cols])
 
-            X_test = df_encoded.values
-            preds = model.predict(X_test)
+            x_test = df_encoded.values
+            preds = model.predict(x_test)
             return mean_squared_error(y_test, preds)
         else:
             # Old format: just (model, mse)
@@ -760,7 +762,7 @@ def evaluate_security_model(
         grade_encoder=grade_encoder,
     )
 
-    test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
+    test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False, num_workers=0)
     device = next(model.parameters()).device
 
     model.eval()
@@ -1022,7 +1024,7 @@ def main():  # pragma: no cover
             # Or, assign all to training if test_split makes test_size zero and train_size positive
             train_dataset = full_dataset
             train_loader = DataLoader(
-                train_dataset, batch_size=args.batch_size, shuffle=True
+                train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=0
             )
             test_loader = None  # No test set
             print(
@@ -1031,7 +1033,7 @@ def main():  # pragma: no cover
         elif len(full_dataset) > 0 and test_size <= 0:  # if all data goes to train
             train_dataset = full_dataset
             train_loader = DataLoader(
-                train_dataset, batch_size=args.batch_size, shuffle=True
+                train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=0
             )
             test_loader = None  # No test set
             print(
@@ -1047,10 +1049,10 @@ def main():  # pragma: no cover
             generator=torch.Generator().manual_seed(args.seed),
         )
         train_loader = DataLoader(
-            train_dataset, batch_size=args.batch_size, shuffle=True
+            train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=0
         )
         test_loader = DataLoader(
-            test_dataset, batch_size=args.batch_size, shuffle=False
+            test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=0
         )
 
     print(
@@ -1066,19 +1068,26 @@ def main():  # pragma: no cover
         args.output_size,
         hidden_layers=args.hidden_layers,
     ).to(device)
-
-    # Assuming regression for now. This could be a parameter too.
-    # For binary classification, nn.BCELoss() with a Sigmoid in the model's output.
-    # For multi-class classification, nn.CrossEntropyLoss() with LogSoftmax or Softmax in model.
     criterion = nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-4)
 
     print("Starting training...")
     train_model(model, train_loader, criterion, optimizer, args.epochs, device)
 
     if test_loader:
         print("Starting evaluation...")
-        evaluate_model(model, test_loader, criterion, device)
+        # Evaluate the model on test data
+        model.eval()
+        test_loss = 0.0
+        with torch.no_grad():
+            for x, y in test_loader:
+                x, y = x.to(device), y.to(device)
+                outputs = model(x)
+                loss = criterion(outputs, y)
+                test_loss += loss.item()
+
+        avg_test_loss = test_loss / len(test_loader)
+        print(f"Test Loss: {avg_test_loss:.4f}")
     else:
         print("No test data to evaluate.")
 

@@ -12,7 +12,7 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 import joblib
 
 
-def train_model(train_csv, model_type="security", target_col="target_score", **kwargs):
+def train_model(train_csv, target_col="target_score", **kwargs):
     """Train a scikit-learn model on the data."""
     print(f"Loading training data from {train_csv}...")
 
@@ -21,30 +21,32 @@ def train_model(train_csv, model_type="security", target_col="target_score", **k
 
     # Separate features and target
     feature_cols = [col for col in df.columns if not col.startswith("target_")]
-    X_df = df[feature_cols].copy()
+    x_df = df[feature_cols].copy()
     y = df[target_col].values
 
     # Handle categorical variables
-    categorical_cols = X_df.select_dtypes(include=["object"]).columns
+    categorical_cols = x_df.select_dtypes(include=["object"]).columns
 
     # Encode categorical variables
     encoders = {}
     for col in categorical_cols:
         le = LabelEncoder()
-        X_df[col] = le.fit_transform(X_df[col].astype(str))
+        x_df[col] = le.fit_transform(x_df[col].astype(str))
         encoders[col] = le
 
     # Scale features
     scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X_df.values)
-
-    # Train model - using RandomForest for better performance than LinearRegression
+    x_scaled = scaler.fit_transform(
+        x_df.values
+    )  # Train model - using RandomForest for better performance than LinearRegression
     print("Training Random Forest model...")
-    model = RandomForestRegressor(n_estimators=100, random_state=42)
-    model.fit(X_scaled, y)
+    model = RandomForestRegressor(
+        n_estimators=100, random_state=42, min_samples_leaf=2, max_features="sqrt"
+    )
+    model.fit(x_scaled, y)
 
     # Calculate training error
-    train_pred = model.predict(X_scaled)
+    train_pred = model.predict(x_scaled)
     train_mse = mean_squared_error(y, train_pred)
 
     print(f"Training MSE: {train_mse:.4f}")

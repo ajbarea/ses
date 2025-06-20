@@ -147,7 +147,7 @@ def get_firewall_status():
                     profiles[current] = m_state.group(1)
                     current = None
         return {"profiles": profiles}
-    except (subprocess.CalledProcessError, FileNotFoundError, OSError) as e:
+    except (subprocess.CalledProcessError, OSError) as e:
         # netsh command is Windows-specific and will fail on other platforms
         if IS_WINDOWS:
             print(f"Warning: Unable to get firewall status: {e}")
@@ -177,7 +177,7 @@ def get_antivirus_status():
                 {"name": av.displayName, "state": getattr(av, "productState", None)}
             )
         return {"products": products}
-    except (ImportError, OSError, AttributeError, Exception) as e:
+    except Exception as e:
         # WMI is Windows-specific and will fail on other platforms
         if IS_WINDOWS:
             print(f"Warning: Unable to get antivirus status: {e}")
@@ -246,7 +246,7 @@ def get_password_policy():
         policy.setdefault("max_password_age", 0)
 
         return {"policy": policy}
-    except (subprocess.CalledProcessError, FileNotFoundError, OSError) as e:
+    except (subprocess.CalledProcessError, OSError) as e:
         # 'net accounts' command is Windows-specific and will fail on other platforms
         if IS_WINDOWS:
             print(f"Warning: Unable to get password policy: {e}")
