@@ -81,7 +81,7 @@ def plot_results(results, path: Path):
 
 
 if __name__ == "__main__":
-    layers_to_test = [1, 2, 4, 8, 16]
+    layers_to_test = [1, 2, 3, 4, 5]
     results = run_experiment(layers_to_test)
     for res in results:
         print(res)
