@@ -57,12 +57,12 @@ npm run dev
 
 ### Rule Systems
 
-- **[CLIPS Rules Directory](backend/clips_rules/)** - Expert system rule files
-  - [Patch Rules](backend/clips_rules/patch_rules.clp) - Windows update evaluation
-  - [Port Rules](backend/clips_rules/port_rules.clp) - Network security assessment
-  - [Firewall Rules](backend/clips_rules/firewall_rules.clp) - Firewall analysis
-  - [Password Rules](backend/clips_rules/password_rules.clp) - Password policy validation
-  - [Antivirus Rules](backend/clips_rules/antivirus_rules.clp) - Antivirus status checking
+- **[CLIPS Rules Directory](backend/src/clips_rules/)** - Expert system rule files
+  - [Patch Rules](backend/src/clips_rules/patch_rules.clp) - Windows update evaluation
+  - [Port Rules](backend/src/clips_rules/port_rules.clp) - Network security assessment
+  - [Firewall Rules](backend/src/clips_rules/firewall_rules.clp) - Firewall analysis
+  - [Password Rules](backend/src/clips_rules/password_rules.clp) - Password policy validation
+  - [Antivirus Rules](backend/src/clips_rules/antivirus_rules.clp) - Antivirus status checking
 
 ## Machine Learning Workflow
 
