@@ -53,9 +53,9 @@ def main():
         print(
             f"Expert System Consistency: {test_results['expert_system_consistency']:.4f}"
         )
-        print("(How often predicted scores align with Expert System grade boundaries)")
-
-    # Show some example predictions
+        print(
+            "(How often predicted scores align with Expert System grade boundaries)"
+        )  # Show some example predictions
     print("\nSample Predictions vs Actual:")
     print("-" * 60)
     print("Sample | Predicted | Actual | Error | Expert System Approximation")
@@ -64,7 +64,7 @@ def main():
     targets = test_results["targets"][:10]
 
     for i, (pred, actual) in enumerate(zip(predictions, targets)):
-        error = abs(pred[0] - actual[0])
+        error = abs(pred - actual)
         # Determine approximation quality
         if error < 5:
             quality = "Excellent"
@@ -76,7 +76,7 @@ def main():
             quality = "Poor"
 
         print(
-            f"  {i+1:2d}   |   {pred[0]:5.1f}   |  {actual[0]:5.1f}  | {error:5.1f} | {quality}"
+            f"  {i+1:2d}   |   {pred:5.1f}   |  {actual:5.1f}  | {error:5.1f} | {quality}"
         )
 
     # Overall approximation assessment

@@ -6,9 +6,10 @@ across different evaluation engines (legacy Python and CLIPS).
 
 # Master mapping of severity to numeric score delta
 SEVERITY_SCORES = {
-    "critical": -30,
-    "warning": -10,
-    "info": 0,
+    "critical": -30,  # severe security issues
+    "warning": -10,  # moderate issues
+    "minor": -3,  # minor violations that need attention
+    "info": 0,  # informational findings, no score change
 }
 
 # Base score to start from
@@ -27,6 +28,7 @@ GRADE_THRESHOLDS = {
 # Default score mappings for CLIPS findings
 DEFAULT_FINDING_IMPACTS = {
     "info": {"value": 0, "type": "neutral"},
+    "minor": {"value": -3, "type": "penalty"},
     "warning": {"value": -10, "type": "penalty"},
     "critical": {"value": -30, "type": "penalty"},
 }

@@ -63,7 +63,7 @@
     =>
     (assert (finding
         (rule-name "firewall_public_disabled")
-        (level "warning")
+        (level "minor")
         (description "Public firewall profile is disabled.")
         (recommendation "Enable Windows Firewall for the public profile.")
     ))
@@ -78,7 +78,7 @@
     =>
     (assert (finding
         (rule-name "firewall_domain_disabled")
-        (level "warning")
+        (level "minor")
         (description "Domain firewall profile is disabled.")
         (recommendation "Enable Windows Firewall for the domain profile.")
     ))
@@ -93,7 +93,7 @@
     =>
     (assert (finding
         (rule-name "firewall_private_disabled")
-        (level "warning")
+        (level "minor")
         (description "Private firewall profile is disabled.")
         (recommendation "Enable Windows Firewall for the private profile.")
     ))

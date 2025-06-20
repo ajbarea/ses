@@ -27,7 +27,7 @@
     =>
     (assert (finding
         (rule-name "antivirus_definitions_outdated")
-        (level "warning")
+        (level "minor")
         (description "Antivirus definitions are out of date.")
         (recommendation "Update antivirus definitions as soon as possible.")
     ))
