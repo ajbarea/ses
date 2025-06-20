@@ -11,3 +11,5 @@ frontend/dist_electron/
 backend/.venv_backend_build/
 backend/dist/
 backend/ses_backend.spec
+backend/venv311/
+.DS_Store

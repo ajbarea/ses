@@ -1,4 +1,19 @@
-"""This module provides training and evaluation routines for security-related ML tasks."""
+"""Machine Learning Training and Evaluation Module.
+
+This module provides neural network and linear regression models for security evaluation
+tasks. It includes dataset preparation, model training, and evaluation functionality
+with support for both score prediction and security grade classification.
+
+Key Components:
+    - SecurityDataset: Custom dataset for loading and preprocessing security metrics
+    - SecurityNN: Neural network model for security score prediction and grade classification
+    - SimpleNN: Basic feed-forward neural network for regression tasks
+    - Training and evaluation utilities for both PyTorch and scikit-learn models
+
+Note:
+    All models support both regression (security scores) and classification (security grades)
+    tasks, with automatic handling of categorical and numerical features.
+"""
 
 import argparse
 import pandas as pd
@@ -13,7 +28,28 @@ import numpy as np
 
 
 class SecurityDataset(Dataset):
-    """Loads and preprocesses security metrics for training."""
+    """Custom dataset for security metrics preprocessing and loading.
+
+    Handles preprocessing of both categorical and numerical features, with support
+    for both security scores and grades. Features are automatically encoded and
+    scaled based on data types.
+
+    Args:
+        csv_file (str): Path to CSV file containing security metrics data.
+        target_col (str, optional): Column name for target scores. Defaults to "target_score".
+        fit_encoders (bool, optional): Whether to fit new encoders or use existing ones. Defaults to True.
+        encoders (dict, optional): Pre-fitted LabelEncoders for categorical columns. Required if fit_encoders=False.
+        scaler (StandardScaler, optional): Pre-fitted scaler for numerical columns. Required if fit_encoders=False.
+        grade_encoder (LabelEncoder, optional): Pre-fitted encoder for security grades.
+
+    Attributes:
+        features (torch.Tensor): Preprocessed feature tensor.
+        targets (torch.Tensor): Target scores tensor.
+        target_grades (torch.Tensor): Optional encoded security grades tensor.
+        encoders (dict): LabelEncoders for categorical features.
+        scaler (StandardScaler): Scaler for numerical features.
+        grade_encoder (LabelEncoder): Optional encoder for security grades.
+    """
 
     def __init__(
         self,
@@ -28,9 +64,9 @@ class SecurityDataset(Dataset):
 
         # Separate features and targets
         self.target_col = target_col
-        feature_cols = [col for col in df.columns if not col.startswith("target_")]
-
-        # Handle categorical variables
+        feature_cols = [
+            col for col in df.columns if not col.startswith("target_")
+        ]  # Handle categorical variables
         categorical_cols = df[feature_cols].select_dtypes(include=["object"]).columns
         numerical_cols = df[feature_cols].select_dtypes(include=["number"]).columns
 
@@ -38,61 +74,63 @@ class SecurityDataset(Dataset):
             self.encoders = {}
             self.scaler = StandardScaler()
 
-            # Encode categorical variables
+            # Encode categorical variables - vectorized approach
             df_encoded = df[feature_cols].copy()
-            for col in categorical_cols:
-                le = LabelEncoder()
-                df_encoded[col] = le.fit_transform(df[col].astype(str))
-                self.encoders[col] = le
 
-            # Scale numerical features
-            df_encoded[numerical_cols] = self.scaler.fit_transform(df[numerical_cols])
+            # Process all categorical columns efficiently
+            if len(categorical_cols) > 0:
+                for col in categorical_cols:
+                    le = LabelEncoder()
+                    df_encoded[col] = le.fit_transform(df[col].astype(str))
+                    self.encoders[col] = le
+
+            # Scale numerical features in one operation
+            if len(numerical_cols) > 0:
+                df_encoded[numerical_cols] = self.scaler.fit_transform(
+                    df[numerical_cols]
+                )
 
         else:
             self.encoders = encoders
             self.scaler = scaler
 
-            # Apply existing encoders
+            # Apply existing encoders - optimized preprocessing
             df_encoded = df[feature_cols].copy()
+
+            # Process categorical columns efficiently with batch operations
             for col in categorical_cols:
                 if col in self.encoders:
-                    # Handle unseen categories gracefully
-                    df_encoded[col] = (
-                        df[col]
-                        .astype(str)
-                        .map(
-                            lambda x: (
-                                self.encoders[col].transform([x])[0]
-                                if x in self.encoders[col].classes_
-                                else 0
-                            )
-                        )
-                    )
+                    # Handle unseen categories gracefully - optimized with dictionary mapping
+                    class_mapping = {
+                        cls: self.encoders[col].transform([cls])[0]
+                        for cls in self.encoders[col].classes_
+                    }
+                    df_encoded[col] = df[col].astype(str).map(class_mapping).fillna(0)
                 else:
-                    df_encoded[col] = 0
+                    df_encoded[col] = (
+                        0  # Apply existing scaler to numerical columns in batch
+                    )
+            if len(numerical_cols) > 0:
+                df_encoded[numerical_cols] = self.scaler.transform(df[numerical_cols])
 
-            # Apply existing scaler
-            df_encoded[numerical_cols] = self.scaler.transform(df[numerical_cols])
-
-        self.features = torch.tensor(df_encoded.values, dtype=torch.float32)
-        self.targets = torch.tensor(
-            df[target_col].values, dtype=torch.float32
+        # Convert to tensors efficiently - avoid unnecessary copies
+        self.features = torch.from_numpy(df_encoded.values.astype(np.float32))
+        self.targets = torch.from_numpy(
+            df[target_col].values.astype(np.float32)
         ).unsqueeze(1)
 
         # Store target grades for classification if available
         if "target_grade" in df.columns:
             if fit_encoders:
                 self.grade_encoder = LabelEncoder()
-                self.target_grades = torch.tensor(
-                    self.grade_encoder.fit_transform(df["target_grade"]),
-                    dtype=torch.long,
-                )
+                encoded_grades = self.grade_encoder.fit_transform(df["target_grade"])
+                self.target_grades = torch.from_numpy(encoded_grades.astype(np.int64))
             else:
                 self.grade_encoder = grade_encoder
                 if self.grade_encoder:
-                    self.target_grades = torch.tensor(
-                        self.grade_encoder.transform(df["target_grade"]),
-                        dtype=torch.long,
+                    encoded_grades = self.grade_encoder.transform(df["target_grade"])
+                    self.target_grades = torch.from_numpy(
+                        encoded_grades.astype(np.int64)
                     )
                 else:
                     self.target_grades = None
@@ -109,24 +147,48 @@ class SecurityDataset(Dataset):
 
 
 class SecurityNN(nn.Module):
-    """A PyTorch module for predicting security scores and optionally classifying security grades."""
+    """Neural network for security score prediction and grade classification.
+
+    Features a configurable architecture with multiple hidden layers, layer
+    normalization, and dropout for regularization. Includes both a score predictor
+    and an optional grade classifier head.
+
+    Args:
+        input_size (int): Number of input features.
+        hidden_size (int, optional): Size of hidden layers. Defaults to 64.
+        hidden_layers (int, optional): Number of hidden layers. Defaults to 2.
+        dropout_rate (float, optional): Dropout probability. Defaults to 0.2.
+
+    Attributes:
+        score_predictor (nn.Sequential): Neural network for score prediction (0-100).
+        grade_classifier (nn.Sequential): Optional network for grade classification.
+    """
 
     def __init__(
-        self, input_size: int, hidden_size: int = 64, dropout_rate: float = 0.2
+        self,
+        input_size: int,
+        hidden_size: int = 64,
+        hidden_layers: int = 2,
+        dropout_rate: float = 0.2,
     ):
         super().__init__()
-        self.score_predictor = nn.Sequential(
-            nn.Linear(input_size, hidden_size),
-            nn.LayerNorm(hidden_size),
-            nn.ReLU(),
-            nn.Dropout(dropout_rate),
-            nn.Linear(hidden_size, hidden_size // 2),
-            nn.LayerNorm(hidden_size // 2),
-            nn.ReLU(),
-            nn.Dropout(dropout_rate),
-            nn.Linear(hidden_size // 2, 1),
-            nn.Sigmoid(),  # Output between 0 and 1, will be scaled to 0-100
-        )
+
+        # Build score predictor with a configurable number of hidden layers
+        layers = []
+        in_features = input_size
+        for _ in range(max(1, hidden_layers)):
+            layers.extend(
+                [
+                    nn.Linear(in_features, hidden_size),
+                    nn.LayerNorm(hidden_size),
+                    nn.ReLU(),
+                    nn.Dropout(dropout_rate),
+                ]
+            )
+            in_features = hidden_size
+
+        layers.extend([nn.Linear(in_features, 1), nn.Sigmoid()])
+        self.score_predictor = nn.Sequential(*layers)
 
         # Optional classification head for grades
         self.grade_classifier = nn.Sequential(
@@ -145,22 +207,65 @@ class SecurityNN(nn.Module):
 
 
 class SimpleNN(nn.Module):
-    """A simple feed-forward network with one hidden layer."""
+    """Basic feed-forward neural network with configurable layers.
 
-    def __init__(self, input_size: int, hidden_size: int, output_size: int):
+    A simple neural network implementation that supports variable depth through
+    configurable hidden layers.
+
+    Args:
+        input_size (int): Number of input features.
+        hidden_size (int): Number of neurons in hidden layers.
+        output_size (int): Number of output neurons.
+        hidden_layers (int, optional): Number of hidden layers. Defaults to 1.
+
+    Attributes:
+        net (nn.Sequential): The neural network layers.
+    """
+
+    def __init__(
+        self,
+        input_size: int,
+        hidden_size: int,
+        output_size: int,
+        hidden_layers: int = 1,
+    ):
         super().__init__()
-        self.net = nn.Sequential(
-            nn.Linear(input_size, hidden_size),
-            nn.ReLU(),
-            nn.Linear(hidden_size, output_size),
-        )
+        layers = []
+        in_features = input_size
+        for _ in range(max(1, hidden_layers)):
+            layers.append(nn.Linear(in_features, hidden_size))
+            layers.append(nn.ReLU())
+            in_features = hidden_size
+        layers.append(nn.Linear(in_features, output_size))
+        self.net = nn.Sequential(*layers)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass computation.
+
+        Args:
+            x (torch.Tensor): Input tensor of shape (batch_size, input_size)
+
+        Returns:
+            torch.Tensor: Output tensor of shape (batch_size, output_size)
+        """
         return self.net(x)
 
 
 class CSVDataset(Dataset):
-    """Loads features and a target column from a CSV for training."""
+    """Basic dataset for loading CSV data into PyTorch tensors.
+
+    A simplified dataset class that loads features and a single target column
+    from a CSV file, converting them directly to PyTorch tensors without any
+    preprocessing.
+
+    Args:
+        csv_file (str): Path to the CSV file containing the data.
+        target_col (str, optional): Name of the target column. Defaults to "target_score".
+
+    Attributes:
+        features (torch.Tensor): Feature tensor of shape (n_samples, n_features).
+        targets (torch.Tensor): Target tensor of shape (n_samples, 1).
+    """
 
     def __init__(self, csv_file: str, target_col: str = "target_score"):
         df = pd.read_csv(csv_file)
@@ -187,7 +292,24 @@ def _train_security_model(
     device: torch.device,
     classification_loss=None,
 ) -> list:
-    """Train a SecurityNN with optional grade classification."""
+    """Train a SecurityNN model with support for both score and grade prediction.
+
+    Args:
+        model (nn.Module): SecurityNN model instance.
+        loader (DataLoader): DataLoader for training data.
+        criterion: Loss function for score prediction.
+        optimizer: Optimizer instance.
+        epochs (int): Number of training epochs.
+        device (torch.device): Device to train on (cuda/cpu).
+        classification_loss: Optional loss function for grade classification.
+
+    Returns:
+        list: Training losses for each epoch.
+
+    Note:
+        If the dataset includes grade labels, both score prediction and grade
+        classification losses are combined with a 0.7/0.3 weighting.
+    """
     model.to(device)
     losses = []
 
@@ -246,7 +368,22 @@ def _train_torch_model(
     epochs: int,
     device: torch.device,
 ) -> list:
-    """Train a generic PyTorch model and return epoch losses."""
+    """Train a generic PyTorch model.
+
+    A basic training loop for PyTorch models that performs forward passes,
+    backpropagation, and optimization steps.
+
+    Args:
+        model (nn.Module): The PyTorch model to train.
+        loader (DataLoader): DataLoader providing training batches.
+        criterion: Loss function for computing training error.
+        optimizer: Optimizer for updating model parameters.
+        epochs (int): Number of complete passes through the training data.
+        device (torch.device): Device (CPU/GPU) to use for training.
+
+    Returns:
+        list: Training loss values for each epoch.
+    """
     model.to(device)
     losses = []
     for _ in range(epochs):
@@ -264,30 +401,108 @@ def _train_torch_model(
 
 
 def _train_sklearn_model(csv_file: str, target_col: str = "target_score"):
-    """Train a linear regression model on CSV and return (model, MSE)."""
+    """Train a scikit-learn linear regression model with preprocessing.
+
+    Handles categorical and numerical feature preprocessing automatically, including
+    label encoding for categorical variables and standard scaling for numerical features.
+
+    Args:
+        csv_file (str): Path to CSV file containing training data.
+        target_col (str, optional): Name of target column. Defaults to "target_score".
+
+    Returns:
+        tuple: A tuple containing:
+            - tuple: (model, encoders, scaler, feature_cols) for future preprocessing
+            - float: Mean squared error on training data
+    """
     df = pd.read_csv(csv_file)
-    # Select numeric feature columns, drop target and any grade column
-    X_df = df.drop(columns=[target_col, "target_grade"], errors="ignore")
-    X_df = X_df.select_dtypes(include=["number"])
-    # Prepare data arrays
-    X = X_df.values
+
+    # Extract non-target columns as features
+    feature_cols = [col for col in df.columns if not col.startswith("target_")]
+
+    # Split features into categorical and numerical based on dtype
+    categorical_cols = df[feature_cols].select_dtypes(include=["object"]).columns
+    numerical_cols = df[feature_cols].select_dtypes(include=["number"]).columns
+
+    # Preprocess categorical features using label encoding
+    encoders = {}
+    df_encoded = df[feature_cols].copy()
+    for col in categorical_cols:
+        le = LabelEncoder()
+        df_encoded[col] = le.fit_transform(df[col].astype(str))
+        encoders[col] = le
+
+    # Scale numerical features to zero mean and unit variance
+    scaler = StandardScaler()
+    if len(numerical_cols) > 0:
+        df_encoded[numerical_cols] = scaler.fit_transform(df[numerical_cols])
+
+    # Prepare final arrays and train model
+    X = df_encoded.values
     y = df[target_col].values
+
     model = LinearRegression().fit(X, y)
     preds = model.predict(X)
-    return model, mean_squared_error(y, preds)
+
+    return (model, encoders, scaler, feature_cols), mean_squared_error(y, preds)
 
 
 def _load_xy(csv_file: str, target_col: str = "target_score"):
     """Load X and y from a CSV, removing the target column and ignoring 'target_grade'."""
     df = pd.read_csv(csv_file)
     y = df[target_col]
-    X = df.drop(columns=[target_col, "target_grade"], errors="ignore")
-    X = X.select_dtypes(include="number")
+
+    feature_cols = [col for col in df.columns if not col.startswith("target_")]
+
+    # Handle categorical variables
+    categorical_cols = df[feature_cols].select_dtypes(include=["object"]).columns
+    numerical_cols = df[feature_cols].select_dtypes(include=["number"]).columns
+
+    # Encode categorical variables
+    encoders = {}
+    df_encoded = df[feature_cols].copy()
+    for col in categorical_cols:
+        le = LabelEncoder()
+        df_encoded[col] = le.fit_transform(df[col].astype(str))
+        encoders[col] = le
+
+    # Scale numerical features
+    scaler = StandardScaler()
+    if len(numerical_cols) > 0:
+        df_encoded[numerical_cols] = scaler.fit_transform(df[numerical_cols])
+
+    X = df_encoded
     return X, y
 
 
 def train_model(*args, **kwargs):
-    """Train either a PyTorch, SecurityNN, or sklearn model depending on arguments."""
+    """Train a security evaluation model.
+
+    Supports multiple training modes based on input arguments:
+    1. PyTorch model training (6 positional args)
+    2. Security model training (model_type="security")
+    3. Sklearn model training (1-2 positional args)
+
+    Args:
+        *args: Variable length argument list.
+        **kwargs: Arbitrary keyword arguments.
+            For security model:
+                - train_csv (str): Path to training data
+                - target_col (str): Target column name
+                - hidden_size (int): Hidden layer size
+                - hidden_layers (int): Number of hidden layers
+                - epochs (int): Training epochs
+                - batch_size (int): Batch size
+                - lr (float): Learning rate
+                - no_cuda (bool): Disable CUDA
+
+    Returns:
+        Union[dict, tuple]: Training results based on mode:
+            - Security model: Dict with model, dataset, metrics, and encoders
+            - Sklearn model: Tuple of (model, encoders, scaler, features), mse
+            - PyTorch model: List of training losses
+    """
+
     if len(args) == 6:
         # PyTorch training: (model, loader, criterion, optimizer, epochs, device)
         model, loader, criterion, optimizer, epochs, device = args
@@ -318,7 +533,11 @@ def train_model(*args, **kwargs):
         # Handle empty dataset
         if len(dataset) == 0:
             print("Warning: Dataset is empty. Creating minimal training setup.")
-            model = SecurityNN(1, kwargs.get("hidden_size", 64))  # Minimal model
+            model = SecurityNN(
+                1,
+                kwargs.get("hidden_size", 64),
+                kwargs.get("hidden_layers", 2),
+            )  # Minimal model
             return {
                 "model": model,
                 "dataset": dataset,
@@ -357,7 +576,11 @@ def train_model(*args, **kwargs):
 
         # Create model
         input_size = dataset.features.shape[1]
-        model = SecurityNN(input_size, kwargs.get("hidden_size", 64))
+        model = SecurityNN(
+            input_size,
+            kwargs.get("hidden_size", 64),
+            kwargs.get("hidden_layers", 2),
+        )
 
         # Training setup
         device = torch.device(
@@ -366,9 +589,9 @@ def train_model(*args, **kwargs):
             else "cpu"
         )
         criterion = nn.MSELoss()
-        optimizer = torch.optim.Adam(model.parameters(), lr=kwargs.get("lr", 0.001))
-
-        # Train
+        optimizer = torch.optim.Adam(
+            model.parameters(), lr=kwargs.get("lr", 0.001)
+        )  # Train
         losses = train_model(
             model, train_loader, criterion, optimizer, kwargs.get("epochs", 50), device
         )
@@ -391,8 +614,8 @@ def train_model(*args, **kwargs):
                     pred = model(x)
                     val_loss += criterion(pred, y_score).item()
 
-                    val_predictions.extend(pred.cpu().numpy())
-                    val_targets.extend(y_score.cpu().numpy())
+                    val_predictions.extend(pred.cpu().numpy().flatten())
+                    val_targets.extend(y_score.cpu().numpy().flatten())
 
         val_mse = (
             mean_squared_error(val_targets, val_predictions)
@@ -427,8 +650,74 @@ def train_model(*args, **kwargs):
 def evaluate_model(
     model_or_tuple, test_csv: str, target_col: str = "target_score"
 ) -> float:
-    """Compute MSE on test CSV for a scikit-learn model."""
-    model = model_or_tuple[0] if isinstance(model_or_tuple, tuple) else model_or_tuple
+    """Evaluate a trained model on test data.
+
+    Supports both new-style models (with preprocessing information) and legacy models.
+    Automatically applies the same preprocessing steps used during training.
+
+    Args:
+        model_or_tuple: Either a trained model instance or a tuple containing:
+            ((model, encoders, scaler, feature_cols), mse)
+        test_csv (str): Path to CSV file containing test data.
+        target_col (str, optional): Name of target column. Defaults to "target_score".
+
+    Returns:
+        float: Mean squared error on test data.
+
+    Note:
+        For legacy models without preprocessing information, basic label encoding
+        and scaling will be applied to the test data.
+    """
+    if isinstance(model_or_tuple, tuple) and len(model_or_tuple) == 2:
+        # New format: ((model, encoders, scaler, feature_cols), mse)
+        model_data, _ = model_or_tuple
+        if isinstance(model_data, tuple) and len(model_data) == 4:
+            model, encoders, scaler, feature_cols = model_data
+
+            # Load test data and apply same preprocessing
+            df = pd.read_csv(test_csv)
+            y_test = df[target_col].values
+
+            # Apply same preprocessing as training
+            categorical_cols = (
+                df[feature_cols].select_dtypes(include=["object"]).columns
+            )
+            numerical_cols = df[feature_cols].select_dtypes(include=["number"]).columns
+
+            df_encoded = df[feature_cols].copy()
+
+            # Apply encoders to categorical columns
+            for col in categorical_cols:
+                if col in encoders:
+                    # Handle unseen categories gracefully - optimized with dictionary mapping
+                    df_encoded[col] = (
+                        df[col]
+                        .astype(str)
+                        .map(
+                            {
+                                cls: encoders[col].transform([cls])[0]
+                                for cls in encoders[col].classes_
+                            }
+                        )
+                        .fillna(0)
+                    )
+                else:
+                    df_encoded[col] = 0
+
+            # Apply scaler to numerical columns
+            if len(numerical_cols) > 0:
+                df_encoded[numerical_cols] = scaler.transform(df[numerical_cols])
+
+            X_test = df_encoded.values
+            preds = model.predict(X_test)
+            return mean_squared_error(y_test, preds)
+        else:
+            # Old format: just (model, mse)
+            model = model_or_tuple[0]
+    else:
+        model = model_or_tuple
+
+    # Fallback to old behavior for backward compatibility
     X_test, y_test = _load_xy(test_csv, target_col)
     preds = model.predict(X_test)
     return mean_squared_error(y_test, preds)
@@ -437,7 +726,16 @@ def evaluate_model(
 def evaluate_security_model(
     model_data, test_csv: str, target_col: str = "target_score"
 ):
-    """Evaluate a trained SecurityNN (and optional grade classifier) on test data."""
+    """Evaluate a SecurityNN model on test data.
+
+    Args:
+        model_data (dict): Dictionary containing model and preprocessing objects.
+        test_csv (str): Path to test CSV file.
+        target_col (str, optional): Target score column name. Defaults to "target_score".
+
+    Returns:
+        dict: Evaluation metrics including MSE, MAE, RMSE, and consistency metrics.
+    """
     if isinstance(model_data, dict):
         model = model_data["model"]
         encoders = model_data["encoders"]
@@ -481,14 +779,15 @@ def evaluate_security_model(
 
             x, y_score = x.to(device), y_score.to(device)
 
+            # Handle both single-task and multi-task prediction
             if len(batch) == 3 and grade_encoder:
                 score_pred, grade_pred = model(x, predict_grade=True)
                 grade_predictions.extend(torch.argmax(grade_pred, dim=1).cpu().numpy())
             else:
                 score_pred = model(x)
 
-            predictions.extend(score_pred.cpu().numpy())
-            targets.extend(y_score.cpu().numpy())
+            predictions.extend(score_pred.cpu().numpy().flatten())
+            targets.extend(y_score.cpu().numpy().flatten())
 
     # Handle empty test set
     if not targets:
@@ -505,15 +804,15 @@ def evaluate_security_model(
 
     # Calculate metrics
     mse = mean_squared_error(targets, predictions)
-    mae = np.mean(np.abs(np.array(targets) - np.array(predictions)))
+
+    # Calculate metrics using numpy arrays (avoid duplicate array creation)
+    targets_array = np.array(targets)
+    predictions_array = np.array(predictions)
+    mae = np.mean(np.abs(predictions_array - targets_array))
 
     # Calculate denominator for R² score
-    targets_array = np.array(targets)
-    denominator = np.sum((targets_array - np.mean(targets_array)) ** 2)
-
-    # Calculate denominator for R² score
-    targets_array = np.array(targets)
-    denominator = np.sum((targets_array - np.mean(targets_array)) ** 2)
+    targets_mean = np.mean(targets_array)
+    denominator = np.sum((targets_array - targets_mean) ** 2)
 
     # Calculate R² score with division by zero protection
     if denominator == 0:
@@ -521,7 +820,7 @@ def evaluate_security_model(
         # Common conventions: set to 0 or NaN
         r2_score = 0  # or np.nan
     else:
-        numerator = np.sum((targets_array - np.array(predictions)) ** 2)
+        numerator = np.sum((targets_array - predictions_array) ** 2)
         r2_score = 1 - (numerator / denominator)
 
     results = {
@@ -540,9 +839,9 @@ def evaluate_security_model(
         accuracy = accuracy_score(grade_targets, grade_predictions)
         results["grade_accuracy"] = accuracy
         results["grade_predictions"] = grade_predictions
-        results["grade_targets"] = grade_targets
-
-        # Calculate how well we approximate the Expert System's decision boundaries
+        results["grade_targets"] = (
+            grade_targets  # Calculate how well we approximate the Expert System's decision boundaries
+        )
         score_ranges = {
             "Excellent": (90, 100),
             "Good": (80, 89),
@@ -551,27 +850,31 @@ def evaluate_security_model(
             "Critical Risk": (0, 39),
         }
 
-        # Measure consistency between predicted scores and grades
+        # Measure consistency between predicted scores and grades - optimized
         consistent_predictions = 0
         total_predictions = len(predictions)
 
-        for i, (pred_score, target_grade_idx) in enumerate(
-            zip(predictions, grade_targets)
-        ):
-            if hasattr(model_data.get("dataset"), "grade_encoder"):
-                target_grade = model_data["dataset"].grade_encoder.inverse_transform(
-                    [target_grade_idx]
-                )[0]
-                # Map each grade to its score range and check if prediction falls within it
-                # This assumes consistent grading in our system
-                for grade_name, (min_val, max_val) in score_ranges.items():
-                    # Simple matching for now - could be enhanced with fuzzy matching
-                    if grade_name.startswith(target_grade) or target_grade.startswith(
-                        grade_name
-                    ):
-                        if min_val <= pred_score[0] <= max_val:
-                            consistent_predictions += 1
-                        break
+        if total_predictions > 0:
+            # Convert predictions to numpy array for vectorized operations
+            pred_scores = np.array(predictions).flatten()
+
+            for i, (pred_score, target_grade_idx) in enumerate(
+                zip(pred_scores, grade_targets)
+            ):
+                if hasattr(model_data.get("dataset"), "grade_encoder"):
+                    target_grade = model_data[
+                        "dataset"
+                    ].grade_encoder.inverse_transform([target_grade_idx])[0]
+                    # Map each grade to its score range and check if prediction falls within it
+                    # This assumes consistent grading in our system
+                    for grade_name, (min_val, max_val) in score_ranges.items():
+                        # Simple matching for now - could be enhanced with fuzzy matching
+                        if grade_name.startswith(
+                            target_grade
+                        ) or target_grade.startswith(grade_name):
+                            if min_val <= pred_score <= max_val:
+                                consistent_predictions += 1
+                            break
 
         results["expert_system_consistency"] = (
             consistent_predictions / total_predictions if total_predictions > 0 else 0.0
@@ -584,12 +887,24 @@ def evaluate_security_model(
 
 
 def save_model(model, path: str):
-    """Save a trained model to disk."""
+    """Save a trained model to disk.
+
+    Args:
+        model: Trained model instance.
+        path (str): Path to save the model.
+    """
     joblib.dump(model, path)
 
 
 def load_model(path: str):
-    """Load a persisted model from disk."""
+    """Load a saved model from disk.
+
+    Args:
+        path (str): Path to the saved model file.
+
+    Returns:
+        The loaded model instance.
+    """
     return joblib.load(path)
 
 
@@ -624,7 +939,16 @@ def main():  # pragma: no cover
         help="Number of input features (auto-detected if -1)",
     )
     parser.add_argument(
-        "--hidden_size", type=int, default=64, help="Number of neurons in hidden layer"
+        "--hidden_size",
+        type=int,
+        default=64,
+        help="Number of neurons in each hidden layer",
+    )
+    parser.add_argument(
+        "--hidden_layers",
+        type=int,
+        default=1,
+        help="Number of hidden layers for the simple model",
     )
     parser.add_argument(
         "--output_size",
@@ -733,10 +1057,15 @@ def main():  # pragma: no cover
         f"Hyperparameters: LR={args.lr}, Epochs={args.epochs}, BatchSize={args.batch_size}"
     )
     print(
-        f"Model: Input={args.input_size}, Hidden={args.hidden_size}, Output={args.output_size}"
+        f"Model: Input={args.input_size}, Hidden={args.hidden_size}x{args.hidden_layers}, Output={args.output_size}"
     )
 
-    model = SimpleNN(args.input_size, args.hidden_size, args.output_size).to(device)
+    model = SimpleNN(
+        args.input_size,
+        args.hidden_size,
+        args.output_size,
+        hidden_layers=args.hidden_layers,
+    ).to(device)
 
     # Assuming regression for now. This could be a parameter too.
     # For binary classification, nn.BCELoss() with a Sigmoid in the model's output.

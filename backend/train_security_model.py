@@ -1,9 +1,17 @@
 #!/usr/bin/env python3
 """
-Train and evaluate a neural network to approximate the Expert System.
+Train and evaluate a machine learning model to approximate the Expert System.
 """
 
-from src.ml_trainer import train_model, evaluate_security_model
+# Try to use the full PyTorch version, fallback to simple sklearn version
+try:
+    from src.ml_trainer import train_model, evaluate_security_model
+
+    print("Using PyTorch-based ML trainer")
+except ImportError:
+    from src.ml_trainer_simple import train_model, evaluate_security_model
+
+    print("Using simplified scikit-learn ML trainer (PyTorch not available)")
 
 
 def main():
@@ -21,6 +29,7 @@ def main():
         target_col="target_score",
         epochs=100,
         hidden_size=128,
+        hidden_layers=3,
         lr=0.001,
         batch_size=16,
         no_cuda=False,

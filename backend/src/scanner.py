@@ -13,6 +13,11 @@ import psutil
 import subprocess
 import re
 import types
+import platform
+
+# Detect the current platform
+CURRENT_PLATFORM = platform.system()
+IS_WINDOWS = CURRENT_PLATFORM == "Windows"
 
 # Create fallback WMI functionality for non-Windows platforms
 try:
@@ -67,14 +72,25 @@ def get_open_ports():
     Returns:
         dict: Contains 'ports' list of open port numbers
     """
-    ports = sorted(
-        {
-            conn.laddr.port
-            for conn in psutil.net_connections()
-            if conn.status == psutil.CONN_LISTEN and conn.laddr
-        }
-    )
-    return {"ports": ports}
+    try:
+        ports = sorted(
+            {
+                conn.laddr.port
+                for conn in psutil.net_connections()
+                if conn.status == psutil.CONN_LISTEN and conn.laddr
+            }
+        )
+        return {"ports": ports}
+    except Exception as e:
+        # On macOS and other non-Windows platforms, this might require elevated permissions
+        # Return empty list to allow the app to continue functioning
+        if IS_WINDOWS:
+            print(f"Warning: Unable to get open ports due to error: {e}")
+        else:
+            print(
+                f"Warning: Unable to get open ports on {CURRENT_PLATFORM} - may require elevated permissions or be unsupported: {e}"
+            )
+        return {"ports": []}
 
 
 def get_running_services():
@@ -112,24 +128,36 @@ def get_firewall_status():
     Returns:
         dict: Contains 'profiles' dict with status of each profile
     """
-    output = subprocess.check_output(
-        "netsh advfirewall show allprofiles state", shell=True, text=True
-    )
-    profiles = {}
-    current = None
-    for line in output.splitlines():
-        stripped = line.strip()
-        # Match profile section headers
-        m_hdr = re.match(r"^(Domain|Private|Public) Profile Settings:", stripped)
-        if m_hdr:
-            current = m_hdr.group(1).lower()
-        # Match state line within a profile section
-        elif current:
-            m_state = re.match(r"^State\s+(ON|OFF)", stripped)
-            if m_state:
-                profiles[current] = m_state.group(1)
-                current = None
-    return {"profiles": profiles}
+    try:
+        output = subprocess.check_output(
+            "netsh advfirewall show allprofiles state", shell=True, text=True
+        )
+        profiles = {}
+        current = None
+        for line in output.splitlines():
+            stripped = line.strip()
+            # Match profile section headers
+            m_hdr = re.match(r"^(Domain|Private|Public) Profile Settings:", stripped)
+            if m_hdr:
+                current = m_hdr.group(1).lower()
+            # Match state line within a profile section
+            elif current:
+                m_state = re.match(r"^State\s+(ON|OFF)", stripped)
+                if m_state:
+                    profiles[current] = m_state.group(1)
+                    current = None
+        return {"profiles": profiles}
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError) as e:
+        # netsh command is Windows-specific and will fail on other platforms
+        if IS_WINDOWS:
+            print(f"Warning: Unable to get firewall status: {e}")
+        else:
+            print(
+                f"Warning: Firewall status not available on {CURRENT_PLATFORM} (Windows-specific feature)"
+            )
+        return {
+            "profiles": {"domain": "UNKNOWN", "private": "UNKNOWN", "public": "UNKNOWN"}
+        }
 
 
 def get_antivirus_status():
@@ -141,13 +169,23 @@ def get_antivirus_status():
     Returns:
         dict: Contains 'products' list with name and state information
     """
-    sec = wmi.WMI(namespace="root\\SecurityCenter2")
-    products = []
-    for av in sec.AntiVirusProduct():
-        products.append(
-            {"name": av.displayName, "state": getattr(av, "productState", None)}
-        )
-    return {"products": products}
+    try:
+        sec = wmi.WMI(namespace="root\\SecurityCenter2")
+        products = []
+        for av in sec.AntiVirusProduct():
+            products.append(
+                {"name": av.displayName, "state": getattr(av, "productState", None)}
+            )
+        return {"products": products}
+    except (ImportError, OSError, AttributeError, Exception) as e:
+        # WMI is Windows-specific and will fail on other platforms
+        if IS_WINDOWS:
+            print(f"Warning: Unable to get antivirus status: {e}")
+        else:
+            print(
+                f"Warning: Antivirus status not available on {CURRENT_PLATFORM} (Windows-specific feature)"
+            )
+        return {"products": []}
 
 
 def get_password_policy():
@@ -159,51 +197,61 @@ def get_password_policy():
     Returns:
         dict: Contains 'policy' dict with password policy settings
     """
-    output = subprocess.check_output("net accounts", shell=True, text=True)
-    policy = {}
+    try:
+        output = subprocess.check_output("net accounts", shell=True, text=True)
+        policy = {}
 
-    # Define the patterns we care about, the policy key, and how to convert the match
-    rules = [
-        (
-            "min_password_length",
-            r"Minimum password length\s+(\d+|None)",
-            lambda v: 0 if v.lower() == "none" else int(v),
-        ),
-        (
-            "max_password_age",
-            r"Maximum password age\s+(\d+|Never)",
-            lambda v: "disabled" if v.lower() == "never" else int(v),
-        ),
-        ("min_password_age", r"Minimum password age\s+(\d+)", lambda v: int(v)),
-        (
-            "history_size",
-            r"Password history length\s+(\d+|None)",
-            lambda v: 0 if v.lower() == "none" else int(v),
-        ),
-        (
-            "lockout_threshold",
-            r"Lockout threshold\s+(\d+|Never)",
-            lambda v: "not-defined" if v.lower() == "never" else int(v),
-        ),
-        (
-            "complexity",
-            r"Password complexity requirements\s+(Enabled|Disabled)",
-            lambda v: v.lower(),
-        ),
-    ]
+        # Define the patterns we care about, the policy key, and how to convert the match
+        rules = [
+            (
+                "min_password_length",
+                r"Minimum password length\s+(\d+|None)",
+                lambda v: 0 if v.lower() == "none" else int(v),
+            ),
+            (
+                "max_password_age",
+                r"Maximum password age\s+(\d+|Never)",
+                lambda v: "disabled" if v.lower() == "never" else int(v),
+            ),
+            ("min_password_age", r"Minimum password age\s+(\d+)", lambda v: int(v)),
+            (
+                "history_size",
+                r"Password history length\s+(\d+|None)",
+                lambda v: 0 if v.lower() == "none" else int(v),
+            ),
+            (
+                "lockout_threshold",
+                r"Lockout threshold\s+(\d+|Never)",
+                lambda v: "not-defined" if v.lower() == "never" else int(v),
+            ),
+            (
+                "complexity",
+                r"Password complexity requirements\s+(Enabled|Disabled)",
+                lambda v: v.lower(),
+            ),
+        ]
 
-    for line in output.splitlines():
-        for key, pattern, transformer in rules:
-            m = re.search(pattern, line, re.IGNORECASE)
-            if not m:
-                continue
-            policy[key] = transformer(m.group(1))
-            break  # move to next line once one rule is matched
+        for line in output.splitlines():
+            for key, pattern, transformer in rules:
+                m = re.search(pattern, line, re.IGNORECASE)
+                if not m:
+                    continue
+                policy[key] = transformer(m.group(1))
+                break  # move to next line once one rule is matched
 
-    # Post-processing defaults and sanity checks
-    # Ensure min_password_length is at least 1
-    policy["min_password_length"] = max(policy.get("min_password_length", 1), 1)
-    # Default max_password_age to 0 (no expiration) if not set
-    policy.setdefault("max_password_age", 0)
+        # Post-processing defaults and sanity checks
+        # Ensure min_password_length is at least 1
+        policy["min_password_length"] = max(policy.get("min_password_length", 1), 1)
+        # Default max_password_age to 0 (no expiration) if not set
+        policy.setdefault("max_password_age", 0)
 
-    return {"policy": policy}
+        return {"policy": policy}
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError) as e:
+        # 'net accounts' command is Windows-specific and will fail on other platforms
+        if IS_WINDOWS:
+            print(f"Warning: Unable to get password policy: {e}")
+        else:
+            print(
+                f"Warning: Password policy not available on {CURRENT_PLATFORM} (Windows-specific feature)"
+            )
+        return {"policy": {"min_password_length": 1, "max_password_age": 0}}
