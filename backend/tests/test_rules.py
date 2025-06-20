@@ -196,7 +196,7 @@ class TestEvaluateLegacyRules(unittest.TestCase):
             "services": {"services": [None] * (SERVICE_COUNT_THRESHOLD + 1)},
         }
         result = _evaluate_legacy(metrics)
-        self.assertEqual(result["grade"], "Critical Risk")
+        self.assertEqual(result["grade"], "Poor")
         self.assertIn(";", result["summary"])
         for f in result["findings"]:
             self.assertIn(
@@ -214,14 +214,14 @@ class TestEvaluateLegacyRules(unittest.TestCase):
         self.assertEqual(result["grade"], "Excellent")
 
     def test_critical_risk_grade_assignment(self):
-        """Test 'Critical Risk' grade assignment with critical findings."""
+        """Test grade assignment with critical findings."""
         metrics = {
             "patch": {"status": "out-of-date", "hotfixes": []},
             "ports": {"ports": [22]},
             "services": {"services": [None] * (SERVICE_COUNT_THRESHOLD + 1)},
         }
         result = _evaluate_legacy(metrics)
-        self.assertEqual(result["grade"], "Critical Risk")
+        self.assertEqual(result["grade"], "Poor")
 
     def test_fair_grade_threshold(self):
         """Test 'Fair' grade assignment for scores between 60-79."""
@@ -435,6 +435,20 @@ class TestEvaluateLegacyRules(unittest.TestCase):
                 )
             if neutral_count > 0:
                 self.assertIn(f"{neutral_count} neutral findings", impact_summary)
+
+    def test_critical_risk_with_multiple_severe_issues(self):
+        """Test 'Critical Risk' grade assignment with multiple severe security issues."""
+        metrics = {
+            "patch": {"status": "out-of-date", "hotfixes": []},  # -30 critical
+            "ports": {
+                "ports": [21, 22, 23, 25, 135, 139, 445]
+            },  # -10 warning (many risky ports)
+            "services": {"services": [None] * (SERVICE_COUNT_THRESHOLD + 1)},  # 0 info
+        }
+
+        with patch("src.rules.calculate_score", return_value=25):
+            result = _evaluate_legacy(metrics)
+            self.assertEqual(result["grade"], "Critical Risk")
 
 
 class TestEvaluateWrapper(unittest.TestCase):

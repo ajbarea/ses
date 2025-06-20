@@ -2,223 +2,150 @@
 
 [![codecov](https://codecov.io/gh/ajbarea/ses/graph/badge.svg?token=3PfdAPHO7K)](https://codecov.io/gh/ajbarea/ses) [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=ajbarea_ses&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=ajbarea_ses)
 
-## Introduction
-
 A Windows security assessment tool that collects system metrics, evaluates them against security rules, and generates reports with findings and recommendations.
 
 ## Features
 
-- Collects security metrics from Windows systems:
-  - Patch status
-  - Open network ports
-  - Running services
-  - Firewall configuration
-  - Antivirus status
-  - Password policy
-- Evaluates security using either:
-  - Basic rule engine (always available)
-  - Advanced CLIPS expert system (when PyCLIPS is installed)
-- Provides security score, grade, and detailed findings
-- Exposes API endpoints via FastAPI
-- Logs evaluations for historical tracking
+- **System Metrics Collection**: Patch status, open ports, services, firewall, antivirus, password policy
+- **Dual Evaluation Engines**: Basic Python rules (always available) + CLIPS expert system (optional)
+- **Security Scoring**: Numerical scores, grades, and detailed findings with recommendations
+- **REST API**: FastAPI endpoints for integration
+- **Machine Learning**: Train models to approximate expert system behavior
 
-## System Architecture
+## Quick Start
 
-The following diagram illustrates the architecture of the SES application:
-
-![System Architecture Diagram](https://www.mermaidchart.com/raw/0e79dd72-8d03-4177-8504-0c572454a15d?theme=light&version=v0.1&format=svg)
-
-## Environment Setup
-
-### Creating and Activating a Virtual Environment
+### Backend Setup
 
 ```bash
-# Create a new virtual environment
 cd backend
 python -m venv .venv
-
-# Activate the virtual environment
-# For Windows
-source .venv/Scripts/activate
-# For Unix/MacOS
-source .venv/bin/activate
-```
-
-### Verifying the Environment
-
-```bash
-# Check which Python is being used (should point to your .venv Python)
-which python
-
-# Verify Python version
-python --version
-```
-
-### Package Management
-
-```bash
-# Upgrade pip first
+source .venv/Scripts/activate  # Windows
 python -m pip install --upgrade pip
-
-# Install dependencies from requirements.txt
 pip install -r requirements.txt
-```
-
-## Running the FastAPI Server
-
-```bash
 uvicorn main:app --reload --reload-exclude logs/
 ```
 
-## Running the Frontend
-
-Open a new terminal, navigate to the `frontend` folder, install dependencies, and start the dev server:
+### Frontend Setup
 
 ```bash
 cd frontend
 npm install
+echo "NEXT_PUBLIC_API_URL=http://localhost:8000" > .env.local
 npm run dev
 ```
 
-Create a `.env.local` file in `frontend/` to set the frontend API endpoint:
+## API Endpoints
 
-```text
-NEXT_PUBLIC_API_URL=http://localhost:8000
-```
+- **GET /** - Health check
+- **GET /metrics** - System security metrics
+- **GET /evaluate** - Security evaluation results
+- **Docs**: <http://localhost:8000/docs>
 
-The frontend will be available at <http://localhost:3000>
+## Documentation
 
-### API Endpoints
+### Core System Documentation
 
-- `/` - Health check
-- `/metrics` - Get raw system security metrics
-- `/evaluate` - Run security evaluation and get results
+- **[Security Evaluation System](backend/docs/security_evaluation.md)** - Metric collection, rule evaluation, and scoring
+- **[Expert System Implementation](backend/docs/expert_system.md)** - CLIPS-based advanced evaluation
+- **[System Configuration](backend/docs/system_configuration.md)** - Deployment, logging, and operations
 
-### Viewing the API Documentation
+### Advanced Features
 
-- Swagger UI: <http://localhost:8000/docs>
+- **[Machine Learning Pipeline](backend/docs/ml_trainer.md)** - Neural network training to approximate expert system
+- **[Synthetic Data Generation](backend/docs/data_generation.md)** - Generate training datasets
+- **[System Architecture](backend/docs/models/ses_system_architecture.mermaid)** - Visual system overview
 
-## Logs
+### Rule Systems
 
-Evaluation outputs are written to `logs/evaluation_log.jsonl` (one JSON record per line).
+- **[CLIPS Rules Directory](backend/src/clips_rules/)** - Expert system rule files
+  - [Patch Rules](backend/src/clips_rules/patch_rules.clp) - Windows update evaluation
+  - [Port Rules](backend/src/clips_rules/port_rules.clp) - Network security assessment
+  - [Firewall Rules](backend/src/clips_rules/firewall_rules.clp) - Firewall analysis
+  - [Password Rules](backend/src/clips_rules/password_rules.clp) - Password policy validation
+  - [Antivirus Rules](backend/src/clips_rules/antivirus_rules.clp) - Antivirus status checking
 
-## CLIPS Expert System
-
-The CLIPS expert system provides advanced rule-based evaluation with:
-
-- Pattern matching and rule chaining
-- Dynamic scoring based on multiple factors
-- Detailed explanations for findings
-- Rule prioritization
-
-### Adding Custom CLIPS Rules
-
-Create new `.clp` files in the `clips_rules` directory. For example:
-
-```clips
-(defrule suspicious-login-attempts
-    (login-attempts (count ?n&:(> ?n 5)) (period "hour"))
-    =>
-    (assert (finding
-        (rule-name "suspicious_logins")
-        (level "warning")
-        (description (str-cat "High number of login attempts (" ?n ") in the last hour."))
-        (details ?n)
-        (recommendation "Investigate potential brute force attempts.")
-    ))
-    (assert (score (value -10) (type penalty)))
-)
-```
-
-### Available CLIPS Rule Files
-
-The system includes several specialized rule files:
-
-- `patch_rules.clp` - Evaluates Windows update status
-- `port_rules.clp` - Checks for open/high-risk network ports
-- `firewall_rules.clp` - Analyzes Windows Firewall profile status
-- `password_rules.clp` - Validates password policy strength
-- `antivirus_rules.clp` - Checks antivirus software status and configuration
-
-## Machine Learning Dataset Generation
-
-SES can generate datasets for training ML models that mimic the expert system's behavior.
-
-### Generating Training Data
+## Machine Learning Workflow
 
 ```bash
+# Generate training data
 cd backend
+python -m src.data_generator -n 1000 --split 0.8 -o security_data_split.csv
 
-# Generate a basic dataset
-python -m src.data_generator -n 1000 -o security_dataset.csv
+# Train neural network
+python train_security_model.py
 
-# Generate train/test split (0.8 => 80% train - 20% test)
-python -m src.data_generator -n 5000 --split 0.8 -o security_data.csv
+# Expected output: R² > 0.95, Classification Accuracy > 90%
 ```
 
-### Dataset Structure
+## Neural Network Layer Experiment
 
-The generated CSV contains:
+The `layer_experiment.py` script analyzes how different numbers of hidden layers affect model performance, training time, and resource usage. This experiment helps optimize the neural network architecture for the security evaluation model.
 
-**Input Features:**
+### Running the Experiment
 
-- `patch_status`, `patch_hotfixes_count` - System patch information
-- `ports_count` - Number of open network ports
-- `services_total`, `services_running`, `services_stopped` - Service counts
-- `firewall_domain`, `firewall_private`, `firewall_public` - Firewall states
-- `antivirus_count`, `antivirus_enabled` - Antivirus status
-- `password_min_length`, `password_max_age` - Password policy
+```bash
+# Generate training data
+cd backend
+python -m src.data_generator -n 1000 --split 0.8 -o security_data_split.csv
 
-**Target Variables:**
+# Run hidden layer experiment
+python layer_experiment.py
+```
 
-- `target_score` - Expert system security score (0-100)
-- `target_grade` - Security grade (Excellent, Good, Fair, Poor, Critical Risk)
+### Expected Terminal Output
+
+The script tests models with 1, 2, 4, 8, and 16 hidden layers and produces output similar to:
+
+```text
+Training with 1 hidden layer(s)
+Training with 2 hidden layer(s)
+Training with 4 hidden layer(s)
+Training with 8 hidden layer(s)
+Training with 16 hidden layer(s)
+
+{'layers': 1, 'train_time': 12.34, 'eval_time': 0.15, 'memory_mb': 45.2, 'mse': 0.082, 'mae': 0.198}
+{'layers': 2, 'train_time': 15.67, 'eval_time': 0.18, 'memory_mb': 52.8, 'mse': 0.076, 'mae': 0.185}
+{'layers': 4, 'train_time': 23.45, 'eval_time': 0.22, 'memory_mb': 68.1, 'mse': 0.071, 'mae': 0.179}
+{'layers': 8, 'train_time': 38.92, 'eval_time': 0.31, 'memory_mb': 94.7, 'mse': 0.069, 'mae': 0.175}
+{'layers': 16, 'train_time': 67.23, 'eval_time': 0.45, 'memory_mb': 142.3, 'mse': 0.070, 'mae': 0.176}
+
+Plot saved to \ses\backend\layer_experiment.png
+```
+
+### Generated Visualization
+
+The experiment creates `layer_experiment.png` showing:
+
+- **Top plot**: Model accuracy (MSE/MAE) vs number of hidden layers
+- **Bottom plot**: Training/evaluation time vs number of hidden layers
+
+This helps identify the optimal balance between model complexity and performance for your specific use case.
 
 ## Testing
-
-Run the test suite with:
 
 ```bash
 python -m unittest discover
 ```
 
-## Build
-
-### 1. Backend
+## Build Distribution
 
 ```bash
-cd backend
-python -m venv .venv_backend_build
-source .venv_backend_build/Scripts/activate
+# Backend
+cd backend && pip install -r requirements.txt
 
-# update pip and install deps
-pip install --upgrade pip
-pip install -r requirements.txt
-
-# exit venv
-deactivate
+# Frontend + Electron
+cd frontend && npm install && npm run electron:build
 ```
 
-### 2. Frontend & Electron
+Output: `frontend/dist_electron/` contains platform-specific installers.
 
-```bash
-cd frontend
+## System Requirements
 
-# install web dependencies
-npm install
+- **Windows**: Primary platform for security scanning
+- **Python 3.8+**: Backend runtime
+- **Node.js 16+**: Frontend and Electron
+- **Optional**: PyCLIPS for expert system features
 
-# build React/Next output and package Electron app
-npm run electron:build
-```
+---
 
-### 3. Verify Output
-
-After a successful run you’ll find:
-
-- `backend/dist/` – compiled backend artifacts
-- `frontend/out/` – Next.js static export
-- `frontend/dist_electron/` – Electron installer per-OS
-
-### Acknowledgements
-
-AI assistance from OpenAI, Anthropic, and Google models supported this project through code reviews, debugging, CLIPS rule syntax, documentation, and Electron build scripting.
+_For detailed documentation, troubleshooting, and advanced configuration, see the [docs directory](backend/docs/)._

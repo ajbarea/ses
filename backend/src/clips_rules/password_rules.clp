@@ -83,7 +83,7 @@
     =>
     (assert (finding
         (rule-name "account_lockout_not_defined")
-        (level "warning")
+        (level "minor")
         (description "Account lockout policy (e.g., locking account after a certain number of failed attempts) is not defined.")
         (recommendation "Define an account lockout threshold (e.g., 5 failed attempts) and lockout duration.")
     ))
@@ -111,7 +111,7 @@
     =>
     (assert (finding
         (rule-name "password_history_disabled")
-        (level "warning")
+        (level "minor")
         (description "Password history is not enforced, allowing immediate reuse of old passwords.")
         (recommendation "Enforce password history (e.g., remember at least the last 5 passwords).")
     ))
@@ -139,7 +139,7 @@
     =>
     (assert (finding
         (rule-name "max_password_age_disabled")
-        (level "warning")
+        (level "minor")
         (description "Maximum password age is disabled, meaning passwords never expire.")
         (recommendation "Set a maximum password age (e.g., 90 days) to enforce regular password changes.")
     ))

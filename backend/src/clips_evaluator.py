@@ -123,7 +123,8 @@ class SecurityExpertSystem:
             1
             for p in products
             if p.get("state") is None
-            or (isinstance(p.get("state"), int) and p["state"] < 397312)
+            or (isinstance(p.get("state"), int) and p["state"] < 262144)
+            or (isinstance(p.get("state"), str) and p["state"] == "UNKNOWN")
         )
 
         if disabled_count == len(products):
@@ -533,6 +534,16 @@ class SecurityExpertSystem:
 
         if final_score is not None:
             return max(0, min(100, final_score))
+
+        # If no explicit score facts, calculate from findings
+        if not impacts:
+            from src.scoring import calculate_score
+
+            findings = []
+            for fact in self.env.facts():
+                if fact.template.name == "finding":
+                    findings.append({"level": fact["level"]})
+            return calculate_score(findings, base_score)
 
         return apply_score_impacts(base_score, impacts)
 

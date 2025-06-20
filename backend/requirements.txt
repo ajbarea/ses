@@ -1,3 +1,5 @@
+# Python 3.11 required for PyTorch compatibility
+# (Python 3.13 has compatibility issues with PyTorch)
 PyInstaller==6.14.0
 fastapi
 uvicorn[standard]
@@ -5,3 +7,9 @@ wmi ; platform_system=="Windows"
 psutil
 clipspy
 coverage
+torch
+pandas
+scikit-learn
+joblib
+matplotlib
+numpy>=1.21,<2.0

@@ -6,9 +6,10 @@ across different evaluation engines (legacy Python and CLIPS).
 
 # Master mapping of severity to numeric score delta
 SEVERITY_SCORES = {
-    "critical": -30,
-    "warning": -10,
-    "info": 0,
+    "critical": -30,  # severe security issues
+    "warning": -10,  # moderate issues
+    "minor": -3,  # minor violations that need attention
+    "info": 0,  # informational findings, no score change
 }
 
 # Base score to start from
@@ -27,6 +28,7 @@ GRADE_THRESHOLDS = {
 # Default score mappings for CLIPS findings
 DEFAULT_FINDING_IMPACTS = {
     "info": {"value": 0, "type": "neutral"},
+    "minor": {"value": -3, "type": "penalty"},
     "warning": {"value": -10, "type": "penalty"},
     "critical": {"value": -30, "type": "penalty"},
 }
@@ -82,13 +84,28 @@ def assign_grade(score: int, findings: list) -> str:
     Returns:
         String grade representing security level
     """
-    # Critical findings always result in Critical Risk grade
-    if any(f["level"] == "critical" for f in findings):
+    # Count critical findings
+    critical_count = sum(1 for f in findings if f.get("level") == "critical")
+
+    # Multiple critical findings (3+) always result in Critical Risk
+    if critical_count >= 3:
         return CRITICAL_RISK_GRADE
 
-    # Otherwise grade based on score thresholds
+    # Single critical finding can still get better grades if score is decent
+    if critical_count == 1:
+        # Reduce effective score by 10 points for the critical finding
+        effective_score = max(0, score - 10)
+    elif critical_count == 2:
+        # Reduce effective score by 20 points for two critical findings
+        effective_score = max(0, score - 20)
+    else:
+        effective_score = score
+
+    # Grade based on effective score thresholds
     for grade, threshold in sorted(GRADE_THRESHOLDS.items(), key=lambda x: -x[1]):
-        if score >= threshold:
+        if grade == CRITICAL_RISK_GRADE:
+            continue
+        if effective_score >= threshold:
             return grade
 
     # If no other grade matched, return Critical Risk
