@@ -2,7 +2,7 @@ name: CI - Python unit tests
 
 on:
   push:
-    branches: [main, aj-pytorch]
+    branches: [main, dev]
   pull_request:
 
 jobs:
