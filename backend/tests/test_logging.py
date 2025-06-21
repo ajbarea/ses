@@ -94,7 +94,7 @@ class TestLoggingConfig(unittest.TestCase):
             self.assertTrue(log_file.exists())
 
             # Close file handlers before temporary directory cleanup
-            for handler in list(logging.getLogger().handlers):
+            for handler in logging.getLogger().handlers[:]:
                 if isinstance(handler, logging.FileHandler):
                     handler.close()
                     logging.getLogger().removeHandler(handler)
@@ -109,7 +109,7 @@ class TestLoggingConfig(unittest.TestCase):
             self.assertEqual(logging.getLogger().level, logging.DEBUG)
 
             # Close file handlers before temporary directory cleanup
-            for handler in list(logging.getLogger().handlers):
+            for handler in logging.getLogger().handlers[:]:
                 if isinstance(handler, logging.FileHandler):
                     handler.close()
                     logging.getLogger().removeHandler(handler)
@@ -125,7 +125,7 @@ class TestLoggingConfig(unittest.TestCase):
                 self.assertIsInstance(handler.formatter, StructuredJsonFormatter)
 
             # Close file handlers before temporary directory cleanup
-            for handler in list(logging.getLogger().handlers):
+            for handler in logging.getLogger().handlers[:]:
                 if isinstance(handler, logging.FileHandler):
                     handler.close()
                     logging.getLogger().removeHandler(handler)
@@ -236,7 +236,7 @@ class TestLoggingConfig(unittest.TestCase):
                 self.assertTrue(default_log_file.exists())
 
                 # Close file handlers before temporary directory cleanup
-                for handler in list(logging.getLogger().handlers):
+                for handler in logging.getLogger().handlers[:]:
                     if isinstance(handler, logging.FileHandler):
                         handler.close()
                         logging.getLogger().removeHandler(handler)
@@ -258,7 +258,7 @@ class TestLoggingConfig(unittest.TestCase):
             self.assertTrue(nested_log_path.exists())
 
             # Close file handlers before temporary directory cleanup
-            for handler in list(logging.getLogger().handlers):
+            for handler in logging.getLogger().handlers[:]:
                 if isinstance(handler, logging.FileHandler):
                     handler.close()
                     logging.getLogger().removeHandler(handler)
@@ -279,7 +279,7 @@ class TestLoggingConfig(unittest.TestCase):
             self.assertEqual(logging.getLogger("fastapi").level, logging.WARNING)
 
             # Close file handlers before temporary directory cleanup
-            for handler in list(logging.getLogger().handlers):
+            for handler in logging.getLogger().handlers[:]:
                 if isinstance(handler, logging.FileHandler):
                     handler.close()
                     logging.getLogger().removeHandler(handler)
@@ -337,7 +337,7 @@ class TestLoggingConfig(unittest.TestCase):
             self.assertEqual(len(root_logger.handlers), 2)
 
             # Close file handlers before temporary directory cleanup
-            for handler in list(logging.getLogger().handlers):
+            for handler in logging.getLogger().handlers[:]:
                 if isinstance(handler, logging.FileHandler):
                     handler.close()
                     logging.getLogger().removeHandler(handler)

@@ -194,7 +194,7 @@ Output: `frontend/dist_electron/` contains platform-specific installers.
 ## System Requirements
 
 - **Windows**: Primary platform for security scanning
-- **Python 3.8+**: Backend runtime
+- **Python 3.11**: Backend runtime
 - **Node.js 16+**: Frontend and Electron
 - **Optional**: PyCLIPS for expert system features
 

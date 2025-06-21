@@ -436,7 +436,7 @@ class TestTrainSecurityModel(unittest.TestCase):
         x = torch.randn(10, 3)
         y = torch.randn(10, 1)
         ds = TensorDataset(x, y)
-        loader = DataLoader(ds, batch_size=5)
+        loader = DataLoader(ds, batch_size=5, num_workers=0)
         model = SecurityNN(3, hidden_size=4, dropout_rate=0.0)
         criterion = nn.MSELoss()
         optimizer = optim.Adam(model.parameters(), lr=0.01, weight_decay=1e-4)

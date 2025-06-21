@@ -720,8 +720,8 @@ def evaluate_model(
         model = model_or_tuple
 
     # Fallback to old behavior for backward compatibility
-    X_test, y_test = _load_xy(test_csv, target_col)
-    preds = model.predict(X_test)
+    x_test, y_test = _load_xy(test_csv, target_col)
+    preds = model.predict(x_test)
     return mean_squared_error(y_test, preds)
 
 

@@ -74,30 +74,30 @@ def evaluate_security_model(model_data, test_csv, target_col="target_score"):
     feature_cols = model_data["feature_cols"]
 
     # Prepare test features
-    X_test_df = df[feature_cols].copy()
+    x_test_df = df[feature_cols].copy()
     y_test = df[target_col].values
 
     # Handle categorical variables
-    categorical_cols = X_test_df.select_dtypes(include=["object"]).columns
+    categorical_cols = x_test_df.select_dtypes(include=["object"]).columns
     for col in categorical_cols:
         if col in encoders:
             # Handle unseen categories by assigning them to the most frequent class
             le = encoders[col]
-            X_test_df[col] = X_test_df[col].astype(str)
+            x_test_df[col] = x_test_df[col].astype(str)
 
             # Replace unseen categories with the most frequent one from training
-            unseen_mask = ~X_test_df[col].isin(le.classes_)
+            unseen_mask = ~x_test_df[col].isin(le.classes_)
             if unseen_mask.any():
                 most_frequent = le.classes_[0]  # Use first class as default
-                X_test_df.loc[unseen_mask, col] = most_frequent
+                x_test_df.loc[unseen_mask, col] = most_frequent
 
-            X_test_df[col] = le.transform(X_test_df[col])
+            x_test_df[col] = le.transform(x_test_df[col])
 
     # Scale features
-    X_test_scaled = scaler.transform(X_test_df.values)
+    x_test_scaled = scaler.transform(x_test_df.values)
 
     # Make predictions
-    predictions = model.predict(X_test_scaled)
+    predictions = model.predict(x_test_scaled)
 
     # Calculate metrics
     mse = mean_squared_error(y_test, predictions)
