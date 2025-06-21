@@ -1,0 +1,4 @@
+# GPU-enabled PyTorch (only install if GPU is needed and available)
+torch
+torchvision
+torchaudio

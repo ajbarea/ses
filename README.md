@@ -176,18 +176,35 @@ These experiments help identify the optimal balance between model complexity and
 ## Testing
 
 ```bash
-python -m unittest discover
+# Install test dependencies
+cd backend && pip install -r requirements-base.txt -r requirements-dev.txt
+
+# Run tests
+python -m unittest discover -s tests -v
 ```
 
 ## Build Distribution
 
 ```bash
-# Backend
-cd backend && pip install -r requirements.txt
+# Backend - Basic installation
+cd backend && pip install -r requirements-base.txt
+
+# Backend - With development tools (for building)
+cd backend && pip install -r requirements-base.txt -r requirements-dev.txt
+
+# Backend - With GPU support (optional, if needed)
+cd backend && pip install -r requirements-base.txt -r requirements-gpu.txt
 
 # Frontend + Electron
 cd frontend && npm install && npm run electron:build
 ```
+
+### Installation Options
+
+- **`requirements-base.txt`**: Core runtime dependencies (~200MB)
+- **`requirements-dev.txt`**: Development tools (PyInstaller, testing, etc.)
+- **`requirements-gpu.txt`**: GPU-enabled PyTorch (~2.7GB, only if GPU needed)
+- **`requirements.txt`**: Includes base requirements (for compatibility)
 
 Output: `frontend/dist_electron/` contains platform-specific installers.
 

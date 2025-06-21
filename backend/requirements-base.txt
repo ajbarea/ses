@@ -1,0 +1,13 @@
+# Core runtime dependencies
+fastapi
+uvicorn[standard]
+wmi ; platform_system=="Windows"
+psutil
+clipspy
+coverage
+torch --index-url https://download.pytorch.org/whl/cpu
+pandas
+scikit-learn
+joblib
+matplotlib
+numpy>=1.21,<2.0

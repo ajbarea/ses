@@ -21,9 +21,11 @@ else
     exit 1
 fi
 
-echo "Installing/updating dependencies from requirements.txt..."
+echo "Installing/updating dependencies..."
 pip install --upgrade pip
-pip install -r requirements.txt
+# Install base dependencies + development tools for building
+pip install -r requirements-base.txt
+pip install -r requirements-dev.txt
 
 # Verify CLIPS installation
 python -c "
