@@ -2,12 +2,8 @@ import time
 import tracemalloc
 from pathlib import Path
 import matplotlib.pyplot as plt
-import torch
-import torch.nn as nn
-from torch.utils.data import DataLoader
 
 from src.ml_trainer import train_model, evaluate_security_model
-from src.ml_trainer import SecurityDataset, SecurityNN, _train_security_model
 
 
 TRAINING_EPOCHS = 100

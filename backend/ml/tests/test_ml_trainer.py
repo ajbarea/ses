@@ -14,17 +14,17 @@ import tempfile
 import argparse
 from pathlib import Path
 
-from src.ml_trainer import (
+from ml.src.ml_trainer import (
     CSVDataset,
-    SimpleNN,
-    evaluate_security_model,
-    save_model,
-    train_model,
-    evaluate_model,
     SecurityDataset,
     SecurityNN,
+    SimpleNN,
     _train_security_model,
+    evaluate_model,
+    evaluate_security_model,
     load_model,
+    save_model,
+    train_model,
 )
 
 
@@ -61,9 +61,9 @@ class TestMLTrainer(unittest.TestCase):
             "feature2": [i * 0.2 + 0.5 for i in range(100)],
             "feature3": [i * 0.05 - 0.1 for i in range(100)],
             # Target should be related to features for learning to occur
-            "target_score": [  # Changed 'target' to 'target_score' to match SecurityDataset default
+            "target_score": [
                 (0.1 * d["feature1"] + 0.3 * d["feature2"] - 0.2 * d["feature3"] + 0.5)
-                for d_idx, d in pd.DataFrame(
+                for _, d in pd.DataFrame(
                     {
                         "feature1": [i * 0.1 for i in range(100)],
                         "feature2": [i * 0.2 + 0.5 for i in range(100)],
@@ -83,11 +83,11 @@ class TestMLTrainer(unittest.TestCase):
             hidden_size=8,
             output_size=self.output_features,
             lr=0.01,
-            epochs=3,  # Increased slightly to give more chance for loss to decrease
+            epochs=3,
             batch_size=16,
-            test_split=0.2,  # Not directly used in this test setup, but part of args
+            test_split=0.2,
             seed=42,
-            no_cuda=True,  # Force CPU for tests
+            no_cuda=True,
         )
 
         torch.manual_seed(self.args.seed)
@@ -151,11 +151,7 @@ class TestMLTrainer(unittest.TestCase):
             self.assertFalse(torch.isnan(torch.tensor(loss)), "Loss should not be NaN.")
             self.assertFalse(torch.isinf(torch.tensor(loss)), "Loss should not be Inf.")
 
-        # Check if loss decreased (last loss < first loss)
-        # This is a basic check and might need adjustment for more complex scenarios or very few epochs.
         if self.args.epochs > 1 and len(epoch_losses) > 1:
-            # Add a small tolerance to handle cases where loss plateaus or fluctuates slightly
-            # For such a small model and epochs, a strict decrease is expected with this data.
             self.assertLess(
                 epoch_losses[-1],
                 epoch_losses[0],
@@ -181,8 +177,8 @@ class TestMLPipeline(unittest.TestCase):
     def setUp(self):
         """Set up file paths for training and testing."""
         root = Path(__file__).parent.parent
-        self.train_csv = str(root / "security_data_split_train.csv")
-        self.test_csv = str(root / "security_data_split_test.csv")
+        self.train_csv = str(root / "experiments" / "security_data_split_train.csv")
+        self.test_csv = str(root / "experiments" / "security_data_split_test.csv")
 
     def test_train_and_evaluate_mse(self):
         """Ensure training and evaluation produce a reasonable MSE for complex security data."""
@@ -953,10 +949,8 @@ class TestMLTrainerCoverage(unittest.TestCase):
             "scaler": dataset.scaler,
             "grade_encoder": dataset.grade_encoder,
             "dataset": dataset,
-        }
-
-        # Mock DataLoader to return empty batches
-        with patch("src.ml_trainer.DataLoader") as mock_dataloader:
+        }  # Mock DataLoader to return empty batches
+        with patch("ml.src.ml_trainer.DataLoader") as mock_dataloader:
             mock_dataloader.return_value = []  # Empty iterator
 
             results = evaluate_security_model(model_data, csv_empty)
