@@ -1,0 +1,28 @@
+{
+  "config": {
+    "num_clients": 4,
+    "samples_per_client": 200,
+    "rounds": 15,
+    "local_epochs": 5,
+    "aggregation": "average",
+    "hidden_size": 64,
+    "hidden_layers": 2,
+    "batch_size": 16,
+    "use_differential_privacy": false,
+    "noise_scale": 0.001,
+    "excellent_base": 0.25,
+    "excellent_step": 0.1
+  },
+  "final_metrics": {
+    "avg_mse": 555.3706823263009,
+    "avg_mae": 16.936044692993164,
+    "avg_r2": 0.284681499004364,
+    "total_rounds": 15,
+    "convergence_round": 13
+  },
+  "experiment_info": {
+    "total_rounds": 15,
+    "num_clients": 4,
+    "aggregation_method": "average"
+  }
+}

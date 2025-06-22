@@ -64,9 +64,9 @@ class SecurityDataset(Dataset):
 
         # Separate features and targets
         self.target_col = target_col
-        feature_cols = [
-            col for col in df.columns if not col.startswith("target_")
-        ]  # Handle categorical variables
+        feature_cols = [col for col in df.columns if not col.startswith("target_")]
+
+        # Handle categorical variables
         categorical_cols = df[feature_cols].select_dtypes(include=["object"]).columns
         numerical_cols = df[feature_cols].select_dtypes(include=["number"]).columns
 
@@ -107,11 +107,28 @@ class SecurityDataset(Dataset):
                     }
                     df_encoded[col] = df[col].astype(str).map(class_mapping).fillna(0)
                 else:
-                    df_encoded[col] = (
-                        0  # Apply existing scaler to numerical columns in batch
-                    )
+                    df_encoded[col] = 0
+
+            # Handle numerical columns - ensure consistency with fitted scaler
             if len(numerical_cols) > 0:
-                df_encoded[numerical_cols] = self.scaler.transform(df[numerical_cols])
+                # Get the feature names that were used during scaler fitting
+                scaler_feature_names = getattr(self.scaler, "feature_names_in_", None)
+
+                if scaler_feature_names is not None:
+                    # Ensure all required columns exist in df_encoded
+                    for col in scaler_feature_names:
+                        if col not in df_encoded.columns:
+                            df_encoded[col] = 0
+
+                    # Transform only the columns that were used during fitting
+                    df_encoded[scaler_feature_names] = self.scaler.transform(
+                        df_encoded[scaler_feature_names]
+                    )
+                else:
+                    # Fallback: transform all numerical columns
+                    df_encoded[numerical_cols] = self.scaler.transform(
+                        df[numerical_cols]
+                    )
 
         # Convert to tensors efficiently - avoid unnecessary copies
         self.features = torch.from_numpy(df_encoded.values.astype(np.float32))
@@ -119,23 +136,33 @@ class SecurityDataset(Dataset):
             df[target_col].values.astype(np.float32)
         ).unsqueeze(1)
 
-        # Store target grades for classification if available
+        # Handle grade encoding if available
+        self.target_grades = None
         if "target_grade" in df.columns:
             if fit_encoders:
                 self.grade_encoder = LabelEncoder()
                 encoded_grades = self.grade_encoder.fit_transform(df["target_grade"])
-                self.target_grades = torch.from_numpy(encoded_grades.astype(np.int64))
             else:
                 self.grade_encoder = grade_encoder
                 if self.grade_encoder:
-                    encoded_grades = self.grade_encoder.transform(df["target_grade"])
-                    self.target_grades = torch.from_numpy(
-                        encoded_grades.astype(np.int64)
-                    )
+                    # Handle unseen grades gracefully
+                    try:
+                        encoded_grades = self.grade_encoder.transform(
+                            df["target_grade"]
+                        )
+                    except ValueError:
+                        # Map unseen grades to first class
+                        mapped_grades = []
+                        for grade in df["target_grade"]:
+                            if grade in self.grade_encoder.classes_:
+                                mapped_grades.append(grade)
+                            else:
+                                mapped_grades.append(self.grade_encoder.classes_[0])
+                        encoded_grades = self.grade_encoder.transform(mapped_grades)
                 else:
-                    self.target_grades = None
-        else:
-            self.target_grades = None
+                    encoded_grades = np.zeros(len(df))
+
+            self.target_grades = torch.from_numpy(encoded_grades.astype(np.int64))
 
     def __len__(self):
         return len(self.targets)

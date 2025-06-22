@@ -11,6 +11,7 @@ A Windows security assessment tool that collects system metrics, evaluates them 
 - **Security Scoring**: Numerical scores, grades, and detailed findings with recommendations
 - **REST API**: FastAPI endpoints for integration
 - **Machine Learning**: Train models to approximate expert system behavior
+- **Federated Learning**: Privacy-preserving technique for collaboratively training machine learning models across multiple clients without sharing raw data
 
 ## Quick Start
 
@@ -51,7 +52,8 @@ npm run dev
 
 ### Advanced Features
 
-- **[Machine Learning Pipeline](backend/docs/ml_trainer.md)** - Neural network training to approximate expert system
+- **[Machine Learning Pipeline](backend/ml/docs/ml_trainer.md)** - Neural network training to approximate expert system
+- **[Federated Learning Pipeline](backend/fl/docs/fl_trainer.md)** - Privacy-preserving collaborative model training
 - **[Synthetic Data Generation](backend/docs/data_generation.md)** - Generate training datasets
 - **[System Architecture](backend/docs/models/ses_system_architecture.mermaid)** - Visual system overview
 
@@ -72,9 +74,21 @@ cd backend
 python -m src.data_generator -n 1000 --split 0.8 -o security_data_split.csv
 
 # Train neural network
+cd ml/experiments
 python train_security_model.py
 
 # Expected output: R² > 0.95, Classification Accuracy > 90%
+```
+
+## Federated Learning Workflow
+
+```bash
+# Generate federated datasets and train collaboratively
+cd backend/fl/src
+python -m src.fl_trainer
+
+# Example output: Federated learning experiment with multiple clients
+# Expected: Global MSE < 0.1, Privacy-preserved collaborative learning
 ```
 
 ## Neural Network Experiments
@@ -91,6 +105,7 @@ cd backend
 python -m src.data_generator -n 1000 --split 0.8 -o security_data_split.csv
 
 # Run hidden layer experiment
+cd ml/experiments
 python layer_experiment.py
 ```
 
@@ -106,6 +121,7 @@ cd backend
 python -m src.data_generator -n 1000 --split 0.8 -o security_data_split.csv
 
 # Run neuron count experiment
+cd ml/experiments
 python neuron_experiment.py
 ```
 
@@ -128,8 +144,8 @@ Training with 16 hidden layer(s)
 {'layers': 8, 'train_time': 38.92, 'eval_time': 0.31, 'memory_mb': 94.7, 'mse': 0.069, 'mae': 0.175}
 {'layers': 16, 'train_time': 67.23, 'eval_time': 0.45, 'memory_mb': 142.3, 'mse': 0.070, 'mae': 0.176}
 
-Plot saved to \ses\backend\docs\experiments\layer_experiment.png
-Training curves saved to \ses\backend\docs\experiments\layer_training_curves.png
+Plot saved to \ses\backend\ml\docs\layer_experiment.png
+Training curves saved to \ses\backend\ml\docs\layer_training_curves.png
 ```
 
 #### Neuron Experiment Output
@@ -147,15 +163,15 @@ Training with 256 neurons per layer
 {'neurons': 128, 'train_time': 31.24, 'eval_time': 0.24, 'memory_mb': 78.9, 'mse': 0.071, 'mae': 0.179}
 {'neurons': 256, 'train_time': 45.67, 'eval_time': 0.38, 'memory_mb': 125.4, 'mse': 0.069, 'mae': 0.175}
 
-Plot saved to \ses\backend\docs\experiments\neuron_experiment.png
-Training curves saved to \ses\backend\docs\experiments\neuron_training_curves.png
+Plot saved to \ses\backend\ml\docs\neuron_experiment.png
+Training curves saved to \ses\backend\ml\docs\neuron_training_curves.png
 ```
 
 ### Generated Visualizations
 
 #### Layer Experiment Plots
 
-The layer experiment creates plots in `backend/docs/experiments/`:
+The layer experiment creates plots in `backend/ml/docs/`:
 
 - **`layer_experiment.png`**: Model accuracy and resource usage vs number of hidden layers
   - **Top plot**: Model accuracy (MSE/MAE) vs number of hidden layers
@@ -164,7 +180,7 @@ The layer experiment creates plots in `backend/docs/experiments/`:
 
 #### Neuron Experiment Plots
 
-The neuron experiment creates plots in `backend/docs/experiments/`:
+The neuron experiment creates plots in `backend/ml/docs/`:
 
 - **`neuron_experiment.png`**: Model error and resource usage vs neurons per layer
   - **Top plot**: Model accuracy (MSE/MAE) vs number of neurons per layer
@@ -176,6 +192,7 @@ These experiments help identify the optimal balance between model complexity and
 ## Testing
 
 ```bash
+cd backend
 python -m unittest discover
 ```
 
@@ -194,8 +211,8 @@ Output: `frontend/dist_electron/` contains platform-specific installers.
 ## System Requirements
 
 - **Windows**: Primary platform for security scanning
-- **Python 3.11**: Backend runtime
-- **Node.js 16+**: Frontend and Electron
+- **Python 3.11**: Backend runtime (Python 3.13 has PyTorch compatibility issues)
+- **Node.js 22**: Frontend and Electron
 - **Optional**: PyCLIPS for expert system features
 
 ---

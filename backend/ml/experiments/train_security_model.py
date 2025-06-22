@@ -1,7 +1,12 @@
-#!/usr/bin/env python3
 """
 Train and evaluate a machine learning model to approximate the Expert System.
 """
+
+import sys
+import os
+
+# Add the parent directory (ml) to Python path so we can import from src
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 # Try to use the full PyTorch version, fallback to simple sklearn version
 try:

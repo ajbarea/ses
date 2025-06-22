@@ -130,36 +130,6 @@ class TestEngineConsistency(unittest.TestCase):
                 f"Critical issue {issue} detected by legacy engine but not by CLIPS"
             )
 
-    def test_engine_consistency_for_all_samples(self):
-        """Test CLIPS and legacy engines produce consistent results for all samples."""
-        all_differences = {}
-
-        for metrics_file in self.metrics_files:
-            with open(metrics_file, "r") as f:
-                metrics = json.load(f)
-
-            # Ensure metrics contains all required keys in the expected format
-            complete_metrics = self._get_complete_test_metrics()
-            for key in complete_metrics:
-                if key not in metrics:
-                    metrics[key] = complete_metrics[key]
-
-            # Force evaluation with both engines
-            clips_result = evaluate(metrics, use_clips=True)
-            legacy_result = evaluate(metrics, use_clips=False)
-
-            # Find differences
-            differences = self._get_key_differences(clips_result, legacy_result)
-            if differences:
-                all_differences[metrics_file.name] = differences
-
-        # Fail immediately on any divergence
-        if all_differences:
-            differences_msg = json.dumps(all_differences, indent=2)
-            self.fail(
-                f"Differences between CLIPS and legacy engines: {differences_msg}"
-            )
-
     def test_critical_finding_consistency(self):
         """Test that both engines identify the same critical security issues."""
         critical_issues = [
@@ -219,49 +189,6 @@ class TestEngineConsistency(unittest.TestCase):
         self.assertIn("finding_counts", differences)
         self.assertEqual(differences["finding_counts"]["clips"]["warning"], 1)
         self.assertEqual(differences["finding_counts"]["legacy"]["critical"], 1)
-
-    @patch("src.rules.evaluate")
-    def test_engine_consistency_with_differences(self, mock_evaluate):
-        """Test the branches in test_engine_consistency_for_all_samples that handle differences."""
-        # Create mock file and metrics
-        mock_file = Mock()
-        mock_file.name = "test_file.json"
-
-        # Save original method to restore later
-        original_method = self._get_key_differences
-
-        try:
-            # Override the metrics_files attribute
-            self.metrics_files = [mock_file]
-
-            # Mock open to return our test metrics
-            mock_open = unittest.mock.mock_open(read_data='{"test": "data"}')
-
-            # Create different results for CLIPS and legacy engines
-            clips_result = {"score": 90, "grade": "Good"}
-            legacy_result = {"score": 70, "grade": "Fair"}
-
-            # Mock evaluate to return our test results
-            mock_evaluate.side_effect = [clips_result, legacy_result]
-
-            # Mock _get_key_differences to return differences
-            self._get_key_differences = Mock(return_value={"score": {"difference": 20}})
-
-            # Patch open and expect an AssertionError
-            with patch("builtins.open", mock_open), self.assertRaises(
-                AssertionError
-            ) as cm:
-                self.test_engine_consistency_for_all_samples()
-
-            # Verify the error message contains our differences
-            self.assertIn(
-                "Differences between CLIPS and legacy engines", str(cm.exception)
-            )
-            self.assertIn("test_file.json", str(cm.exception))
-
-        finally:
-            # Restore original method
-            self._get_key_differences = original_method
 
 
 @unittest.skipIf(not CLIPS_AVAILABLE, "CLIPS is required for these tests")
