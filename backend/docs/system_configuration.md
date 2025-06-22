@@ -8,27 +8,35 @@ The SES application is designed for flexible deployment across development, test
 
 ## Logging System
 
-The SES application uses Python's standard logging framework for operational monitoring and debugging.
+The SES application uses a sophisticated logging system built on Python's standard logging framework with custom configuration through the `src.logging_config` module.
 
 ### Logging Architecture
 
 The logging system provides:
 
-- **Console output**: Direct logging to stdout/stderr
-- **File logging**: Optional log file output (when configured)
+- **Console output**: Direct logging to stdout via StreamHandler
+- **File logging**: Automatic log file creation with directory management
 - **Multiple log levels**: DEBUG, INFO, WARNING, ERROR, CRITICAL
 - **Module-specific loggers**: Separate loggers for different components
+- **JSON formatting**: Optional structured JSON logging for machine readability
+- **Third-party library control**: Reduced verbosity for common libraries
 
 ### Log Configuration
 
-#### Basic Setup
+#### Centralized Setup
 
 ```python
-import logging
+from src.logging_config import setup_logging, get_logger
 
-# Basic logging setup
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Configure logging system
+setup_logging(
+    log_level="INFO",
+    json_format=False,
+    log_file="logs/app.log"
+)
+
+# Get module-specific logger
+logger = get_logger(__name__)
 
 logger.info("Security scan initiated")
 logger.warning("Potential security issue detected")
@@ -39,9 +47,20 @@ logger.warning("Potential security issue detected")
 #### Standard Format
 
 ```log
-INFO:main:Security evaluation completed: score=75
-WARNING:src.scanner:High-risk port 23 detected
-INFO:src.rules:Applying firewall rules
+2024-12-23 14:30:45 - main - INFO - Security evaluation completed: score=75
+2024-12-23 14:30:46 - src.scanner - WARNING - High-risk port 23 detected
+2024-12-23 14:30:47 - src.rules - INFO - Applying firewall rules
+```
+
+#### JSON Format (when enabled)
+
+```json
+{
+  "timestamp": "2024-12-23 14:30:45",
+  "level": "INFO",
+  "name": "main",
+  "message": "Security evaluation completed: score=75"
+}
 ```
 
 ### Log File Management
@@ -69,10 +88,15 @@ The SES application supports basic environment configuration:
 ```bash
 # Development
 PYTHONPATH=/path/to/ses/backend
-CLIPS_RULES_DIR=clips_rules
+
+# Logging Configuration
+LOG_LEVEL=INFO                  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+JSON_LOG_FORMAT=false          # Enable JSON structured logging
+LOG_FILE=logs/app.log          # Custom log file path
 
 # Electron Integration
 SES_ELECTRON_MODE=true          # When running in Electron
+SES_ELECTRON_PACKAGED=1         # Set by Electron when packaged
 ```
 
 ### FastAPI Configuration
@@ -81,7 +105,26 @@ The main application (`main.py`) provides these endpoints:
 
 - **GET /**: Health check returning `{"message": "Hello World"}`
 - **GET /metrics**: Collect and return system security metrics
-- **POST /evaluate**: Run security evaluation on provided or collected metrics
+- **GET /evaluate**: Run security evaluation on provided or collected metrics
+
+#### Environment Variable Configuration
+
+The application uses environment variables for configuration:
+
+- `LOG_LEVEL`: Controls logging verbosity (default: "INFO")
+- `JSON_LOG_FORMAT`: Enables JSON structured logging (default: "False")
+- `LOG_FILE`: Custom log file path (default: "logs/app.log")
+
+#### Specialized Logging
+
+The application creates a dedicated evaluation logger for structured JSONL output:
+
+```python
+eval_logger = get_logger("evaluation")
+eval_handler = logging.FileHandler("logs/evaluation_log.jsonl")
+eval_handler.setFormatter(logging.Formatter("%(message)s"))
+eval_logger.addHandler(eval_handler)
+```
 
 ## Operational Procedures
 
@@ -134,6 +177,15 @@ def evaluate(metrics, use_clips=None):
     return _evaluate_legacy(metrics)
 ```
 
+### Logging Integration
+
+The system uses the sophisticated logging configuration to capture and handle errors:
+
+- **Error Tracking**: All errors are logged with appropriate severity levels
+- **Third-party Library Management**: Reduced verbosity for common libraries prevents log noise
+- **Structured Output**: JSON logging available for automated error monitoring
+- **Evaluation Tracking**: Dedicated JSONL logging for evaluation-specific errors
+
 ## Deployment Configurations
 
 ### Development Deployment
@@ -143,7 +195,7 @@ def evaluate(metrics, use_clips=None):
 ```bash
 # Backend
 cd backend
-python -m uvicorn main:app --reload
+python -m uvicorn main:app --reload --reload-exclude logs/
 
 # Frontend (separate terminal)
 cd frontend
@@ -165,4 +217,8 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 # Build Electron app
 cd frontend
 npm run electron:build
+
+# Build for specific platforms
+npm run electron:build:win
+npm run electron:build:mac
 ```

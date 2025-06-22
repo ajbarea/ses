@@ -147,27 +147,29 @@ The scanner implements several fallback mechanisms:
 
 ## Rule Evaluation (`rules.py`)
 
-The `rules.py` module implements the basic Python-based rule engine that serves as the fallback evaluation system. It provides deterministic scoring based on predefined security criteria.
+The `rules.py` module implements the legacy Python-based rule engine that serves as the fallback evaluation system. It provides deterministic scoring based on predefined security criteria.
 
 ### Core Functions
 
 #### Security Score Calculation
 
-The rule engine uses a simple scoring approach:
+The rule engine uses a centralized scoring approach with defined severity levels:
 
-- **Fixed Scoring**: Returns consistent scores based on rule evaluation
-- **Binary Assessment**: Issues are either present or absent
-- **Threshold-Based**: Uses predefined criteria for each metric category
+- **Critical**: -30 points (severe security issues)
+- **Warning**: -10 points (moderate issues)
+- **Minor**: -3 points (minor violations that need attention)
+- **Info**: 0 points (informational findings, no score change)
 
 #### Rule Categories
 
-Based on the actual implementation, the basic rule engine provides:
+The legacy rule engine provides comprehensive evaluation across these areas:
 
 **Evaluation Logic:**
 
 - Processes collected metrics through evaluation functions
-- Applies security assessment criteria
+- Applies security assessment criteria using severity-based scoring
 - Generates findings with descriptions and recommendations
+- Uses a threshold of 300 running services before triggering alerts
 - Assigns security grades based on overall assessment
 
 **Assessment Areas:**
@@ -181,20 +183,36 @@ Based on the actual implementation, the basic rule engine provides:
 
 ### Grade Assignment
 
-Security grades are assigned based on evaluation results:
+Security grades are assigned based on score thresholds and critical finding counts:
 
-- **Excellent**: Strong security posture across all areas
-- **Good**: Generally secure with minor issues
-- **Fair**: Moderate security with some concerns
-- **Poor**: Significant security weaknesses present
-- **Critical Risk**: Serious security vulnerabilities detected
+- **Excellent**: Score ≥ 90 points
+- **Good**: Score ≥ 80 points
+- **Fair**: Score ≥ 60 points
+- **Poor**: Score ≥ 40 points
+- **Critical Risk**: Score < 40 points or 3+ critical findings
+
+**Special Rules:**
+
+- Multiple critical findings (3+) always result in Critical Risk
+- 1-2 critical findings reduce the effective score for grade calculation
+- Grade determination uses the effective score after critical finding penalties
 
 ## Evaluation System Integration
+
+### Architecture Overview
+
+The SES application uses a modular architecture that supports both a legacy Python-based rule engine and an advanced CLIPS expert system. The CLIPS rules are stored in individual `.clp` files within the `src/clips_rules/` directory:
+
+- `patch_rules.clp` - System patch status evaluation
+- `firewall_rules.clp` - Windows Firewall profile analysis
+- `antivirus_rules.clp` - Antivirus product status checking
+- `password_rules.clp` - Password policy strength assessment
+- `port_rules.clp` - Network port risk evaluation
 
 ### Evaluation Flow
 
 1. **Metric Collection**: `scanner.py` gathers system information
-2. **Engine Selection**: System chooses between CLIPS and basic evaluation
+2. **Engine Selection**: System chooses between CLIPS and legacy evaluation
 3. **Rule Processing**: Selected engine processes metrics
 4. **Result Generation**: Findings and scores are produced
 5. **Response Formatting**: Results formatted for API response
@@ -204,17 +222,25 @@ Security grades are assigned based on evaluation results:
 The system supports both evaluation approaches:
 
 ```python
-def evaluate(metrics, use_clips=None):
+def evaluate(metrics: dict, use_clips: Optional[bool] = None) -> dict:
     """Main evaluation entry point with engine selection."""
-    if should_use_clips_engine(use_clips):
-        return _evaluate_clips(metrics)
+    # Determine evaluation engine based on preference and availability
+    should_use_clips = CLIPS_AVAILABLE
+    if use_clips is not None:
+        should_use_clips = use_clips
+
+    # Run appropriate evaluation
+    if should_use_clips and CLIPS_AVAILABLE:
+        result = _evaluate_clips(metrics)
     else:
-        return _evaluate_legacy(metrics)
+        result = _evaluate_legacy(metrics)
+
+    return result
 ```
 
 ### Error Handling Strategy
 
-- **Graceful Degradation**: Falls back to basic rules if CLIPS fails
+- **Graceful Degradation**: Falls back to legacy rules if CLIPS fails
 - **Comprehensive Logging**: Error reporting for debugging
 - **Safe Defaults**: Returns minimal viable results on failures
 - **User Communication**: Clear error messages when appropriate
@@ -283,17 +309,23 @@ REMEDIATION_GUIDE = {
 The system supports both evaluation engines seamlessly:
 
 ```python
-def evaluate(metrics, use_clips=None):
+def evaluate(metrics: dict, use_clips: Optional[bool] = None) -> dict:
     """Main evaluation entry point with engine selection."""
-    if should_use_clips_engine(use_clips):
-        return _evaluate_clips(metrics)
+    should_use_clips = CLIPS_AVAILABLE
+    if use_clips is not None:
+        should_use_clips = use_clips
+
+    if should_use_clips and CLIPS_AVAILABLE:
+        result = _evaluate_clips(metrics)
     else:
-        return _evaluate_legacy(metrics)
+        result = _evaluate_legacy(metrics)
+
+    return result
 ```
 
 ### Extended Error Handling Strategy
 
-- **Graceful Degradation**: Falls back to basic rules if CLIPS fails
+- **Graceful Degradation**: Falls back to legacy rules if CLIPS fails
 - **Comprehensive Logging**: Detailed error reporting for debugging
 - **Safe Defaults**: Returns minimal viable results on critical failures
 - **User Communication**: Clear error messages for end users

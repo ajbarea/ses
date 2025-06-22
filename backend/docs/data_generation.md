@@ -134,15 +134,18 @@ Creates password policy configurations:
 
 ```python
 # Policy strength variations
-{"policy": {"min_password_length": 0, "max_password_age": 0}}    # No policy
-{"policy": {"min_password_length": 8, "max_password_age": 60}}   # Basic security
-{"policy": {"min_password_length": 12, "max_password_age": 90}}  # High security
+{"policy": {"min_password_length": 0, "max_password_age": 0, "complexity": "disabled", "lockout_threshold": "not-defined", "history_size": 0}}    # No policy
+{"policy": {"min_password_length": 8, "max_password_age": 60, "complexity": "enabled", "lockout_threshold": 5, "history_size": 5}}   # Basic security
+{"policy": {"min_password_length": 12, "max_password_age": 90, "complexity": "enabled", "lockout_threshold": 5, "history_size": 12}}  # High security
 ```
 
 **Policy Parameters:**
 
 - **min_password_length**: 0-14 characters (0 = no minimum)
 - **max_password_age**: 0-365 days (0 = never expires)
+- **complexity**: "enabled" or "disabled" (password complexity requirements)
+- **lockout_threshold**: Number of failed attempts before lockout or "not-defined"
+- **history_size**: Number of previous passwords remembered (0 = no history)
 
 ## Expert System Integration
 
@@ -228,6 +231,9 @@ Raw metrics are transformed into a flat, ML-friendly format through the `flatten
 
 - `password_min_length`: Numerical (minimum password length)
 - `password_max_age`: Numerical (maximum password age in days)
+- `password_complexity`: Categorical ("enabled", "disabled")
+- `password_lockout_threshold`: Mixed (numerical threshold or "not-defined")
+- `password_history_size`: Numerical (number of passwords remembered)
 
 **Target Variables:**
 
@@ -246,6 +252,9 @@ python -m src.data_generator -n 1000 -o security_dataset.csv
 
 # Train/test split generation
 python -m src.data_generator -n 5000 --split 0.8 -o security_data_split.csv
+
+# With custom excellent percentage for bias
+python -m src.data_generator -n 5000 --split 0.8 --excellent_percentage 0.3 -o security_data_split.csv
 ```
 
 **Parameters:**
@@ -253,6 +262,7 @@ python -m src.data_generator -n 5000 --split 0.8 -o security_data_split.csv
 - `-n, --num_samples`: Number of samples to generate
 - `-o, --output`: Output CSV filename
 - `--split`: Train/test split ratio (0.8 = 80% train, 20% test)
+- `--excellent_percentage`: Percentage of samples with excellent bias (default: 0.25)
 
 ### Output Files
 

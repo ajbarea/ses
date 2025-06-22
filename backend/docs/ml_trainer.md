@@ -51,12 +51,12 @@ The `evaluate_security_model` function assesses the model's performance on a tes
 
 ## Alternative Model (`_train_sklearn_model`)
 
-The pipeline also includes the capability to train a simple `sklearn.linear_model.LinearRegression` model. This serves as a quick baseline to compare against the more complex neural network, ensuring that the added complexity of the `SecurityNN` provides a tangible performance benefit.
+The pipeline also includes the capability to train a simple `sklearn.ensemble.RandomForestRegressor` model in the simplified trainer (`ml_trainer_simple.py`). This serves as a quick baseline and fallback option when PyTorch is not available, ensuring that the added complexity of the `SecurityNN` provides a tangible performance benefit.
 
-This simple linear model primarily focuses on a single-task score prediction. While useful as a baseline, it is generally outperformed by the `SecurityNN` because:
+This simple model primarily focuses on a single-task score prediction. While useful as a baseline, it is generally outperformed by the `SecurityNN` because:
 
-- It can only model linear relationships between features and the security score.
-- It does not utilize categorical features, which can contain valuable predictive information.
+- It uses an ensemble approach which is better than linear regression but still limited compared to neural networks for complex feature interactions.
+- It handles categorical features through label encoding, which can be effective but less sophisticated than neural network embeddings.
 - It is a single-task model, only predicting the score without the accompanying grade classification.
 
 The `SecurityNN` represents a more advanced and capable solution for this problem.
