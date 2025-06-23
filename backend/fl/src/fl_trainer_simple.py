@@ -383,7 +383,7 @@ def run_simple_experiment(
     return results
 
 
-if __name__ == "__main__":
+def main():
     # Run a simple demo experiment
     print("🎯 Simple Federated Learning Demo")
     print("This demonstrates the basic FedAvg algorithm")
@@ -409,3 +409,7 @@ if __name__ == "__main__":
         print("🎉 Training successful! Model learned to predict security scores.")
     else:
         print("⚠️  Training may need more rounds or different configuration.")
+
+
+if __name__ == "__main__":
+    main()

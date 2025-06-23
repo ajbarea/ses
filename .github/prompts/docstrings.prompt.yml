@@ -1,0 +1,24 @@
+name: "Improve Docstrings (Google Style)"
+description: "Revises comments and generates Google-style docstrings for the provided code, focusing on clarity and removing redundancy."
+tags:
+  - python
+  - documentation
+  - docstrings
+  - google-style
+  - refactor
+prompt: |
+  Act as an expert software engineer specializing in code clarity and documentation. Your task is to review the provided code and meticulously improve its comments and docstrings to conform to the Google Python Style Guide.
+
+  **Your specific instructions are:**
+
+  1.  **Revise/Add Docstrings:** For every module, class, and function, create or revise the docstring to be comprehensive and Google-compliant. Explicitly use sections like `Args:`, `Returns:`, and `Raises:` where applicable. The summary line should be a concise imperative statement.
+  2.  **Add Meaningful Inline Comments:** Add concise inline comments (`#`) only where necessary to clarify non-obvious logic, complex algorithms, or critical business rules.
+  3.  **Clean Up existing Comments:** Remove any comments that are redundant, inaccurate, outdated, or merely restate what the code does (e.g., `# increment x` for `x += 1`).
+
+  **IMPORTANT CONSTRAINTS:**
+  - DO NOT modify the underlying code logic or functionality. Your sole focus is on improving the documentation.
+  - Respond ONLY with the complete, updated code block. Do not include any explanations before or after the code.
+
+  The code to review follows the marker below.
+
+  ### CODE ###

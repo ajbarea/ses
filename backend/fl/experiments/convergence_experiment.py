@@ -25,8 +25,15 @@ from fl.experiments.fl_plotting import (
 
 
 def analyze_client_data(dataset_paths: List[Dict[str, Path]]) -> List[Dict[str, Any]]:
-    """Analyze client datasets to extract statistics for diversity plots."""
+    """Analyze client datasets to extract statistics for diversity plots.
 
+    Args:
+        dataset_paths: List of dictionaries containing paths to client datasets.
+
+    Returns:
+        List of dictionaries with statistics for each client, including data size,
+        target mean/std, grade distribution, and feature means.
+    """
     client_stats = []
 
     for i, paths in enumerate(dataset_paths):
@@ -34,20 +41,19 @@ def analyze_client_data(dataset_paths: List[Dict[str, Path]]) -> List[Dict[str, 
             # Load training data for this client
             df = pd.read_csv(paths["train"])
 
-            # Basic statistics
             stats = {"client_id": i + 1, "data_size": len(df)}
 
-            # Target statistics
+            # Compute target statistics if available
             if "target_score" in df.columns:
                 stats["target_mean"] = df["target_score"].mean()
                 stats["target_std"] = df["target_score"].std()
 
-            # Grade distribution
+            # Compute grade distribution if available
             if "target_grade" in df.columns:
                 grade_counts = df["target_grade"].value_counts().to_dict()
                 stats["grade_distribution"] = grade_counts
 
-            # Feature statistics (numerical features only)
+            # Compute means for all numeric features except target columns
             numeric_cols = df.select_dtypes(include=[np.number]).columns
             feature_means = {}
             for col in numeric_cols:
@@ -59,7 +65,7 @@ def analyze_client_data(dataset_paths: List[Dict[str, Path]]) -> List[Dict[str, 
 
         except Exception as e:
             print(f"Warning: Could not analyze client {i+1} data: {e}")
-            # Add minimal stats
+            # Add minimal stats if analysis fails
             client_stats.append(
                 {"client_id": i + 1, "data_size": 0, "target_mean": 0, "target_std": 0}
             )
@@ -67,12 +73,16 @@ def analyze_client_data(dataset_paths: List[Dict[str, Path]]) -> List[Dict[str, 
     return client_stats
 
 
-def run_convergence_experiment():
-    """Run the main convergence experiment."""
+def run_convergence_experiment() -> Dict[str, Any]:
+    """Run the main federated learning convergence experiment.
+
+    Returns:
+        Dictionary containing experiment configuration, training history, final metrics, and client statistics.
+    """
     print("Starting Federated Learning Convergence Experiment")
     print("=" * 60)
 
-    # Experiment configuration
+    # Set up experiment configuration
     config = create_federated_experiment_config(
         num_clients=4,
         samples_per_client=200,
@@ -125,7 +135,7 @@ def run_convergence_experiment():
     }
 
     # Save results and create plots
-    output_dir = Path(__file__).parent / "results" / "convergence_experiment"
+    output_dir = Path(__file__).parent / "plots" / "convergence_experiment"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"\nSaving results to {output_dir}")
@@ -158,8 +168,12 @@ def run_convergence_experiment():
     return experiment_results
 
 
-def run_client_scaling_experiment():
-    """Run experiment with different numbers of clients."""
+def run_client_scaling_experiment() -> Dict[str, Any]:
+    """Run experiment with different numbers of clients to analyze scaling effects.
+
+    Returns:
+        Dictionary mapping client count to training history for each experiment.
+    """
     print("\nStarting Client Scaling Experiment")
     print("=" * 50)
 
@@ -176,7 +190,8 @@ def run_client_scaling_experiment():
             local_epochs=3,
             hidden_size=64,
             hidden_layers=2,
-        )  # Generate datasets
+        )
+        # Generate datasets for each client count
         datasets = generate_fl_datasets(
             num_clients=config["num_clients"],
             samples_per_client=config["samples_per_client"],
@@ -197,8 +212,8 @@ def run_client_scaling_experiment():
             f"Final MSE with {num_clients} clients: {training_results['final_metrics']['avg_mse']:.4f}"
         )
 
-    # Plot comparison
-    output_dir = Path(__file__).parent / "results" / "client_scaling"
+    # Plot comparison of client scaling
+    output_dir = Path(__file__).parent / "plots" / "client_scaling"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     plot_aggregation_comparison(
@@ -209,15 +224,16 @@ def run_client_scaling_experiment():
     return results
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Run all federated learning convergence and scaling experiments and print summary."""
     print("Federated Learning Experiments")
     print("==============================")
 
     # Run main convergence experiment
-    convergence_results = run_convergence_experiment()
+    run_convergence_experiment()
 
     # Run client scaling experiment
-    scaling_results = run_client_scaling_experiment()
+    run_client_scaling_experiment()
 
     print("\nAll experiments completed!")
     print("\nGenerated plots:")
@@ -226,3 +242,7 @@ if __name__ == "__main__":
     print("  - client_scaling_comparison.png: Performance vs number of clients")
     print("  - fl_convergence.png: Comprehensive convergence analysis")
     print("  - fl_communication_analysis.png: Communication efficiency")
+
+
+if __name__ == "__main__":
+    main()

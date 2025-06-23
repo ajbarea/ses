@@ -598,7 +598,7 @@ def run_federated_experiment(
     return history
 
 
-if __name__ == "__main__":  # pragma: no cover
+def main():
     # Run an advanced federated learning experiment
     config = create_federated_experiment_config(
         num_clients=3,
@@ -616,3 +616,7 @@ if __name__ == "__main__":  # pragma: no cover
             output_dir=temp_dir, config=config, save_results=True
         )
         print("Final MSE per round:", history["global_mse"])
+
+
+if __name__ == "__main__":  # pragma: no cover
+    main()

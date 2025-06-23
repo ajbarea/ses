@@ -21,12 +21,16 @@ from fl.src.fl_trainer import (
 from fl.experiments.fl_plotting import plot_aggregation_comparison
 
 
-def run_aggregation_comparison():
-    """Compare different aggregation methods."""
+def run_aggregation_comparison() -> Dict[str, Dict[str, List]]:
+    """Compare different aggregation methods in federated learning.
+
+    Returns:
+        Dictionary mapping aggregation method names to their training histories.
+    """
     print("Federated Learning Aggregation Methods Comparison")
     print("=" * 55)
 
-    # Base configuration
+    # Base configuration for all aggregation methods
     base_config = create_federated_experiment_config(
         num_clients=5,
         samples_per_client=180,
@@ -36,7 +40,7 @@ def run_aggregation_comparison():
         hidden_layers=2,
     )
 
-    # Generate common dataset for fair comparison
+    # Generate a common dataset for fair comparison
     print("Generating federated datasets...")
     datasets = generate_fl_datasets(
         num_clients=base_config["num_clients"],
@@ -69,19 +73,25 @@ def run_aggregation_comparison():
         results[method.title()] = training_results["history"]
 
         final_mse = training_results["final_metrics"]["avg_mse"]
-        print(
-            f"{method.title()} - Final MSE: {final_mse:.4f}"
-        )  # Create comparison plots
-    output_dir = Path(__file__).parent / "results" / "aggregation_comparison"
+        print(f"{method.title()} - Final MSE: {final_mse:.4f}")
+
+    output_dir = Path(__file__).parent / "plots" / "aggregation_comparison"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     print("\nGenerating comparison plots...")
     plot_aggregation_comparison(
         results, save_path=output_dir / "aggregation_methods_comparison.png"
-    )  # Save detailed results
+    )
 
     def convert_numpy_to_json(obj):
-        """Convert numpy objects to JSON-serializable types."""
+        """Convert numpy objects to JSON-serializable types.
+
+        Args:
+            obj: Any object potentially containing numpy types.
+
+        Returns:
+            JSON-serializable version of the object.
+        """
         if isinstance(obj, np.ndarray):
             return obj.tolist()
         elif isinstance(obj, (np.float32, np.float64)):
@@ -103,8 +113,12 @@ def run_aggregation_comparison():
     return results
 
 
-def create_performance_summary(results: Dict[str, Dict[str, List]]):
-    """Create a performance summary table."""
+def create_performance_summary(results: Dict[str, Dict[str, List]]) -> None:
+    """Create and print a performance summary table for aggregation methods.
+
+    Args:
+        results: Dictionary mapping method names to their training histories.
+    """
     print("\nPerformance Summary")
     print("-" * 40)
     print(f"{'Method':<12} {'Final MSE':<12} {'Final MAE':<12} {'Best Round':<12}")
@@ -123,8 +137,12 @@ def create_performance_summary(results: Dict[str, Dict[str, List]]):
         print(f"{method:<12} {final_mse:<12.4f} {final_mae:<12.4f} {best_round:<12}")
 
 
-def run_heterogeneity_experiment():
-    """Test performance with varying data heterogeneity."""
+def run_heterogeneity_experiment() -> Dict[str, Dict[str, List]]:
+    """Test performance with varying data heterogeneity across clients.
+
+    Returns:
+        Dictionary mapping heterogeneity level names to their training histories.
+    """
     print("\n\nData Heterogeneity Impact Experiment")
     print("=" * 40)
 
@@ -161,7 +179,7 @@ def run_heterogeneity_experiment():
         print(f"{level_name} heterogeneity - Final MSE: {final_mse:.4f}")
 
     # Plot heterogeneity comparison
-    output_dir = Path(__file__).parent / "results" / "heterogeneity_experiment"
+    output_dir = Path(__file__).parent / "plots" / "heterogeneity_experiment"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     plot_aggregation_comparison(
@@ -172,7 +190,8 @@ def run_heterogeneity_experiment():
     return results
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Run all aggregation and heterogeneity experiments and print summary."""
     print("Running Federated Learning Aggregation Experiments")
     print("=" * 55)
 
@@ -181,7 +200,7 @@ if __name__ == "__main__":
     create_performance_summary(aggregation_results)
 
     # Data heterogeneity experiment
-    heterogeneity_results = run_heterogeneity_experiment()
+    run_heterogeneity_experiment()
 
     print("\n" + "=" * 55)
     print("All aggregation experiments completed!")
@@ -194,3 +213,7 @@ if __name__ == "__main__":
     print("  - Which aggregation method works best for your data")
     print("  - How data heterogeneity affects convergence")
     print("  - Trade-offs between privacy and performance")
+
+
+if __name__ == "__main__":
+    main()

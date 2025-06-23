@@ -1,7 +1,7 @@
 """
 Federated Learning Plotting and Visualization Suite
 
-The module provides visualization tools for federated learning experiments,
+This module provides visualization tools for federated learning experiments,
 including convergence plots, client diversity analysis, aggregation method comparisons,
 privacy impact analysis, and comprehensive experiment reports.
 
@@ -49,7 +49,11 @@ sns.set_palette("husl")
 
 
 class NumpyEncoder(json.JSONEncoder):
-    """JSON encoder that handles numpy data types."""
+    """JSON encoder that handles numpy data types for serialization.
+
+    Methods:
+        default(obj): Converts numpy types to native Python types for JSON encoding.
+    """
 
     def default(self, obj):
         if isinstance(obj, np.integer):
@@ -62,7 +66,14 @@ class NumpyEncoder(json.JSONEncoder):
 
 
 def convert_to_json_serializable(obj):
-    """Convert numpy and other non-JSON-serializable objects to JSON-serializable types."""
+    """Convert numpy and other non-JSON-serializable objects to JSON-serializable types.
+
+    Args:
+        obj: Any object potentially containing numpy types.
+
+    Returns:
+        JSON-serializable version of the object.
+    """
     if isinstance(obj, np.ndarray):
         return obj.tolist()
     elif isinstance(obj, (np.float32, np.float64)):
@@ -83,12 +94,12 @@ def plot_fl_convergence(
     save_path: Optional[Path] = None,
     title: str = "Federated Learning Convergence",
 ) -> None:
-    """Plot federated learning convergence over rounds.
+    """Plot federated learning convergence over communication rounds.
 
     Args:
         history: Dictionary with 'rounds', 'global_mse', 'global_mae', etc.
-        save_path: Path to save the plot
-        title: Plot title
+        save_path: Path to save the plot.
+        title: Plot title.
     """
     fig, axes = plt.subplots(2, 2, figsize=(15, 10))
     fig.suptitle(title, fontsize=16, fontweight="bold")
@@ -168,8 +179,8 @@ def plot_client_diversity(
     """Plot client data diversity and distribution differences.
 
     Args:
-        client_stats: List of client statistics dictionaries
-        save_path: Path to save the plot
+        client_stats: List of client statistics dictionaries.
+        save_path: Path to save the plot.
     """
     num_clients = len(client_stats)
 
@@ -255,11 +266,11 @@ def plot_client_diversity(
 def plot_aggregation_comparison(
     results: Dict[str, Dict[str, List[float]]], save_path: Optional[Path] = None
 ) -> None:
-    """Compare different aggregation methods.
+    """Compare different aggregation methods in federated learning.
 
     Args:
-        results: Dictionary mapping method names to their training histories
-        save_path: Path to save the plot
+        results: Dictionary mapping method names to their training histories.
+        save_path: Path to save the plot.
     """
     fig, axes = plt.subplots(2, 2, figsize=(15, 10))
     fig.suptitle(
@@ -354,10 +365,10 @@ def plot_privacy_impact(
     """Plot the impact of differential privacy on model performance.
 
     Args:
-        baseline_history: Training history without privacy
-        private_history: Training history with differential privacy
-        noise_scales: List of noise scales tested
-        save_path: Path to save the plot
+        baseline_history: Training history without privacy.
+        private_history: Training history with differential privacy.
+        noise_scales: List of noise scales tested.
+        save_path: Path to save the plot.
     """
     fig, axes = plt.subplots(2, 2, figsize=(15, 10))
     fig.suptitle(
@@ -462,8 +473,8 @@ def plot_communication_rounds(
     """Plot communication efficiency and model updates over rounds.
 
     Args:
-        history: Training history with communication metrics
-        save_path: Path to save the plot
+        history: Training history with communication metrics.
+        save_path: Path to save the plot.
     """
     fig, axes = plt.subplots(2, 2, figsize=(15, 10))
     fig.suptitle(
@@ -579,9 +590,9 @@ def create_beginner_friendly_convergence_plot(
     """Create a beginner-friendly convergence plot with explanations.
 
     Args:
-        history: Training history dictionary
-        save_path: Path to save the plot
-        title: Plot title
+        history: Training history dictionary.
+        save_path: Path to save the plot.
+        title: Plot title.
     """
     fig, axes = plt.subplots(2, 2, figsize=(16, 12))
     fig.suptitle(title, fontsize=18, fontweight="bold", y=0.95)
@@ -718,8 +729,8 @@ def create_client_diversity_dashboard(
     """Create an interactive-style dashboard showing client diversity.
 
     Args:
-        client_stats: List of client statistics
-        save_path: Path to save the plot
+        client_stats: List of client statistics.
+        save_path: Path to save the plot.
     """
     num_clients = len(client_stats)
     fig, axes = plt.subplots(2, 3, figsize=(20, 12))
@@ -927,8 +938,8 @@ def create_aggregation_comparison_plot(
     """Create a comprehensive comparison of aggregation methods.
 
     Args:
-        aggregation_results: Results from different aggregation methods
-        save_path: Path to save the plot
+        aggregation_results: Results from different aggregation methods.
+        save_path: Path to save the plot.
     """
     fig, axes = plt.subplots(2, 3, figsize=(20, 12))
     fig.suptitle(
@@ -1177,8 +1188,8 @@ def create_fl_summary_report(
     """Create a comprehensive summary report with all plots.
 
     Args:
-        experiment_results: Dictionary containing all experiment data
-        output_dir: Directory to save all plots and report
+        experiment_results: Dictionary containing all experiment data.
+        output_dir: Directory to save all plots and report.
     """
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -1232,8 +1243,8 @@ def save_experiment_data(experiment_results: Dict[str, Any], output_path: Path) 
     """Save experiment data to CSV and JSON files.
 
     Args:
-        experiment_results: All experiment data
-        output_path: Directory to save data files
+        experiment_results: All experiment data.
+        output_path: Directory to save data files.
     """
     output_path.mkdir(parents=True, exist_ok=True)
 
@@ -1267,7 +1278,11 @@ def save_experiment_data(experiment_results: Dict[str, Any], output_path: Path) 
 
 
 def run_comprehensive_fl_experiments():
-    """Run comprehensive FL experiments with enhanced visualizations."""
+    """Run comprehensive FL experiments with enhanced visualizations.
+
+    Returns:
+        Dictionary summarizing results and best aggregation method.
+    """
     print("🚀 Starting Comprehensive Federated Learning Experiments!")
     print("=" * 60)
 
@@ -1462,7 +1477,8 @@ def run_comprehensive_fl_experiments():
     return experiment_summary
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Prompt user to run comprehensive FL experiments and execute the chosen option."""
     print("🎨 Comprehensive Federated Learning Visualization Suite")
     print("=" * 50)
 
@@ -1479,3 +1495,7 @@ Enter choice (1): """
     else:
         print("Running comprehensive experiments...")
         run_comprehensive_fl_experiments()
+
+
+if __name__ == "__main__":
+    main()

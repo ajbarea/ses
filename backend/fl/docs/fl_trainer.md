@@ -45,7 +45,7 @@ For comprehensive research or detailed experiments:
 
 ```bash
 cd backend/fl/experiments
-python run_fl_experiments.py
+python fl_experiments.py
 ```
 
 ### Implementation Comparison
@@ -72,7 +72,7 @@ For users who want to quickly experience federated learning with the SES system,
 
 ```bash
 cd backend/fl/experiments
-python run_fl_experiments.py
+python fl_experiments.py
 # Choose option 1 for comprehensive experiments
 ```
 
@@ -80,7 +80,7 @@ python run_fl_experiments.py
 
 ```bash
 cd backend/fl/experiments
-python run_fl_experiments.py
+python fl_experiments.py
 # Choose option 2 for quick overview
 ```
 
@@ -599,7 +599,7 @@ print(f'Final MSE: {results[\"final_metrics\"][\"final_mse\"]:.4f}')
 ```bash
 # Run comprehensive experiments
 cd backend/fl/experiments
-python run_fl_experiments.py
+python fl_experiments.py
 
 # Individual experiments
 python convergence_experiment.py

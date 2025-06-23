@@ -19,12 +19,19 @@ from fl.experiments.fl_plotting import (
 )
 
 
-def run_privacy_experiment():
-    """Test the impact of differential privacy on model performance."""
+def run_privacy_experiment() -> dict:
+    """Test the impact of differential privacy on model performance.
+
+    Runs federated learning experiments with varying levels of differential privacy noise,
+    computes utility loss, and generates relevant plots and summary data.
+
+    Returns:
+        Dictionary mapping privacy setting labels to their training histories.
+    """
     print("Federated Learning Privacy Impact Experiment")
     print("=" * 50)
 
-    # Base configuration
+    # Base configuration for privacy experiments
     config = create_federated_experiment_config(
         num_clients=4,
         samples_per_client=200,
@@ -41,7 +48,7 @@ def run_privacy_experiment():
         samples_per_client=config["samples_per_client"],
     )
 
-    # Test different noise scales
+    # Test different noise scales for privacy
     noise_scales = [0.0, 0.001, 0.005, 0.01, 0.05]
     results = {}
 
@@ -100,8 +107,8 @@ def run_privacy_experiment():
             f"{noise_scale:<12} {results[label]['global_mse'][-1]:<12.4f} {utility_loss:<12.1f}%"
         )
 
-    # Create plots
-    output_dir = Path(__file__).parent / "results" / "privacy_experiment"
+    # Create plots and save results
+    output_dir = Path(__file__).parent / "plots" / "privacy_experiment"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     print("\nGenerating privacy impact plots...")
@@ -140,12 +147,19 @@ def run_privacy_experiment():
     return results
 
 
-def run_communication_efficiency_experiment():
-    """Test communication efficiency with different strategies."""
+def run_communication_efficiency_experiment() -> dict:
+    """Test communication efficiency with different strategies.
+
+    Runs federated learning experiments with varying communication frequencies (rounds and local epochs),
+    and generates a comparison plot of communication efficiency.
+
+    Returns:
+        Dictionary mapping strategy names to their training histories.
+    """
     print("\n\nCommunication Efficiency Experiment")
     print("=" * 40)
 
-    # Test different communication frequencies
+    # Define different communication strategies
     communication_strategies = [
         ("Frequent", 8, 2),  # 8 rounds, 2 local epochs each
         ("Standard", 4, 4),  # 4 rounds, 4 local epochs each
@@ -160,7 +174,7 @@ def run_communication_efficiency_experiment():
             f"  {rounds} rounds × {local_epochs} local epochs = {rounds * local_epochs} total training"
         )
 
-        # Generate fresh datasets
+        # Generate fresh datasets for each strategy
         datasets = generate_fl_datasets(num_clients=4, samples_per_client=200)
 
         training_results = federated_training(
@@ -181,7 +195,7 @@ def run_communication_efficiency_experiment():
         print(f"Total communication rounds: {rounds}")
 
     # Plot communication efficiency comparison
-    output_dir = Path(__file__).parent / "results" / "communication_efficiency"
+    output_dir = Path(__file__).parent / "plots" / "communication_efficiency"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     plot_aggregation_comparison(
@@ -192,15 +206,16 @@ def run_communication_efficiency_experiment():
     return results
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Run privacy and communication efficiency experiments and print summary."""
     print("Running Federated Learning Privacy and Communication Experiments")
     print("=" * 70)
 
     # Privacy experiment
-    privacy_results = run_privacy_experiment()
+    run_privacy_experiment()
 
     # Communication efficiency experiment
-    comm_results = run_communication_efficiency_experiment()
+    run_communication_efficiency_experiment()
 
     print("\n" + "=" * 70)
     print("Privacy and Communication experiments completed!")
@@ -212,3 +227,7 @@ if __name__ == "__main__":
     print("  - Privacy protection comes with a performance cost")
     print("  - Communication frequency affects convergence patterns")
     print("  - Noise scale should be tuned based on privacy requirements")
+
+
+if __name__ == "__main__":
+    main()

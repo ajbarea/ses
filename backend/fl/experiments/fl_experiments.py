@@ -27,15 +27,19 @@ from fl.experiments.fl_plotting import create_fl_summary_report, plot_fl_converg
 from fl.src.fl_trainer import generate_fl_datasets, federated_training
 
 
-def print_header(title: str):
-    """Print a formatted header."""
+def print_header(title: str) -> None:
+    """Print a formatted header for experiment sections.
+
+    Args:
+        title: The title to display in the header.
+    """
     print("\n" + "=" * 70)
     print(f"  {title}")
     print("=" * 70)
 
 
-def print_experiment_info():
-    """Print information about what the experiments will show."""
+def print_experiment_info() -> None:
+    """Print information about the suite of federated learning experiments."""
     print(
         """
 FEDERATED LEARNING EXPERIMENTS OVERVIEW
@@ -69,8 +73,12 @@ Total estimated runtime: 5-10 minutes (depending on your hardware)
     )
 
 
-def run_all_experiments():
-    """Run all federated learning experiments."""
+def run_all_experiments() -> dict:
+    """Run all federated learning experiments and generate summary plots.
+
+    Returns:
+        Dictionary containing results from all experiment categories.
+    """
     start_time = time.time()
 
     print_experiment_info()
@@ -129,7 +137,7 @@ def run_all_experiments():
     # Generate final summary
     print_header("GENERATING EXPERIMENT SUMMARY")
 
-    output_dir = Path(__file__).parent / "results" / "complete_summary"
+    output_dir = Path(__file__).parent / "plots" / "complete_summary"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Create a comprehensive summary report
@@ -163,7 +171,7 @@ def run_all_experiments():
     print_header("EXPERIMENT COMPLETION SUMMARY")
     print(f"Total runtime: {duration:.1f} seconds ({duration/60:.1f} minutes)")
     print(f"Experiments completed: {len(all_results)}")
-    print(f"Results saved in: {Path(__file__).parent / 'results'}")
+    print(f"Results saved in: {Path(__file__).parent / 'plots'}")
 
     print("\nGenerated plots include:")
     plot_files = [
@@ -190,8 +198,8 @@ def run_all_experiments():
     return all_results
 
 
-def run_quick_demo():
-    """Run a quick demonstration of federated learning."""
+def run_quick_demo() -> None:
+    """Run a quick demonstration of federated learning and generate a demo plot."""
     print_header("QUICK FEDERATED LEARNING DEMO")
 
     print("Running a quick FL demonstration...")
@@ -211,7 +219,7 @@ def run_quick_demo():
         )
 
         print("3. Generating quick visualization...")
-        output_dir = Path(__file__).parent / "results" / "quick_demo"
+        output_dir = Path(__file__).parent / "plots" / "quick_demo"
         output_dir.mkdir(parents=True, exist_ok=True)
 
         plot_fl_convergence(
@@ -228,7 +236,8 @@ def run_quick_demo():
         print(f"✗ Demo failed: {e}")
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Prompt user to run all experiments or a quick demo, and execute the chosen option."""
     print("Federated Learning Experiment Suite")
     print("=" * 50)
 
@@ -251,3 +260,7 @@ if __name__ == "__main__":
             break
         else:
             print("Invalid choice. Please enter 1, 2, or 3.")
+
+
+if __name__ == "__main__":
+    main()
