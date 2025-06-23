@@ -5,27 +5,18 @@ This experiment demonstrates the privacy-utility tradeoff in federated learning
 by testing different levels of differential privacy noise.
 """
 
-import sys
 from pathlib import Path
 
-# Add backend directory to path
-backend_dir = Path(__file__).parent.parent.parent
-sys.path.append(str(backend_dir))
-
-try:
-    from fl.src.fl_trainer import (
-        generate_fl_datasets,
-        federated_training,
-        create_federated_experiment_config,
-    )
-    from fl.experiments.fl_plotting import (
-        plot_privacy_impact,
-        plot_aggregation_comparison,
-        save_experiment_data,
-    )
-except ImportError as e:
-    print(f"Import error: {e}")
-    sys.exit(1)
+from fl.src.fl_trainer import (
+    generate_fl_datasets,
+    federated_training,
+    create_federated_experiment_config,
+)
+from fl.experiments.fl_plotting import (
+    plot_privacy_impact,
+    plot_aggregation_comparison,
+    save_experiment_data,
+)
 
 
 def run_privacy_experiment():

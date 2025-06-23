@@ -14,7 +14,6 @@ Key features of this advanced trainer:
 
 """
 
-import sys
 import tempfile
 from pathlib import Path
 from typing import List, Dict, Any
@@ -24,23 +23,17 @@ from torch.utils.data import DataLoader
 import torch.nn as nn
 import numpy as np
 
-backend_dir = Path(__file__).parent.parent.parent
-sys.path.append(str(backend_dir))
-
-try:
-    from ml.src.ml_trainer import (
-        SecurityDataset,
-        SecurityNN,
-        evaluate_security_model,
-    )
-    from src.data_generator import (
-        generate_dataset,
-        split_dataset,
-        save_to_csv,
-    )
-    from src.clips_evaluator import SecurityExpertSystem
-except Exception as e:
-    print(f"Error importing modules: {e}")
+from ml.src.ml_trainer import (
+    SecurityDataset,
+    SecurityNN,
+    evaluate_security_model,
+)
+from src.data_generator import (
+    generate_dataset,
+    split_dataset,
+    save_to_csv,
+)
+from src.clips_evaluator import SecurityExpertSystem
 
 
 def generate_fl_datasets(
@@ -206,7 +199,7 @@ def add_differential_privacy_noise(
         # Clip parameters
         param_norm = torch.norm(param)
         if param_norm > clip_norm:
-            param = param * (clip_norm / param_norm)        # Add Gaussian noise
+            param = param * (clip_norm / param_norm)  # Add Gaussian noise
         if noise_scale > 0:
             noise = torch.normal(0, noise_scale, size=param.shape)
             noisy_state[key] = param + noise

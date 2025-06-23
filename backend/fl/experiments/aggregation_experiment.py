@@ -8,29 +8,17 @@ This experiment compares different aggregation strategies:
 - Secure Average (with optional differential privacy)
 """
 
-import sys
 import json
 from pathlib import Path
 import numpy as np
 from typing import Dict, List
 
-# Add backend directory to path
-backend_dir = Path(__file__).parent.parent.parent
-sys.path.append(str(backend_dir))
-
-try:
-    from fl.src.fl_trainer import (
-        generate_fl_datasets,
-        federated_training,
-        create_federated_experiment_config,
-    )
-    from fl.experiments.fl_plotting import (
-        plot_aggregation_comparison,
-        save_experiment_data,
-    )
-except ImportError as e:
-    print(f"Import error: {e}")
-    sys.exit(1)
+from fl.src.fl_trainer import (
+    generate_fl_datasets,
+    federated_training,
+    create_federated_experiment_config,
+)
+from fl.experiments.fl_plotting import plot_aggregation_comparison
 
 
 def run_aggregation_comparison():
@@ -81,7 +69,9 @@ def run_aggregation_comparison():
         results[method.title()] = training_results["history"]
 
         final_mse = training_results["final_metrics"]["avg_mse"]
-        print(f"{method.title()} - Final MSE: {final_mse:.4f}")    # Create comparison plots
+        print(
+            f"{method.title()} - Final MSE: {final_mse:.4f}"
+        )  # Create comparison plots
     output_dir = Path(__file__).parent / "results" / "aggregation_comparison"
     output_dir.mkdir(parents=True, exist_ok=True)
 

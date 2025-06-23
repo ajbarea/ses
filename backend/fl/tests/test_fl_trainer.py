@@ -1,4 +1,3 @@
-import sys
 import shutil
 import tempfile
 import unittest
@@ -7,13 +6,8 @@ from unittest.mock import patch, Mock, MagicMock
 
 import pandas as pd
 import torch
-import torch.nn as nn
 
-# Add backend directory to path for imports
-backend_dir = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(backend_dir))
-
-from fl.src.fl_trainer import (  # noqa: E402
+from fl.src.fl_trainer import (
     _train_local,
     add_differential_privacy_noise,
     aggregate_median,
@@ -25,7 +19,7 @@ from fl.src.fl_trainer import (  # noqa: E402
     generate_fl_datasets,
     save_federated_results,
 )
-from ml.src.ml_trainer import SecurityNN  # noqa: E402
+from ml.src.ml_trainer import SecurityNN
 
 
 class TestGenerateFlDatasets(unittest.TestCase):
@@ -61,7 +55,7 @@ class TestGenerateFlDatasets(unittest.TestCase):
     @patch("fl.src.fl_trainer.generate_dataset")
     @patch("fl.src.fl_trainer.split_dataset")
     @patch("fl.src.fl_trainer.save_to_csv")
-    def test_bias_increment(self, mock_save, mock_split, mock_gen, mock_expert):
+    def test_bias_increment(self, _, mock_split, mock_gen, mock_expert):
         mock_expert.return_value = Mock()
         mock_gen.return_value = [1]
         mock_split.return_value = ([1], [1])
@@ -154,7 +148,7 @@ class TestSimilarityAndPrivacy(unittest.TestCase):
         self.assertAlmostEqual(similarity, 1.0)
 
     def test_noise_addition_zero_scale(self):
-        state = {"a": torch.tensor([0.5, 0.5])}  # Norm < 1.0, won't be clipped
+        state = {"a": torch.tensor([0.5, 0.5])}
         noisy = add_differential_privacy_noise(state, noise_scale=0.0)
         self.assertTrue(torch.allclose(noisy["a"], state["a"]))
 

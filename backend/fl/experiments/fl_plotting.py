@@ -23,35 +23,25 @@ Utility functions:
 - NumpyEncoder: JSON encoder for numpy objects
 """
 
-import sys
+from pathlib import Path
+from typing import Dict, List, Any, Optional
+import tempfile
+
+from fl.src.fl_trainer import (
+    generate_fl_datasets,
+    federated_training,
+    create_federated_experiment_config,
+)
+
 import json
 import numpy as np
 import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
-from pathlib import Path
-from typing import Dict, List, Any, Optional
-import tempfile
 
 # Configure matplotlib backend
 matplotlib.use("Agg")
-
-# Add backend directory to path
-backend_dir = Path(__file__).parent.parent.parent
-sys.path.append(str(backend_dir))
-
-try:
-    from fl.src.fl_trainer import (
-        generate_fl_datasets,
-        federated_training,
-        create_federated_experiment_config,
-        save_federated_results,
-    )
-except ImportError as e:
-    print(f"Import error: {e}")
-    print("Make sure all required packages are installed.")
-    sys.exit(1)
 
 # Set style for better-looking plots
 plt.style.use("seaborn-v0_8")

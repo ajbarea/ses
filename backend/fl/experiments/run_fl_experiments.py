@@ -7,33 +7,24 @@ plots for understanding different aspects of federated learning.
 Run this script to get a complete overview of federated learning behavior!
 """
 
-import sys
 from pathlib import Path
 import time
 
-# Add backend directory to path
-backend_dir = Path(__file__).parent.parent.parent
-sys.path.append(str(backend_dir))
+from fl.experiments.convergence_experiment import (
+    run_convergence_experiment,
+    run_client_scaling_experiment,
+)
+from fl.experiments.aggregation_experiment import (
+    run_aggregation_comparison,
+    run_heterogeneity_experiment,
+)
+from fl.experiments.privacy_experiment import (
+    run_privacy_experiment,
+    run_communication_efficiency_experiment,
+)
 
-# Import experiment modules
-try:
-    from fl.experiments.convergence_experiment import (
-        run_convergence_experiment,
-        run_client_scaling_experiment,
-    )
-    from fl.experiments.aggregation_experiment import (
-        run_aggregation_comparison,
-        run_heterogeneity_experiment,
-    )
-    from fl.experiments.privacy_experiment import (
-        run_privacy_experiment,
-        run_communication_efficiency_experiment,
-    )
-    from fl.experiments.fl_plotting import create_fl_summary_report
-except ImportError as e:
-    print(f"Import error: {e}")
-    print("Make sure all required packages are installed.")
-    sys.exit(1)
+from fl.experiments.fl_plotting import create_fl_summary_report, plot_fl_convergence
+from fl.src.fl_trainer import generate_fl_datasets, federated_training
 
 
 def print_header(title: str):
@@ -207,9 +198,6 @@ def run_quick_demo():
     print("This will take about 1-2 minutes and show basic FL concepts.")
 
     try:
-        # Quick convergence test
-        from fl.src.fl_trainer import generate_fl_datasets, federated_training
-
         print("\n1. Generating client datasets...")
         datasets = generate_fl_datasets(num_clients=3, samples_per_client=100)
 
@@ -223,8 +211,6 @@ def run_quick_demo():
         )
 
         print("3. Generating quick visualization...")
-        from fl.experiments.fl_plotting import plot_fl_convergence
-
         output_dir = Path(__file__).parent / "results" / "quick_demo"
         output_dir.mkdir(parents=True, exist_ok=True)
 

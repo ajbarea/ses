@@ -5,33 +5,23 @@ This experiment demonstrates basic federated learning convergence with
 different numbers of clients and communication rounds.
 """
 
-import sys
 import pandas as pd
 from pathlib import Path
 import numpy as np
 from typing import Dict, List, Any
 
-# Add backend directory to path
-backend_dir = Path(__file__).parent.parent.parent
-sys.path.append(str(backend_dir))
-
-try:
-    from fl.src.fl_trainer import (
-        generate_fl_datasets,
-        federated_training,
-        create_federated_experiment_config,
-        save_federated_results,
-    )
-    from fl.experiments.fl_plotting import (
-        plot_fl_convergence,
-        plot_client_diversity,
-        create_fl_summary_report,
-        save_experiment_data,
-    )
-except ImportError as e:
-    print(f"Import error: {e}")
-    print("Make sure all required packages are installed and paths are correct.")
-    sys.exit(1)
+from fl.src.fl_trainer import (
+    generate_fl_datasets,
+    federated_training,
+    create_federated_experiment_config,
+)
+from fl.experiments.fl_plotting import (
+    plot_fl_convergence,
+    plot_client_diversity,
+    create_fl_summary_report,
+    save_experiment_data,
+    plot_aggregation_comparison,
+)
 
 
 def analyze_client_data(dataset_paths: List[Dict[str, Path]]) -> List[Dict[str, Any]]:
@@ -208,8 +198,6 @@ def run_client_scaling_experiment():
         )
 
     # Plot comparison
-    from fl.experiments.fl_plotting import plot_aggregation_comparison
-
     output_dir = Path(__file__).parent / "results" / "client_scaling"
     output_dir.mkdir(parents=True, exist_ok=True)
 

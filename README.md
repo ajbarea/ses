@@ -93,98 +93,46 @@ python -m src.fl_trainer
 
 ## Neural Network Experiments
 
-### Layer Experiment
+### Experiment Script
 
-The `layer_experiment.py` script analyzes how different numbers of hidden layers affect model performance, training time, and resource usage. This experiment helps optimize the neural network architecture for the security evaluation model.
+The `ml_experiments.py` script allows you to analyze how different numbers of hidden layers and neurons per layer affect model performance, training time, and resource usage. This experiment helps optimize the neural network architecture for the security evaluation model.
 
-#### Running the Layer Experiment
-
-```bash
-# Generate training data
-cd backend
-python -m src.data_generator -n 1000 --split 0.8 -o security_data_split.csv
-
-# Run hidden layer experiment
-cd ml/experiments
-python layer_experiment.py
-```
-
-### Neuron Experiment
-
-The `neuron_experiment.py` script analyzes how different numbers of neurons per layer affect model performance, training time, and resource usage. This experiment helps determine the optimal neuron count for each hidden layer in the security evaluation model.
-
-#### Running the Neuron Experiment
+#### Running the Experiment
 
 ```bash
 # Generate training data
 cd backend
 python -m src.data_generator -n 1000 --split 0.8 -o security_data_split.csv
 
-# Run neuron count experiment
+# Run neural network architecture experiments
 cd ml/experiments
-python neuron_experiment.py
+python ml_experiments.py
 ```
+
+You can configure the experiment mode (`layer`, `neuron`, or `both`) at the top of `ml_experiments.py` to control which sweep(s) to run.
 
 ### Expected Terminal Output
 
-#### Layer Experiment Output
-
-The layer experiment script tests models with 1, 2, 4, 8, and 16 hidden layers and produces output similar to:
+The script will print progress and results for each configuration, and save plots to the `docs/experiments/` directory. Example output:
 
 ```text
-Training with 1 hidden layer(s)
-Training with 2 hidden layer(s)
-Training with 4 hidden layer(s)
-Training with 8 hidden layer(s)
-Training with 16 hidden layer(s)
-
-{'layers': 1, 'train_time': 12.34, 'eval_time': 0.15, 'memory_mb': 45.2, 'mse': 0.082, 'mae': 0.198}
-{'layers': 2, 'train_time': 15.67, 'eval_time': 0.18, 'memory_mb': 52.8, 'mse': 0.076, 'mae': 0.185}
-{'layers': 4, 'train_time': 23.45, 'eval_time': 0.22, 'memory_mb': 68.1, 'mse': 0.071, 'mae': 0.179}
-{'layers': 8, 'train_time': 38.92, 'eval_time': 0.31, 'memory_mb': 94.7, 'mse': 0.069, 'mae': 0.175}
-{'layers': 16, 'train_time': 67.23, 'eval_time': 0.45, 'memory_mb': 142.3, 'mse': 0.070, 'mae': 0.176}
-
-Plot saved to \ses\backend\ml\docs\layer_experiment.png
-Training curves saved to \ses\backend\ml\docs\layer_training_curves.png
-```
-
-#### Neuron Experiment Output
-
-The neuron experiment script tests models with 32, 64, 128, and 256 neurons per layer and produces output similar to:
-
-```text
-Training with 32 neurons per layer
-Training with 64 neurons per layer
-Training with 128 neurons per layer
-Training with 256 neurons per layer
-
-{'neurons': 32, 'train_time': 18.45, 'eval_time': 0.12, 'memory_mb': 38.7, 'mse': 0.089, 'mae': 0.205}
-{'neurons': 64, 'train_time': 22.78, 'eval_time': 0.16, 'memory_mb': 52.3, 'mse': 0.076, 'mae': 0.185}
-{'neurons': 128, 'train_time': 31.24, 'eval_time': 0.24, 'memory_mb': 78.9, 'mse': 0.071, 'mae': 0.179}
-{'neurons': 256, 'train_time': 45.67, 'eval_time': 0.38, 'memory_mb': 125.4, 'mse': 0.069, 'mae': 0.175}
-
-Plot saved to \ses\backend\ml\docs\neuron_experiment.png
-Training curves saved to \ses\backend\ml\docs\neuron_training_curves.png
+[Layer Sweep] 1/2: Training with 1 hidden layer(s)
+  Training settings:
+    - Number of epochs (full passes through data): 100
+    - Batch size (samples per update): 16
+    - Learning rate (step size): 0.001
+    - Neurons per hidden layer: 64
+{'layers': 1, 'neurons': 64, 'train_time': 12.34, 'eval_time': 0.15, 'memory_mb': 45.2, 'mse': 0.082, 'mae': 0.198, ...}
+...
+Plot saved to .../layer_experiment.png
+Training curves saved to .../layer_training_curves.png
 ```
 
 ### Generated Visualizations
 
-#### Layer Experiment Plots
-
-The layer experiment creates plots in `backend/ml/docs/`:
-
 - **`layer_experiment.png`**: Model accuracy and resource usage vs number of hidden layers
-  - **Top plot**: Model accuracy (MSE/MAE) vs number of hidden layers
-  - **Bottom plot**: Training/evaluation time vs number of hidden layers
 - **`layer_training_curves.png`**: Training loss curves over epochs for different layer counts
-
-#### Neuron Experiment Plots
-
-The neuron experiment creates plots in `backend/ml/docs/`:
-
 - **`neuron_experiment.png`**: Model error and resource usage vs neurons per layer
-  - **Top plot**: Model accuracy (MSE/MAE) vs number of neurons per layer
-  - **Bottom plot**: Training/evaluation time vs number of neurons per layer
 - **`neuron_training_curves.png`**: Training loss curves over epochs for different neuron counts
 
 These experiments help identify the optimal balance between model complexity and performance for your specific use case.

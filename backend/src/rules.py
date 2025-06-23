@@ -6,16 +6,17 @@ and determine an overall security grade for the system.
 
 from datetime import datetime, timezone
 from typing import Optional
-from src.logging_config import get_logger
-from src.scoring import (
-    calculate_score,
+
+from .logging_config import get_logger
+from .rule_descriptions import RULE_DESCRIPTIONS
+from .scoring import (
     assign_grade,
-    DEFAULT_BASE_SCORE,
+    calculate_score,
     create_score_changes,
+    DEFAULT_BASE_SCORE,
     format_score_impact_text,
     get_finding_score_impact,
 )
-from src.rule_descriptions import RULE_DESCRIPTIONS
 
 logger = get_logger(__name__)
 
@@ -336,7 +337,7 @@ def _evaluate_clips(metrics: dict) -> dict:
         Evaluation results from CLIPS engine or legacy fallback
     """
     try:
-        from src.clips_evaluator import SecurityExpertSystem
+        from .clips_evaluator import SecurityExpertSystem
 
         expert_system = SecurityExpertSystem()
         result = expert_system.evaluate(metrics)

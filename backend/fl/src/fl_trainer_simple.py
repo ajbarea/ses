@@ -13,33 +13,18 @@ Key simplifications:
 - Focus on core FL concepts
 """
 
-import sys
 import tempfile
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
-import torch
-from torch.utils.data import DataLoader
-import torch.nn as nn
 import numpy as np
+import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader
 
-backend_dir = Path(__file__).parent.parent.parent
-sys.path.append(str(backend_dir))
-
-try:
-    from ml.src.ml_trainer import (
-        SecurityDataset,
-        SecurityNN,
-        evaluate_security_model,
-    )
-    from src.data_generator import (
-        generate_dataset,
-        split_dataset,
-        save_to_csv,
-    )
-    from src.clips_evaluator import SecurityExpertSystem
-except Exception as e:
-    print(f"Error importing modules: {e}")
+from ml.src.ml_trainer import SecurityDataset, SecurityNN, evaluate_security_model
+from src.data_generator import generate_dataset, split_dataset, save_to_csv
+from src.clips_evaluator import SecurityExpertSystem
 
 
 def generate_simple_fl_datasets(
