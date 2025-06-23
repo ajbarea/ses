@@ -55,11 +55,9 @@ def main():
 
     if "expert_system_consistency" in test_results:
         print(
-            f"Expert System Consistency: {test_results['expert_system_consistency']:.4f}"
-        )
-        print(
+            f"Expert System Consistency: {test_results['expert_system_consistency']:.4f} "
             "(How often predicted scores align with Expert System grade boundaries)"
-        )  # Show some example predictions
+        )
     print("\nSample Predictions vs Actual:")
     print("-" * 60)
     print("Sample | Predicted | Actual | Error | Expert System Approximation")

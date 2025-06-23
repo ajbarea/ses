@@ -1,5 +1,7 @@
 import time
 import tracemalloc
+import json
+import numpy as np
 from pathlib import Path
 from backend.ml.src.ml_trainer import train_model, evaluate_security_model
 from typing import Any, Dict
@@ -13,19 +15,22 @@ except ImportError:
     TQDM_AVAILABLE = False
 
 # --- Configuration ---
-# Choose experiment mode: 'layer', 'neuron', or 'both'
-EXPERIMENT_MODE = "layer"  # options: 'layer', 'neuron', 'both'
+# Choose experiment mode:
+#    'layer': Vary number of hidden layers
+#    'neuron': Vary neurons per layer
+#    'both': Run both sweeps (comprehensive, but slow)
+EXPERIMENT_MODE = "layer"
+
+# Training settings
+TRAINING_EPOCHS = 100
 
 # Layer sweep settings
-# LAYERS_TO_TEST = [1, 2, 4, 8, 16]
-LAYERS_TO_TEST = [1, 2]
+LAYERS_TO_TEST = [1, 2, 4, 8, 16]
 NEURONS_PER_LAYER = 64
 
 # Neuron sweep settings
 NEURONS_TO_TEST = [32, 64, 128, 256]
 HIDDEN_LAYERS_COUNT = 2
-
-TRAINING_EPOCHS = 100
 
 
 def print_sweep(
@@ -43,7 +48,6 @@ def print_sweep(
     print(
         f"\n[{sweep_name}] {idx+1}/{total}: Training with {main_param_value} {main_param_name}"
     )
-    # Friendly names for parameters
     friendly = {
         "epochs": "Number of epochs (full passes through data)",
         "batch_size": "Batch size (samples per update)",
@@ -68,7 +72,9 @@ def run_layer_experiment(layers_to_test, neurons_per_layer):
     train_csv = Path(__file__).parent / "security_data_split_train.csv"
     test_csv = Path(__file__).parent / "security_data_split_test.csv"
     iterator = (
-        tqdm(layers_to_test, desc="Layer Sweep") if TQDM_AVAILABLE else layers_to_test
+        tqdm(layers_to_test, desc="Hidden Layer Experiment")
+        if TQDM_AVAILABLE
+        else layers_to_test
     )
     for idx, layers in enumerate(iterator):
         print_sweep(
@@ -120,7 +126,7 @@ def run_neuron_experiment(neurons_to_test, hidden_layers_count):
     train_csv = Path(__file__).parent / "security_data_split_train.csv"
     test_csv = Path(__file__).parent / "security_data_split_test.csv"
     iterator = (
-        tqdm(neurons_to_test, desc="Neuron Sweep")
+        tqdm(neurons_to_test, desc="Neuron Count Experiment")
         if TQDM_AVAILABLE
         else neurons_to_test
     )
@@ -169,6 +175,21 @@ def run_neuron_experiment(neurons_to_test, hidden_layers_count):
     return results
 
 
+def to_serializable(obj):
+    if isinstance(obj, dict):
+        return {k: to_serializable(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [to_serializable(i) for i in obj]
+    elif isinstance(obj, (np.integer,)):
+        return int(obj)
+    elif isinstance(obj, (np.floating,)):
+        return float(obj)
+    elif isinstance(obj, (np.ndarray,)):
+        return obj.tolist()
+    else:
+        return obj
+
+
 def main():
     docs_dir = Path(__file__).parent / "plots"
     docs_dir.mkdir(parents=True, exist_ok=True)
@@ -176,7 +197,7 @@ def main():
     if EXPERIMENT_MODE == "layer":
         results = run_layer_experiment(LAYERS_TO_TEST, NEURONS_PER_LAYER)
         for res in results:
-            print(res)
+            print(json.dumps(to_serializable(res), indent=2))
         plot_results(
             results,
             x_key="layers",
@@ -187,7 +208,7 @@ def main():
     elif EXPERIMENT_MODE == "neuron":
         results = run_neuron_experiment(NEURONS_TO_TEST, HIDDEN_LAYERS_COUNT)
         for res in results:
-            print(res)
+            print(json.dumps(to_serializable(res), indent=2))
         plot_results(
             results,
             x_key="neurons",
@@ -199,7 +220,7 @@ def main():
         print("Running both layer and neuron sweeps...")
         results_layer = run_layer_experiment(LAYERS_TO_TEST, NEURONS_PER_LAYER)
         for res in results_layer:
-            print(res)
+            print(json.dumps(to_serializable(res), indent=2))
         plot_results(
             results_layer,
             x_key="layers",
@@ -209,7 +230,7 @@ def main():
         )
         results_neuron = run_neuron_experiment(NEURONS_TO_TEST, HIDDEN_LAYERS_COUNT)
         for res in results_neuron:
-            print(res)
+            print(json.dumps(to_serializable(res), indent=2))
         plot_results(
             results_neuron,
             x_key="neurons",
