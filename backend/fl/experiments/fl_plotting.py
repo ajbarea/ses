@@ -51,8 +51,8 @@ sns.set_palette("husl")
 COMMUNICATION_ROUND = "Communication Round"
 MEAN_SQUARED_ERROR = "Mean Squared Error"
 NUMBER_OF_SAMPLES = "Number of Samples"
-NO_PRIVACY = "No Privacy (No Differential Privacy Applied)"
-WITH_DP = "With DP (Differential Privacy Applied)"
+NO_PRIVACY = "No Privacy"
+WITH_DP = "With DP"
 BOXSTYLE_ROUNDED = "round,pad=0.5"
 
 
@@ -395,7 +395,7 @@ def plot_privacy_impact(
             rounds,
             baseline_history["global_mse"],
             "o-",
-            label="No Privacy",
+            label=NO_PRIVACY,
             linewidth=2,
             markersize=6,
         )
@@ -403,7 +403,7 @@ def plot_privacy_impact(
             rounds,
             private_history["global_mse"],
             "s-",
-            label="With DP",
+            label=WITH_DP,
             linewidth=2,
             markersize=6,
         )
@@ -432,7 +432,7 @@ def plot_privacy_impact(
             rounds,
             baseline_history["model_similarity"],
             "o-",
-            label="No Privacy",
+            label=NO_PRIVACY,
             linewidth=2,
             markersize=6,
         )
@@ -440,7 +440,7 @@ def plot_privacy_impact(
             rounds,
             private_history["model_similarity"],
             "s-",
-            label="With DP",
+            label=WITH_DP,
             linewidth=2,
             markersize=6,
         )
@@ -457,11 +457,9 @@ def plot_privacy_impact(
         private_convergence = np.gradient(private_history["global_mse"])
 
         axes[1, 1].plot(
-            rounds, np.abs(baseline_convergence), label="No Privacy", linewidth=2
+            rounds, np.abs(baseline_convergence), label=NO_PRIVACY, linewidth=2
         )
-        axes[1, 1].plot(
-            rounds, np.abs(private_convergence), label="With DP", linewidth=2
-        )
+        axes[1, 1].plot(rounds, np.abs(private_convergence), label=WITH_DP, linewidth=2)
         axes[1, 1].set_title("Convergence Speed (|dMSE/dRound|)")
         axes[1, 1].set_xlabel(COMMUNICATION_ROUND)
         axes[1, 1].set_ylabel("Absolute MSE Gradient")
@@ -635,7 +633,7 @@ def create_beginner_friendly_convergence_plot(
                 transform=axes[0, 0].transAxes,
                 fontsize=10,
                 bbox={
-                    "boxstyle": "round,pad=0.5",
+                    "boxstyle": BOXSTYLE_ROUNDED,
                     "facecolor": "lightgreen",
                     "alpha": 0.8,
                 },
@@ -724,7 +722,7 @@ def create_beginner_friendly_convergence_plot(
         0.02,
         explanation,
         fontsize=10,
-        bbox={"boxstyle": "round,pad=0.5", "facecolor": "lightblue", "alpha": 0.8},
+        bbox={"boxstyle": BOXSTYLE_ROUNDED, "facecolor": "lightblue", "alpha": 0.8},
         verticalalignment="bottom",
     )
 
@@ -856,7 +854,7 @@ def create_client_diversity_dashboard(
         axes[1, 0].set_title(
             "📈 Grade Distribution by Client", fontsize=14, fontweight="bold"
         )
-        axes[1, 0].set_ylabel("Number of Samples")
+        axes[1, 0].set_ylabel(NUMBER_OF_SAMPLES)
         axes[1, 0].tick_params(axis="x", rotation=45)
         axes[1, 0].legend(bbox_to_anchor=(1.05, 1), loc="upper left")
 
@@ -932,7 +930,7 @@ def create_client_diversity_dashboard(
         transform=axes[1, 2].transAxes,
         fontsize=11,
         verticalalignment="top",
-        bbox={"boxstyle": "round,pad=0.5", "facecolor": "lightyellow", "alpha": 0.8},
+        bbox={"boxstyle": BOXSTYLE_ROUNDED, "facecolor": "lightyellow", "alpha": 0.8},
     )
 
     plt.tight_layout()
@@ -990,7 +988,7 @@ def create_aggregation_comparison_plot(
 
     axes[0, 0].set_title("🏁 MSE Convergence Race", fontsize=14, fontweight="bold")
     axes[0, 0].set_xlabel(COMMUNICATION_ROUND)
-    axes[0, 0].set_ylabel("Mean Squared Error")
+    axes[0, 0].set_ylabel(MEAN_SQUARED_ERROR)
     axes[0, 0].legend()
     axes[0, 0].grid(True, alpha=0.3)
 
@@ -1132,7 +1130,7 @@ def create_aggregation_comparison_plot(
         transform=axes[1, 1].transAxes,
         fontsize=10,
         verticalalignment="top",
-        bbox={"boxstyle": "round,pad=0.5", "facecolor": "lightcyan", "alpha": 0.8},
+        bbox={"boxstyle": BOXSTYLE_ROUNDED, "facecolor": "lightcyan", "alpha": 0.8},
     )
 
     # 6. Recommendation System
@@ -1179,7 +1177,7 @@ def create_aggregation_comparison_plot(
         transform=axes[1, 2].transAxes,
         fontsize=11,
         verticalalignment="top",
-        bbox={"boxstyle": "round,pad=0.5", "facecolor": "lightgreen", "alpha": 0.8},
+        bbox={"boxstyle": BOXSTYLE_ROUNDED, "facecolor": "lightgreen", "alpha": 0.8},
     )
 
     plt.tight_layout()
