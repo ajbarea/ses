@@ -224,7 +224,7 @@ def aggregate_secure_average(
     Returns:
         Aggregated model state
     """
-    # Use weighted aggregation as base (more robust than simple average)
+    # Use weighted aggregation as base
     weights = [1.0] * len(states)  # Equal weights for secure aggregation
     agg = aggregate_weighted(states, weights)
 
@@ -327,7 +327,7 @@ def create_federated_experiment_config(
     samples_per_client: int = 200,
     rounds: int = 10,
     local_epochs: int = 5,
-    aggregation: str = "weighted",  # Default to weighted aggregation for production
+    aggregation: str = "weighted",
     hidden_size: int = 128,
     hidden_layers: int = 3,
     batch_size: int = 16,
@@ -365,7 +365,7 @@ def federated_training(
     dataset_paths: List[Dict[str, Path]],
     rounds: int = 5,
     local_epochs: int = 5,
-    aggregation: str = "weighted",  # Production default: weighted aggregation
+    aggregation: str = "weighted",
     hidden_size: int = 128,
     hidden_layers: int = 3,
     batch_size: int = 16,
@@ -389,6 +389,10 @@ def federated_training(
     Returns:
         Dictionary containing training history and advanced metrics
     """
+    if not dataset_paths:
+        if verbose:
+            print("No dataset paths provided to federated_training; exiting early.")
+        return {}
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if verbose:
         print(f"Using device: {device}")

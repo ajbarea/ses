@@ -1,3 +1,4 @@
+import json
 import shutil
 import tempfile
 import unittest
@@ -16,6 +17,7 @@ from fl.src.fl_trainer import (
     calculate_model_similarity,
     create_federated_experiment_config,
     evaluate_federated_model,
+    federated_training,
     generate_fl_datasets,
     save_federated_results,
 )
@@ -210,6 +212,303 @@ class TestSaveAndConfig(unittest.TestCase):
         cfg = create_federated_experiment_config()
         self.assertEqual(cfg["num_clients"], 4)
         self.assertEqual(cfg["aggregation"], "weighted")
+
+
+class TestDifferentialPrivacyEdgeCases(unittest.TestCase):
+    def test_add_differential_privacy_noise_nonzero(self):
+        state = {"a": torch.tensor([0.5, 0.5])}
+        noisy = add_differential_privacy_noise(state, noise_scale=0.1)
+        self.assertEqual(noisy["a"].shape, state["a"].shape)
+
+    def test_add_differential_privacy_noise_clip(self):
+        state = {"a": torch.tensor([10.0, 10.0])}
+        noisy = add_differential_privacy_noise(state, noise_scale=0.0, clip_norm=1.0)
+        self.assertTrue(torch.all(torch.abs(noisy["a"]) <= 1.0))
+
+
+class TestAggregationEdgeCases(unittest.TestCase):
+    def test_aggregate_weighted_empty(self):
+        with self.assertRaises(IndexError):
+            aggregate_weighted([], [])
+
+    def test_aggregate_median_empty(self):
+        with self.assertRaises(IndexError):
+            aggregate_median([])
+
+    def test_aggregate_secure_average_with_noise(self):
+        states = [{"a": torch.tensor([1.0])}, {"a": torch.tensor([3.0])}]
+        result = aggregate_secure_average(states, add_noise=True, noise_scale=0.01)
+        self.assertIn("a", result)
+
+
+class TestModelSimilarityEdgeCases(unittest.TestCase):
+    def test_calculate_model_similarity_empty(self):
+        sim = calculate_model_similarity({}, {})
+        self.assertEqual(sim, 0.0)
+
+    def test_calculate_model_similarity_different_keys(self):
+        s1 = {"a": torch.tensor([1.0])}
+        s2 = {"b": torch.tensor([1.0])}
+        sim = calculate_model_similarity(s1, s2)
+        self.assertEqual(sim, 0.0)
+
+
+class TestEvaluateFederatedModelGradeAcc(unittest.TestCase):
+    @patch("fl.src.fl_trainer.evaluate_security_model")
+    def test_evaluate_federated_model_with_grade_acc(self, mock_eval):
+        mock_eval.side_effect = [
+            {"mse": 1, "mae": 2, "r2_score": 0.5, "grade_accuracy": 0.8},
+            {"mse": 3, "mae": 4, "r2_score": 0.7, "grade_accuracy": 0.6},
+        ]
+        results = evaluate_federated_model(
+            global_model=None,
+            client_test_paths=[Path("a.csv"), Path("b.csv")],
+            encoders=None,
+            scaler=None,
+            grade_encoder=None,
+            base_dataset=None,
+        )
+        self.assertIn("avg_grade_accuracy", results)
+        self.assertAlmostEqual(results["avg_grade_accuracy"], 0.7)
+
+
+class TestSaveFederatedResultsConfig(unittest.TestCase):
+    def test_save_federated_results_with_config(self):
+        tmpdir = tempfile.mkdtemp()
+        history = {"m": [1, 2]}
+        config = {"a": 1}
+        save_federated_results(history, Path(tmpdir), config)
+        config_path = Path(tmpdir) / "fl_config.json"
+        self.assertTrue(config_path.exists())
+        with open(config_path) as f:
+            data = json.load(f)
+        self.assertEqual(data["a"], 1)
+        shutil.rmtree(tmpdir)
+
+
+class TestFederatedTrainingAndExperiment(unittest.TestCase):
+    def test_federated_training_stub(self):
+        # Should not raise, even if not implemented
+        try:
+            federated_training([])
+        except Exception as e:
+            self.fail(f"federated_training raised {e}")
+
+
+class TestEvaluateFederatedModelException(unittest.TestCase):
+    @patch("fl.src.fl_trainer.evaluate_security_model")
+    def test_evaluate_federated_model_handles_exception(self, mock_eval):
+        mock_eval.side_effect = Exception("fail")
+        from fl.src import fl_trainer
+
+        results = fl_trainer.evaluate_federated_model(
+            global_model=None,
+            client_test_paths=[Path("a.csv")],
+            encoders=None,
+            scaler=None,
+            grade_encoder=None,
+            base_dataset=None,
+        )
+        self.assertEqual(results["avg_mse"], float("inf"))
+        self.assertEqual(results["std_mse"], 0.0)
+        self.assertEqual(results["avg_mae"], float("inf"))
+        self.assertEqual(results["avg_r2"], 0.0)
+
+
+class TestFederatedTrainingBranches(unittest.TestCase):
+    @patch("fl.src.fl_trainer.SecurityDataset")
+    @patch("fl.src.fl_trainer.SecurityNN")
+    @patch("fl.src.fl_trainer.DataLoader")
+    @patch("fl.src.fl_trainer._train_local")
+    @patch("fl.src.fl_trainer.calculate_model_similarity", return_value=1.0)
+    @patch(
+        "fl.src.fl_trainer.evaluate_federated_model",
+        return_value={"avg_mse": 1, "avg_mae": 2, "avg_r2": 3},
+    )
+    def test_aggregation_median_and_secure(
+        self, mock_eval, mock_sim, mock_train, mock_dl, mock_nn, mock_ds
+    ):
+        # Setup mocks
+        mock_ds.return_value.features.shape = (4, 2)
+        mock_ds.return_value.encoders = None
+        mock_ds.return_value.scaler = None
+        mock_loader = MagicMock()
+        mock_loader.dataset = [1, 2, 3]
+        mock_dl.return_value = mock_loader
+        mock_nn.return_value.state_dict.return_value = {"w": torch.tensor([1.0, 2.0])}
+        mock_nn.return_value.to.return_value = mock_nn.return_value
+        mock_nn.return_value.load_state_dict.return_value = None
+        mock_nn.return_value.parameters.return_value = [torch.tensor([1.0, 2.0])]
+        # Median
+        from fl.src import fl_trainer
+
+        dataset_paths = [{"train": "a", "test": "b"}, {"train": "c", "test": "d"}]
+        with patch(
+            "fl.src.fl_trainer.aggregate_median",
+            return_value={"w": torch.tensor([1.0, 2.0])},
+        ):
+            result = fl_trainer.federated_training(
+                dataset_paths,
+                aggregation="median",
+                rounds=1,
+                local_epochs=1,
+                verbose=False,
+            )
+            self.assertIn("history", result)
+        # Secure
+        with patch(
+            "fl.src.fl_trainer.aggregate_secure_average",
+            return_value={"w": torch.tensor([1.0, 2.0])},
+        ):
+            result = fl_trainer.federated_training(
+                dataset_paths,
+                aggregation="secure",
+                rounds=1,
+                local_epochs=1,
+                verbose=False,
+            )
+            self.assertIn("history", result)
+
+    @patch("fl.src.fl_trainer.SecurityDataset")
+    @patch("fl.src.fl_trainer.SecurityNN")
+    @patch("fl.src.fl_trainer.DataLoader")
+    def test_aggregation_unknown(self, mock_dl, mock_nn, mock_ds):
+        mock_ds.return_value.features.shape = (4, 2)
+        mock_ds.return_value.encoders = None
+        mock_ds.return_value.scaler = None
+        mock_dl.return_value = [1, 2]
+        mock_nn.return_value.state_dict.return_value = {"w": torch.tensor([1.0, 2.0])}
+        mock_nn.return_value.to.return_value = mock_nn.return_value
+        mock_nn.return_value.load_state_dict.return_value = None
+        from fl.src import fl_trainer
+
+        dataset_paths = [{"train": "a", "test": "b"}]
+        with self.assertRaises(ValueError):
+            fl_trainer.federated_training(
+                dataset_paths,
+                aggregation="unknown",
+                rounds=1,
+                local_epochs=1,
+                verbose=False,
+            )
+
+    @patch("fl.src.fl_trainer.SecurityDataset")
+    @patch("fl.src.fl_trainer.SecurityNN")
+    @patch("fl.src.fl_trainer.DataLoader")
+    @patch("fl.src.fl_trainer._train_local")
+    @patch("fl.src.fl_trainer.calculate_model_similarity", return_value=1.0)
+    @patch(
+        "fl.src.fl_trainer.evaluate_federated_model",
+        return_value={"avg_mse": 1, "avg_mae": 2, "avg_r2": 3},
+    )
+    def test_final_metrics_empty_history(
+        self, mock_eval, mock_sim, mock_train, mock_dl, mock_nn, mock_ds
+    ):
+        mock_ds.return_value.features.shape = (4, 2)
+        mock_ds.return_value.encoders = None
+        mock_ds.return_value.scaler = None
+        mock_dl.return_value = [1, 2]
+        mock_nn.return_value.state_dict.return_value = {"w": torch.tensor([1.0, 2.0])}
+        mock_nn.return_value.to.return_value = mock_nn.return_value
+        mock_nn.return_value.load_state_dict.return_value = None
+        from fl.src import fl_trainer
+
+        # No dataset paths
+        result = fl_trainer.federated_training([], verbose=False)
+        self.assertEqual(result, {})
+
+
+class TestRunFederatedExperiment(unittest.TestCase):
+    @patch(
+        "fl.src.fl_trainer.generate_fl_datasets",
+        return_value=[{"train": "a", "test": "b"}],
+    )
+    @patch(
+        "fl.src.fl_trainer.federated_training",
+        return_value={
+            "history": {"global_mse": [1]},
+            "final_metrics": {},
+            "config": {},
+        },
+    )
+    @patch("fl.src.fl_trainer.save_federated_results")
+    def test_run_federated_experiment_save(self, mock_save, mock_train, mock_gen):
+        from fl.src import fl_trainer
+
+        config = fl_trainer.create_federated_experiment_config()
+        result = fl_trainer.run_federated_experiment(
+            output_dir="/tmp", config=config, save_results=True
+        )
+        mock_save.assert_called()
+        self.assertIn("history", result)
+
+    @patch(
+        "fl.src.fl_trainer.generate_fl_datasets",
+        return_value=[{"train": "a", "test": "b"}],
+    )
+    @patch(
+        "fl.src.fl_trainer.federated_training",
+        return_value={
+            "history": {"global_mse": [1]},
+            "final_metrics": {},
+            "config": {},
+        },
+    )
+    @patch("fl.src.fl_trainer.save_federated_results")
+    def test_run_federated_experiment_no_save(self, mock_save, mock_train, mock_gen):
+        from fl.src import fl_trainer
+
+        config = fl_trainer.create_federated_experiment_config()
+        result = fl_trainer.run_federated_experiment(
+            output_dir="", config=config, save_results=False
+        )
+        mock_save.assert_not_called()
+        self.assertIn("history", result)
+
+    @patch(
+        "fl.src.fl_trainer.generate_fl_datasets",
+        return_value=[{"train": "a", "test": "b"}],
+    )
+    @patch(
+        "fl.src.fl_trainer.federated_training",
+        return_value={
+            "history": {"global_mse": [1]},
+            "final_metrics": {},
+            "config": {},
+        },
+    )
+    @patch("fl.src.fl_trainer.save_federated_results")
+    def test_run_federated_experiment_default_config(
+        self, mock_save, mock_train, mock_gen
+    ):
+        from fl.src import fl_trainer
+
+        result = fl_trainer.run_federated_experiment(
+            output_dir="/tmp", config=None, save_results=True
+        )
+        self.assertIn("history", result)
+
+
+class TestMainFunction(unittest.TestCase):
+    @patch(
+        "fl.src.fl_trainer.run_federated_experiment",
+        return_value={"global_mse": [1, 2, 3]},
+    )
+    @patch("fl.src.fl_trainer.create_federated_experiment_config")
+    def test_main_runs(self, mock_config, mock_run):
+        from fl.src import fl_trainer
+
+        mock_config.return_value = {
+            "num_clients": 2,
+            "samples_per_client": 2,
+            "rounds": 1,
+            "local_epochs": 1,
+            "aggregation": "weighted",
+            "use_differential_privacy": False,
+        }
+        with patch("builtins.print") as mock_print:
+            fl_trainer.main()
+            self.assertTrue(mock_print.called)
 
 
 if __name__ == "__main__":  # pragma: no cover
