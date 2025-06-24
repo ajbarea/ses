@@ -436,9 +436,10 @@ class TestRunFederatedExperiment(unittest.TestCase):
         from fl.src import fl_trainer
 
         config = fl_trainer.create_federated_experiment_config()
-        result = fl_trainer.run_federated_experiment(
-            output_dir="/tmp", config=config, save_results=True
-        )
+        with tempfile.TemporaryDirectory() as tmp_output_dir:
+            result = fl_trainer.run_federated_experiment(
+                output_dir=tmp_output_dir, config=config, save_results=True
+            )
         mock_save.assert_called()
         self.assertIn("history", result)
 
@@ -483,9 +484,10 @@ class TestRunFederatedExperiment(unittest.TestCase):
     ):
         from fl.src import fl_trainer
 
-        result = fl_trainer.run_federated_experiment(
-            output_dir="/tmp", config=None, save_results=True
-        )
+        with tempfile.TemporaryDirectory() as tmp_output_dir:
+            result = fl_trainer.run_federated_experiment(
+                output_dir=tmp_output_dir, config=None, save_results=True
+            )
         self.assertIn("history", result)
 
 

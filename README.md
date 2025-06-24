@@ -52,8 +52,8 @@ npm run dev
 
 ### Advanced Features
 
-- **[Machine Learning Pipeline](backend/ml/docs/ml_trainer.md)** - Neural network training to approximate expert system
-- **[Federated Learning Pipeline](backend/fl/docs/fl_trainer.md)** - Privacy-preserving collaborative model training
+- **[Machine Learning Pipeline](backend/docs/machine_learning_pipeline.md)** - Neural network training to approximate expert system
+- **[Federated Learning Pipeline](backend/docs/federated_learning_pipeline.md)** - Privacy-preserving collaborative model training
 - **[Synthetic Data Generation](backend/docs/data_generation.md)** - Generate training datasets
 - **[System Architecture](backend/docs/models/ses_system_architecture.mermaid)** - Visual system overview
 
@@ -76,51 +76,79 @@ python -m src.data_generator -n 1000 --split 0.8 -o security_data_split.csv
 # Train neural network
 cd ml/experiments
 python train_security_model.py
-
-# Expected output: R² > 0.95, Classification Accuracy > 90%
 ```
 
 ## Federated Learning Workflow
 
 ```bash
-# Generate federated datasets and train collaboratively
-cd backend/fl/src
-python -m src.fl_trainer
-
-# Example output: Federated learning experiment with multiple clients
-# Expected: Global MSE < 0.1, Privacy-preserved collaborative learning
+cd backend
+python -m fl.experiments.fl_experiments
 ```
+
+This command generates federated datasets and orchestrates collaborative training across simulated clients.
+
+### Run Individual Federated Learning Experiments
+
+- **Basic Convergence Test**  
+  Evaluate if the federated model converges as expected:
+
+  ```bash
+  python -m fl.experiments.convergence_experiment
+  ```
+
+- **Aggregation Methods Comparison**  
+  Compare different aggregation strategies (e.g., FedAvg, weighted, median, secure) for combining client updates:
+
+  ```bash
+  python -m fl.experiments.aggregation_experiment
+  ```
+
+- **Privacy Impact Analysis**  
+  Assess the effect of privacy-preserving techniques (e.g., noise injection) on model performance:
+
+  ```bash
+  python -m fl.experiments.privacy_experiment
+  ```
 
 ## Neural Network Experiments
 
-### Experiment Script
+The neural network module enables you to optimize and evaluate machine learning models that approximate the expert system’s security scoring.
 
-The `ml_experiments.py` script allows you to analyze how different numbers of hidden layers and neurons per layer affect model performance, training time, and resource usage. This experiment helps optimize the neural network architecture for the security evaluation model.
+### Overview
 
-#### Running the Experiment
+The `ml_experiments.py` script allows you to systematically analyze how different neural network architectures—specifically, the number of hidden layers and neurons per layer—affect model performance, training time, and resource usage. This helps you find the best trade-off between accuracy and efficiency for your use case.
+
+### How to Run Experiments
+
+1. **Generate Training Data**
+
+   ```bash
+   cd backend
+   python -m src.data_generator -n 1000 --split 0.8 -o security_data_split.csv
+   ```
+
+2. **Run Architecture Experiments**
+
+   ```bash
+   cd ml/experiments
+   python ml_experiments.py
+   ```
+
+   - You can set the experiment mode (`layer`, `neuron`, or `both`) at the top of `ml_experiments.py` to control which architecture sweeps to run.
+
+### What to Expect
+
+- The script prints progress and results for each configuration.
+- Plots and logs are saved to the `docs/experiments/` directory.
+
+**Example Output:**
 
 ```bash
-# Generate training data
-cd backend
-python -m src.data_generator -n 1000 --split 0.8 -o security_data_split.csv
-
-# Run neural network architecture experiments
-cd ml/experiments
-python ml_experiments.py
-```
-
-You can configure the experiment mode (`layer`, `neuron`, or `both`) at the top of `ml_experiments.py` to control which sweep(s) to run.
-
-### Expected Terminal Output
-
-The script will print progress and results for each configuration, and save plots to the `docs/experiments/` directory. Example output:
-
-```text
 [Layer Sweep] 1/2: Training with 1 hidden layer(s)
   Training settings:
-    - Number of epochs (full passes through data): 100
-    - Batch size (samples per update): 16
-    - Learning rate (step size): 0.001
+    - Number of epochs: 100
+    - Batch size: 16
+    - Learning rate: 0.001
     - Neurons per hidden layer: 64
 {'layers': 1, 'neurons': 64, 'train_time': 12.34, 'eval_time': 0.15, 'memory_mb': 45.2, 'mse': 0.082, 'mae': 0.198, ...}
 ...
@@ -130,12 +158,12 @@ Training curves saved to .../layer_training_curves.png
 
 ### Generated Visualizations
 
-- **`layer_experiment.png`**: Model accuracy and resource usage vs number of hidden layers
-- **`layer_training_curves.png`**: Training loss curves over epochs for different layer counts
-- **`neuron_experiment.png`**: Model error and resource usage vs neurons per layer
-- **`neuron_training_curves.png`**: Training loss curves over epochs for different neuron counts
+- **`layer_experiment.png`**: Accuracy and resource usage vs. number of hidden layers
+- **`layer_training_curves.png`**: Training loss curves for different layer counts
+- **`neuron_experiment.png`**: Error and resource usage vs. neurons per layer
+- **`neuron_training_curves.png`**: Training loss curves for different neuron counts
 
-These experiments help identify the optimal balance between model complexity and performance for your specific use case.
+These experiments help you identify the optimal neural network configuration for your security evaluation needs. For more details, see [Machine Learning Pipeline Documentation](backend/docs/machine_learning_pipeline.md).
 
 ## Testing
 
