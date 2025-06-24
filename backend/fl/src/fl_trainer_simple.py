@@ -83,10 +83,10 @@ def train_local_model(model, data_loader, epochs: int = 3, device: torch.device 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model.train()
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-5)
     criterion = nn.MSELoss()
 
-    for epoch in range(epochs):
+    for _ in range(epochs):
         for batch in data_loader:
             optimizer.zero_grad()
 
@@ -234,7 +234,9 @@ def simple_federated_training(
             encoders=encoders,
             scaler=scaler,
         )
-        train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
+        train_loader = DataLoader(
+            train_ds, batch_size=batch_size, shuffle=True, num_workers=0
+        )
         clients.append(
             {
                 "train_loader": train_loader,

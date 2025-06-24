@@ -11,7 +11,7 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 import joblib
 
 
-def train_model(train_csv, target_col="target_score", **kwargs):
+def train_model(train_csv, target_col="target_score"):
     """Train a scikit-learn model on the data."""
 
     # Load data

@@ -47,6 +47,14 @@ matplotlib.use("Agg")
 plt.style.use("seaborn-v0_8")
 sns.set_palette("husl")
 
+# Commonly used string constants
+COMMUNICATION_ROUND = "Communication Round"
+MEAN_SQUARED_ERROR = "Mean Squared Error"
+NUMBER_OF_SAMPLES = "Number of Samples"
+NO_PRIVACY = "No Privacy (No Differential Privacy Applied)"
+WITH_DP = "With DP (Differential Privacy Applied)"
+BOXSTYLE_ROUNDED = "round,pad=0.5"
+
 
 class NumpyEncoder(json.JSONEncoder):
     """JSON encoder that handles numpy data types for serialization.
@@ -110,8 +118,8 @@ def plot_fl_convergence(
     if "global_mse" in history:
         axes[0, 0].plot(rounds, history["global_mse"], "o-", linewidth=2, markersize=6)
         axes[0, 0].set_title("Global Model MSE")
-        axes[0, 0].set_xlabel("Communication Round")
-        axes[0, 0].set_ylabel("Mean Squared Error")
+        axes[0, 0].set_xlabel(COMMUNICATION_ROUND)
+        axes[0, 0].set_ylabel(MEAN_SQUARED_ERROR)
         axes[0, 0].grid(True, alpha=0.3)
 
     # Plot MAE convergence
@@ -125,7 +133,7 @@ def plot_fl_convergence(
             color="orange",
         )
         axes[0, 1].set_title("Global Model MAE")
-        axes[0, 1].set_xlabel("Communication Round")
+        axes[0, 1].set_xlabel(COMMUNICATION_ROUND)
         axes[0, 1].set_ylabel("Mean Absolute Error")
         axes[0, 1].grid(True, alpha=0.3)
 
@@ -135,7 +143,7 @@ def plot_fl_convergence(
             rounds, history["global_r2"], "o-", linewidth=2, markersize=6, color="green"
         )
         axes[1, 0].set_title("Global Model R² Score")
-        axes[1, 0].set_xlabel("Communication Round")
+        axes[1, 0].set_xlabel(COMMUNICATION_ROUND)
         axes[1, 0].set_ylabel("R² Score")
         axes[1, 0].grid(True, alpha=0.3)
 
@@ -150,7 +158,7 @@ def plot_fl_convergence(
             color="red",
         )
         axes[1, 1].set_title("Grade Classification Accuracy")
-        axes[1, 1].set_xlabel("Communication Round")
+        axes[1, 1].set_xlabel(COMMUNICATION_ROUND)
         axes[1, 1].set_ylabel("Accuracy")
         axes[1, 1].grid(True, alpha=0.3)
     else:
@@ -160,7 +168,7 @@ def plot_fl_convergence(
                 rounds, history["participating_clients"], alpha=0.7, color="purple"
             )
             axes[1, 1].set_title("Client Participation")
-            axes[1, 1].set_xlabel("Communication Round")
+            axes[1, 1].set_xlabel(COMMUNICATION_ROUND)
             axes[1, 1].set_ylabel("Number of Clients")
             axes[1, 1].grid(True, alpha=0.3, axis="y")
 
@@ -196,7 +204,7 @@ def plot_client_diversity(
     data_sizes = [stats.get("data_size", 0) for stats in client_stats]
     axes[0, 0].bar(client_ids, data_sizes, alpha=0.7, color="skyblue")
     axes[0, 0].set_title("Data Size Distribution Across Clients")
-    axes[0, 0].set_ylabel("Number of Samples")
+    axes[0, 0].set_ylabel(NUMBER_OF_SAMPLES)
     axes[0, 0].tick_params(axis="x", rotation=45)
 
     # Target score distribution (if available)
@@ -328,19 +336,19 @@ def plot_aggregation_comparison(
             axes[1, 1].bar(method, final_mse, alpha=0.7, color=color)
 
     axes[0, 0].set_title("MSE Convergence")
-    axes[0, 0].set_xlabel("Communication Round")
+    axes[0, 0].set_xlabel(COMMUNICATION_ROUND)
     axes[0, 0].set_ylabel("MSE")
     axes[0, 0].legend()
     axes[0, 0].grid(True, alpha=0.3)
 
     axes[0, 1].set_title("MAE Convergence")
-    axes[0, 1].set_xlabel("Communication Round")
+    axes[0, 1].set_xlabel(COMMUNICATION_ROUND)
     axes[0, 1].set_ylabel("MAE")
     axes[0, 1].legend()
     axes[0, 1].grid(True, alpha=0.3)
 
     axes[1, 0].set_title("R² Score Convergence")
-    axes[1, 0].set_xlabel("Communication Round")
+    axes[1, 0].set_xlabel(COMMUNICATION_ROUND)
     axes[1, 0].set_ylabel("R² Score")
     axes[1, 0].legend()
     axes[1, 0].grid(True, alpha=0.3)
@@ -400,7 +408,7 @@ def plot_privacy_impact(
             markersize=6,
         )
         axes[0, 0].set_title("MSE: Privacy vs No Privacy")
-        axes[0, 0].set_xlabel("Communication Round")
+        axes[0, 0].set_xlabel(COMMUNICATION_ROUND)
         axes[0, 0].set_ylabel("MSE")
         axes[0, 0].legend()
         axes[0, 0].grid(True, alpha=0.3)
@@ -437,7 +445,7 @@ def plot_privacy_impact(
             markersize=6,
         )
         axes[1, 0].set_title("Model Similarity Between Clients")
-        axes[1, 0].set_xlabel("Communication Round")
+        axes[1, 0].set_xlabel(COMMUNICATION_ROUND)
         axes[1, 0].set_ylabel("Average Cosine Similarity")
         axes[1, 0].legend()
         axes[1, 0].grid(True, alpha=0.3)
@@ -455,7 +463,7 @@ def plot_privacy_impact(
             rounds, np.abs(private_convergence), label="With DP", linewidth=2
         )
         axes[1, 1].set_title("Convergence Speed (|dMSE/dRound|)")
-        axes[1, 1].set_xlabel("Communication Round")
+        axes[1, 1].set_xlabel(COMMUNICATION_ROUND)
         axes[1, 1].set_ylabel("Absolute MSE Gradient")
         axes[1, 1].legend()
         axes[1, 1].grid(True, alpha=0.3)
@@ -489,7 +497,7 @@ def plot_communication_rounds(
             rounds, history["update_magnitude"], "o-", linewidth=2, markersize=6
         )
         axes[0, 0].set_title("Model Update Magnitude")
-        axes[0, 0].set_xlabel("Communication Round")
+        axes[0, 0].set_xlabel(COMMUNICATION_ROUND)
         axes[0, 0].set_ylabel("L2 Norm of Updates")
         axes[0, 0].grid(True, alpha=0.3)
 
@@ -515,7 +523,7 @@ def plot_communication_rounds(
                 )
 
             axes[0, 1].set_title("Client Model Similarity to Global")
-            axes[0, 1].set_xlabel("Communication Round")
+            axes[0, 1].set_xlabel(COMMUNICATION_ROUND)
             axes[0, 1].set_ylabel("Cosine Similarity")
             axes[0, 1].legend()
             axes[0, 1].grid(True, alpha=0.3)
@@ -552,7 +560,7 @@ def plot_communication_rounds(
             rounds, efficiency, "o-", linewidth=2, markersize=6, color="green"
         )
         axes[1, 0].set_title("Training Efficiency (Improvement per Round)")
-        axes[1, 0].set_xlabel("Communication Round")
+        axes[1, 0].set_xlabel(COMMUNICATION_ROUND)
         axes[1, 0].set_ylabel("MSE Improvement per Round")
         axes[1, 0].grid(True, alpha=0.3)
 
@@ -612,7 +620,7 @@ def create_beginner_friendly_convergence_plot(
         axes[0, 0].set_title(
             "🎯 Model Performance (Lower = Better)", fontsize=14, fontweight="bold"
         )
-        axes[0, 0].set_xlabel("Communication Round", fontsize=12)
+        axes[0, 0].set_xlabel(COMMUNICATION_ROUND, fontsize=12)
         axes[0, 0].set_ylabel("Mean Squared Error (MSE)", fontsize=12)
         axes[0, 0].grid(True, alpha=0.3)
 
@@ -626,7 +634,11 @@ def create_beginner_friendly_convergence_plot(
                 f"Improvement: {improvement_pct:.1f}%",
                 transform=axes[0, 0].transAxes,
                 fontsize=10,
-                bbox=dict(boxstyle="round,pad=0.3", facecolor="lightgreen", alpha=0.8),
+                bbox={
+                    "boxstyle": "round,pad=0.5",
+                    "facecolor": "lightgreen",
+                    "alpha": 0.8,
+                },
                 verticalalignment="top",
             )
 
@@ -643,7 +655,7 @@ def create_beginner_friendly_convergence_plot(
         axes[0, 1].set_title(
             "📊 Model Fit Quality (Higher = Better)", fontsize=14, fontweight="bold"
         )
-        axes[0, 1].set_xlabel("Communication Round", fontsize=12)
+        axes[0, 1].set_xlabel(COMMUNICATION_ROUND, fontsize=12)
         axes[0, 1].set_ylabel("R² Score (0=random, 1=perfect)", fontsize=12)
         axes[0, 1].grid(True, alpha=0.3)
         axes[0, 1].axhline(
@@ -669,7 +681,7 @@ def create_beginner_friendly_convergence_plot(
             fontsize=14,
             fontweight="bold",
         )
-        axes[1, 0].set_xlabel("Communication Round", fontsize=12)
+        axes[1, 0].set_xlabel(COMMUNICATION_ROUND, fontsize=12)
         axes[1, 0].set_ylabel("Model Similarity (0-1)", fontsize=12)
         axes[1, 0].grid(True, alpha=0.3)
         axes[1, 0].axhline(
@@ -692,7 +704,7 @@ def create_beginner_friendly_convergence_plot(
             fontsize=14,
             fontweight="bold",
         )
-        axes[1, 1].set_xlabel("Communication Round", fontsize=12)
+        axes[1, 1].set_xlabel(COMMUNICATION_ROUND, fontsize=12)
         axes[1, 1].set_ylabel("Update Magnitude", fontsize=12)
         axes[1, 1].grid(True, alpha=0.3)
 
@@ -712,7 +724,7 @@ def create_beginner_friendly_convergence_plot(
         0.02,
         explanation,
         fontsize=10,
-        bbox=dict(boxstyle="round,pad=0.5", facecolor="lightblue", alpha=0.8),
+        bbox={"boxstyle": "round,pad=0.5", "facecolor": "lightblue", "alpha": 0.8},
         verticalalignment="bottom",
     )
 
@@ -747,7 +759,7 @@ def create_client_diversity_dashboard(
     data_sizes = [stats.get("data_size", 0) for stats in client_stats]
     bars1 = axes[0, 0].bar(client_ids, data_sizes, color=colors, alpha=0.8)
     axes[0, 0].set_title("📊 Data Size per Client", fontsize=14, fontweight="bold")
-    axes[0, 0].set_ylabel("Number of Samples")
+    axes[0, 0].set_ylabel(NUMBER_OF_SAMPLES)
     axes[0, 0].tick_params(axis="x", rotation=45)
 
     # Add value labels on bars
@@ -813,7 +825,7 @@ def create_client_diversity_dashboard(
         }
         pie_colors = [grade_colors.get(grade, "#95a5a6") for grade in grades]
 
-        wedges, texts, autotexts = axes[0, 2].pie(
+        _, _, _ = axes[0, 2].pie(
             counts, labels=grades, autopct="%1.1f%%", colors=pie_colors, startangle=90
         )
         axes[0, 2].set_title(
@@ -920,7 +932,7 @@ def create_client_diversity_dashboard(
         transform=axes[1, 2].transAxes,
         fontsize=11,
         verticalalignment="top",
-        bbox=dict(boxstyle="round,pad=0.5", facecolor="lightyellow", alpha=0.8),
+        bbox={"boxstyle": "round,pad=0.5", "facecolor": "lightyellow", "alpha": 0.8},
     )
 
     plt.tight_layout()
@@ -977,7 +989,7 @@ def create_aggregation_comparison_plot(
             )
 
     axes[0, 0].set_title("🏁 MSE Convergence Race", fontsize=14, fontweight="bold")
-    axes[0, 0].set_xlabel("Communication Round")
+    axes[0, 0].set_xlabel(COMMUNICATION_ROUND)
     axes[0, 0].set_ylabel("Mean Squared Error")
     axes[0, 0].legend()
     axes[0, 0].grid(True, alpha=0.3)
@@ -1079,7 +1091,7 @@ def create_aggregation_comparison_plot(
             )
 
     axes[1, 0].set_title("📊 R² Score Evolution", fontsize=14, fontweight="bold")
-    axes[1, 0].set_xlabel("Communication Round")
+    axes[1, 0].set_xlabel(COMMUNICATION_ROUND)
     axes[1, 0].set_ylabel("R² Score (Higher = Better)")
     axes[1, 0].legend()
     axes[1, 0].grid(True, alpha=0.3)
@@ -1120,7 +1132,7 @@ def create_aggregation_comparison_plot(
         transform=axes[1, 1].transAxes,
         fontsize=10,
         verticalalignment="top",
-        bbox=dict(boxstyle="round,pad=0.5", facecolor="lightcyan", alpha=0.8),
+        bbox={"boxstyle": "round,pad=0.5", "facecolor": "lightcyan", "alpha": 0.8},
     )
 
     # 6. Recommendation System
@@ -1167,7 +1179,7 @@ def create_aggregation_comparison_plot(
         transform=axes[1, 2].transAxes,
         fontsize=11,
         verticalalignment="top",
-        bbox=dict(boxstyle="round,pad=0.5", facecolor="lightgreen", alpha=0.8),
+        bbox={"boxstyle": "round,pad=0.5", "facecolor": "lightgreen", "alpha": 0.8},
     )
 
     plt.tight_layout()
@@ -1322,7 +1334,7 @@ def run_comprehensive_fl_experiments():
             }
 
     # Create client scaling plot
-    fig, ax = plt.subplots(figsize=(12, 8))
+    _, ax = plt.subplots(figsize=(12, 8))
     for experiment, results in client_scaling_results.items():
         history = results["history"]
         rounds = history.get("rounds", range(len(history.get("global_mse", []))))
@@ -1338,8 +1350,8 @@ def run_comprehensive_fl_experiments():
     ax.set_title(
         "🔢 How Number of Clients Affects Learning", fontsize=16, fontweight="bold"
     )
-    ax.set_xlabel("Communication Round", fontsize=12)
-    ax.set_ylabel("Mean Squared Error", fontsize=12)
+    ax.set_xlabel(COMMUNICATION_ROUND, fontsize=12)
+    ax.set_ylabel(MEAN_SQUARED_ERROR, fontsize=12)
     ax.legend()
     ax.grid(True, alpha=0.3)
 
@@ -1406,14 +1418,6 @@ def run_comprehensive_fl_experiments():
         key=lambda x: aggregation_results[x]["final_metrics"]["avg_mse"],
     )
     print(f"  Using best method: {best_method}")
-
-    config = create_federated_experiment_config(
-        num_clients=4,
-        samples_per_client=200,
-        rounds=15,
-        local_epochs=5,
-        aggregation=best_method,
-    )
 
     with tempfile.TemporaryDirectory() as temp_dir:
         datasets = generate_fl_datasets(

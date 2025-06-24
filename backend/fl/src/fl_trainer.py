@@ -170,8 +170,8 @@ def calculate_model_similarity(
 
             # Calculate cosine similarity
             dot_product = torch.dot(vec1, vec2)
-            norm1 = torch.norm(vec1)
-            norm2 = torch.norm(vec2)
+            norm1 = torch.norm(vec1, dim=0)
+            norm2 = torch.norm(vec2, dim=0)
 
             if norm1 > 0 and norm2 > 0:
                 similarity = dot_product / (norm1 * norm2)
@@ -197,7 +197,7 @@ def add_differential_privacy_noise(
 
     for key, param in state.items():
         # Clip parameters
-        param_norm = torch.norm(param)
+        param_norm = torch.norm(param, dim=0)
         if param_norm > clip_norm:
             param = param * (clip_norm / param_norm)  # Add Gaussian noise
         if noise_scale > 0:
@@ -415,7 +415,9 @@ def federated_training(
             grade_encoder=grade_encoder,
         )
         test_path = paths["test"]
-        train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
+        train_loader = DataLoader(
+            train_ds, batch_size=batch_size, shuffle=True, num_workers=4
+        )
         clients.append(
             {"train_loader": train_loader, "test_path": test_path, "client_id": i}
         )
@@ -490,7 +492,7 @@ def federated_training(
         for key in aggregated.keys():
             if key in global_state_before:
                 diff = aggregated[key] - global_state_before[key]
-                update_magnitude += torch.norm(diff).item()
+                update_magnitude += torch.norm(diff, dim=0).item()
 
         global_model.load_state_dict(aggregated)  # Evaluate on each client's test data
         client_test_paths = [client["test_path"] for client in clients]

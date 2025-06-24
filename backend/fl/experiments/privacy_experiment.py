@@ -74,7 +74,7 @@ def run_privacy_experiment() -> dict:
             noise_scale=noise_scale,
         )
 
-        if noise_scale == 0.0:
+        if abs(noise_scale) < 1e-10:
             label = "No Privacy"
         else:
             label = f"DP (σ={noise_scale})"
@@ -94,7 +94,7 @@ def run_privacy_experiment() -> dict:
 
     utility_losses = []
     for noise_scale in noise_scales:
-        if noise_scale == 0.0:
+        if abs(noise_scale) < 1e-10:
             label = "No Privacy"
             utility_loss = 0.0
         else:

@@ -349,7 +349,7 @@ def _train_security_model(
         except ImportError:
             pass
 
-    for epoch in epoch_iter:
+    for _ in epoch_iter:
         epoch_loss = 0.0
         model.train()
 
@@ -390,9 +390,6 @@ def _train_security_model(
         avg_loss = epoch_loss / len(loader.dataset)
         losses.append(avg_loss)
 
-        # if (epoch + 1) % 10 == 0:
-        #     print(f"Epoch {epoch + 1}/{epochs}, Loss: {avg_loss:.4f}")
-
     return losses
 
 
@@ -432,7 +429,7 @@ def _train_torch_model(
             epoch_iter = tqdm(epoch_iter, desc="Epochs", leave=False)
         except ImportError:
             pass
-    for epoch in epoch_iter:
+    for _ in epoch_iter:
         epoch_loss = 0.0
         for x, y in loader:
             x, y = x.to(device), y.to(device)
@@ -1074,13 +1071,7 @@ def main():  # pragma: no cover
 
     # Handle cases where dataset is too small for the split
     if train_size <= 0 or test_size <= 0:
-        if len(full_dataset) > 0 and train_size <= 0:  # if all data goes to test
-            train_dataset = full_dataset
-            train_loader = DataLoader(
-                train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=0
-            )
-            test_loader = None  # No test set
-        elif len(full_dataset) > 0 and test_size <= 0:  # if all data goes to train
+        if len(full_dataset) > 0:
             train_dataset = full_dataset
             train_loader = DataLoader(
                 train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=0
@@ -1088,7 +1079,6 @@ def main():  # pragma: no cover
             test_loader = None  # No test set
         else:  # Dataset is genuinely empty or cannot be split meaningfully
             return
-
     else:
         train_dataset, test_dataset = torch.utils.data.random_split(
             full_dataset,
