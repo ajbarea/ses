@@ -11,6 +11,7 @@ A Windows security assessment tool that collects system metrics, evaluates them 
 - **Security Scoring**: Numerical scores, grades, and detailed findings with recommendations
 - **REST API**: FastAPI endpoints for integration
 - **Machine Learning**: Train models to approximate expert system behavior
+- **Federated Learning**: Privacy-preserving technique for collaboratively training machine learning models across multiple clients without sharing raw data
 
 ## Quick Start
 
@@ -51,7 +52,8 @@ npm run dev
 
 ### Advanced Features
 
-- **[Machine Learning Pipeline](backend/docs/ml_trainer.md)** - Neural network training to approximate expert system
+- **[Machine Learning Pipeline](backend/docs/machine_learning_pipeline.md)** - Neural network training to approximate expert system
+- **[Federated Learning Pipeline](backend/docs/federated_learning_pipeline.md)** - Privacy-preserving collaborative model training
 - **[Synthetic Data Generation](backend/docs/data_generation.md)** - Generate training datasets
 - **[System Architecture](backend/docs/models/ses_system_architecture.mermaid)** - Visual system overview
 
@@ -72,110 +74,101 @@ cd backend
 python -m src.data_generator -n 1000 --split 0.8 -o security_data_split.csv
 
 # Train neural network
+cd ml/experiments
 python train_security_model.py
-
-# Expected output: R² > 0.95, Classification Accuracy > 90%
 ```
+
+## Federated Learning Workflow
+
+```bash
+cd backend
+python -m fl.experiments.fl_experiments
+```
+
+This command generates federated datasets and orchestrates collaborative training across simulated clients.
+
+### Run Individual Federated Learning Experiments
+
+- **Basic Convergence Test**  
+  Evaluate if the federated model converges as expected:
+
+  ```bash
+  python -m fl.experiments.convergence_experiment
+  ```
+
+- **Aggregation Methods Comparison**  
+  Compare different aggregation strategies (e.g., FedAvg, weighted, median, secure) for combining client updates:
+
+  ```bash
+  python -m fl.experiments.aggregation_experiment
+  ```
+
+- **Privacy Impact Analysis**  
+  Assess the effect of privacy-preserving techniques (e.g., noise injection) on model performance:
+
+  ```bash
+  python -m fl.experiments.privacy_experiment
+  ```
 
 ## Neural Network Experiments
 
-### Layer Experiment
+The neural network module enables you to optimize and evaluate machine learning models that approximate the expert system’s security scoring.
 
-The `layer_experiment.py` script analyzes how different numbers of hidden layers affect model performance, training time, and resource usage. This experiment helps optimize the neural network architecture for the security evaluation model.
+### Overview
 
-#### Running the Layer Experiment
+The `ml_experiments.py` script allows you to systematically analyze how different neural network architectures—specifically, the number of hidden layers and neurons per layer—affect model performance, training time, and resource usage. This helps you find the best trade-off between accuracy and efficiency for your use case.
+
+### How to Run Experiments
+
+1. **Generate Training Data**
+
+   ```bash
+   cd backend
+   python -m src.data_generator -n 1000 --split 0.8 -o security_data_split.csv
+   ```
+
+2. **Run Architecture Experiments**
+
+   ```bash
+   cd ml/experiments
+   python ml_experiments.py
+   ```
+
+   - You can set the experiment mode (`layer`, `neuron`, or `both`) at the top of `ml_experiments.py` to control which architecture sweeps to run.
+
+### What to Expect
+
+- The script prints progress and results for each configuration.
+- Plots and logs are saved to the `docs/experiments/` directory.
+
+**Example Output:**
 
 ```bash
-# Generate training data
-cd backend
-python -m src.data_generator -n 1000 --split 0.8 -o security_data_split.csv
-
-# Run hidden layer experiment
-python layer_experiment.py
-```
-
-### Neuron Experiment
-
-The `neuron_experiment.py` script analyzes how different numbers of neurons per layer affect model performance, training time, and resource usage. This experiment helps determine the optimal neuron count for each hidden layer in the security evaluation model.
-
-#### Running the Neuron Experiment
-
-```bash
-# Generate training data
-cd backend
-python -m src.data_generator -n 1000 --split 0.8 -o security_data_split.csv
-
-# Run neuron count experiment
-python neuron_experiment.py
-```
-
-### Expected Terminal Output
-
-#### Layer Experiment Output
-
-The layer experiment script tests models with 1, 2, 4, 8, and 16 hidden layers and produces output similar to:
-
-```text
-Training with 1 hidden layer(s)
-Training with 2 hidden layer(s)
-Training with 4 hidden layer(s)
-Training with 8 hidden layer(s)
-Training with 16 hidden layer(s)
-
-{'layers': 1, 'train_time': 12.34, 'eval_time': 0.15, 'memory_mb': 45.2, 'mse': 0.082, 'mae': 0.198}
-{'layers': 2, 'train_time': 15.67, 'eval_time': 0.18, 'memory_mb': 52.8, 'mse': 0.076, 'mae': 0.185}
-{'layers': 4, 'train_time': 23.45, 'eval_time': 0.22, 'memory_mb': 68.1, 'mse': 0.071, 'mae': 0.179}
-{'layers': 8, 'train_time': 38.92, 'eval_time': 0.31, 'memory_mb': 94.7, 'mse': 0.069, 'mae': 0.175}
-{'layers': 16, 'train_time': 67.23, 'eval_time': 0.45, 'memory_mb': 142.3, 'mse': 0.070, 'mae': 0.176}
-
-Plot saved to \ses\backend\docs\experiments\layer_experiment.png
-Training curves saved to \ses\backend\docs\experiments\layer_training_curves.png
-```
-
-#### Neuron Experiment Output
-
-The neuron experiment script tests models with 32, 64, 128, and 256 neurons per layer and produces output similar to:
-
-```text
-Training with 32 neurons per layer
-Training with 64 neurons per layer
-Training with 128 neurons per layer
-Training with 256 neurons per layer
-
-{'neurons': 32, 'train_time': 18.45, 'eval_time': 0.12, 'memory_mb': 38.7, 'mse': 0.089, 'mae': 0.205}
-{'neurons': 64, 'train_time': 22.78, 'eval_time': 0.16, 'memory_mb': 52.3, 'mse': 0.076, 'mae': 0.185}
-{'neurons': 128, 'train_time': 31.24, 'eval_time': 0.24, 'memory_mb': 78.9, 'mse': 0.071, 'mae': 0.179}
-{'neurons': 256, 'train_time': 45.67, 'eval_time': 0.38, 'memory_mb': 125.4, 'mse': 0.069, 'mae': 0.175}
-
-Plot saved to \ses\backend\docs\experiments\neuron_experiment.png
-Training curves saved to \ses\backend\docs\experiments\neuron_training_curves.png
+[Layer Sweep] 1/2: Training with 1 hidden layer(s)
+  Training settings:
+    - Number of epochs: 100
+    - Batch size: 16
+    - Learning rate: 0.001
+    - Neurons per hidden layer: 64
+{'layers': 1, 'neurons': 64, 'train_time': 12.34, 'eval_time': 0.15, 'memory_mb': 45.2, 'mse': 0.082, 'mae': 0.198, ...}
+...
+Plot saved to .../layer_experiment.png
+Training curves saved to .../layer_training_curves.png
 ```
 
 ### Generated Visualizations
 
-#### Layer Experiment Plots
+- **`layer_experiment.png`**: Accuracy and resource usage vs. number of hidden layers
+- **`layer_training_curves.png`**: Training loss curves for different layer counts
+- **`neuron_experiment.png`**: Error and resource usage vs. neurons per layer
+- **`neuron_training_curves.png`**: Training loss curves for different neuron counts
 
-The layer experiment creates plots in `backend/docs/experiments/`:
-
-- **`layer_experiment.png`**: Model accuracy and resource usage vs number of hidden layers
-  - **Top plot**: Model accuracy (MSE/MAE) vs number of hidden layers
-  - **Bottom plot**: Training/evaluation time vs number of hidden layers
-- **`layer_training_curves.png`**: Training loss curves over epochs for different layer counts
-
-#### Neuron Experiment Plots
-
-The neuron experiment creates plots in `backend/docs/experiments/`:
-
-- **`neuron_experiment.png`**: Model error and resource usage vs neurons per layer
-  - **Top plot**: Model accuracy (MSE/MAE) vs number of neurons per layer
-  - **Bottom plot**: Training/evaluation time vs number of neurons per layer
-- **`neuron_training_curves.png`**: Training loss curves over epochs for different neuron counts
-
-These experiments help identify the optimal balance between model complexity and performance for your specific use case.
+These experiments help you identify the optimal neural network configuration for your security evaluation needs. For more details, see [Machine Learning Pipeline Documentation](backend/docs/machine_learning_pipeline.md).
 
 ## Testing
 
 ```bash
+cd backend
 python -m unittest discover
 ```
 
@@ -194,8 +187,8 @@ Output: `frontend/dist_electron/` contains platform-specific installers.
 ## System Requirements
 
 - **Windows**: Primary platform for security scanning
-- **Python 3.11**: Backend runtime
-- **Node.js 16+**: Frontend and Electron
+- **Python 3.11**: Backend runtime (Python 3.13 has PyTorch compatibility issues)
+- **Node.js 22**: Frontend and Electron
 - **Optional**: PyCLIPS for expert system features
 
 ---

@@ -5,16 +5,14 @@ This is a fallback implementation when PyTorch is not available.
 
 import pandas as pd
 import numpy as np
-from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 import joblib
 
 
-def train_model(train_csv, target_col="target_score", **kwargs):
+def train_model(train_csv, target_col="target_score"):
     """Train a scikit-learn model on the data."""
-    print(f"Loading training data from {train_csv}...")
 
     # Load data
     df = pd.read_csv(train_csv)
@@ -39,7 +37,6 @@ def train_model(train_csv, target_col="target_score", **kwargs):
     x_scaled = scaler.fit_transform(
         x_df.values
     )  # Train model - using RandomForest for better performance than LinearRegression
-    print("Training Random Forest model...")
     model = RandomForestRegressor(
         n_estimators=100, random_state=42, min_samples_leaf=2, max_features="sqrt"
     )
@@ -48,8 +45,6 @@ def train_model(train_csv, target_col="target_score", **kwargs):
     # Calculate training error
     train_pred = model.predict(x_scaled)
     train_mse = mean_squared_error(y, train_pred)
-
-    print(f"Training MSE: {train_mse:.4f}")
 
     return {
         "model": model,
@@ -62,7 +57,6 @@ def train_model(train_csv, target_col="target_score", **kwargs):
 
 def evaluate_security_model(model_data, test_csv, target_col="target_score"):
     """Evaluate the trained model on test data."""
-    print(f"Loading test data from {test_csv}...")
 
     # Load test data
     df = pd.read_csv(test_csv)

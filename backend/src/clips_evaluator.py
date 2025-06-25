@@ -1,17 +1,19 @@
 """Module for a Windows security expert system using CLIPS to evaluate security metrics."""
 
-import clips
-from pathlib import Path
 import io
 from contextlib import redirect_stdout
-from src.logging_config import get_logger
-from src.scoring import (
+from pathlib import Path
+
+import clips
+
+from .logging_config import get_logger
+from .scoring import (
     DEFAULT_BASE_SCORE,
-    get_clips_finding_impact,
     apply_score_impacts,
-    format_score_impact_text,
-    create_score_changes,
     assign_grade,
+    create_score_changes,
+    format_score_impact_text,
+    get_clips_finding_impact,
 )
 
 logger = get_logger(__name__)

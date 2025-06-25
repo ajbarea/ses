@@ -1,15 +1,19 @@
-#!/usr/bin/env python3
 """
 Train and evaluate a machine learning model to approximate the Expert System.
 """
 
-# Try to use the full PyTorch version, fallback to simple sklearn version
 try:
-    from src.ml_trainer import train_model, evaluate_security_model
+    from backend.ml.src.ml_trainer import (
+        train_model,
+        evaluate_security_model,
+    )
 
     print("Using PyTorch-based ML trainer")
 except ImportError:
-    from src.ml_trainer_simple import train_model, evaluate_security_model
+    from backend.ml.src.ml_trainer_simple import (
+        train_model,
+        evaluate_security_model,
+    )
 
     print("Using simplified scikit-learn ML trainer (PyTorch not available)")
 
@@ -51,11 +55,9 @@ def main():
 
     if "expert_system_consistency" in test_results:
         print(
-            f"Expert System Consistency: {test_results['expert_system_consistency']:.4f}"
-        )
-        print(
+            f"Expert System Consistency: {test_results['expert_system_consistency']:.4f} "
             "(How often predicted scores align with Expert System grade boundaries)"
-        )  # Show some example predictions
+        )
     print("\nSample Predictions vs Actual:")
     print("-" * 60)
     print("Sample | Predicted | Actual | Error | Expert System Approximation")

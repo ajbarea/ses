@@ -18,5 +18,9 @@
     ],
     "python.testing.pytestEnabled": false,
     "python.testing.unittestEnabled": true,
-    "terminal.integrated.showExitAlert": false
+    "terminal.integrated.showExitAlert": false,
+    "sonarlint.connectedMode.project": {
+        "connectionId": "ajbarea",
+        "projectKey": "ajbarea_ses"
+    }
 }

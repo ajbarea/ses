@@ -3,15 +3,15 @@ metrics, and security evaluations."""
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from src.logging_config import setup_logging, get_logger
+from backend.src.logging_config import setup_logging, get_logger
 from pathlib import Path
 import json
 import os
 
-from src.rules import evaluate
+from backend.src.rules import evaluate
 import logging
 
-from src.scanner import (
+from backend.src.scanner import (
     get_antivirus_status,
     get_firewall_status,
     get_open_ports,
