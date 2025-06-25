@@ -1,4 +1,4 @@
-# Machine Learning Pipeline Explanation
+# Machine Learning Pipeline Documentation
 
 This document provides an overview of the machine learning pipeline implemented in `ml_trainer.py`. The system is designed to predict a numerical security score and classify the security posture into a qualitative grade based on various system metrics.
 

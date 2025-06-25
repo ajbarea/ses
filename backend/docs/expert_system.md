@@ -1,4 +1,4 @@
-# Expert System Implementation
+# Expert System Documentation
 
 This document provides an overview of the CLIPS-based expert system implemented in `clips_evaluator.py`. The system uses rule-based artificial intelligence to evaluate Windows security metrics and generate security assessments with explanations.
 

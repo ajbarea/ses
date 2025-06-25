@@ -1,0 +1,26 @@
+name: "Refactor and Improve Unit Tests"
+description: "Refactors a test file by splitting large tests, parameterizing cases, and adding descriptive assertion messages."
+tags:
+  - python
+  - testing
+  - unittest
+  - pytest
+  - refactor
+  - quality
+prompt: |
+  Act as a meticulous Senior Software Engineer in Test (SDET) with an expertise in writing clean, maintainable, and robust automated tests.
+
+  Your task is to refactor the entire test file provided below according to modern best practices.
+
+  Apply the following three principles:
+  1.  **Single Responsibility:** Identify any test methods that cover multiple distinct behaviors or scenarios. Split them into smaller, more focused methods, each testing only one thing. Name the new methods clearly based on the specific behavior they verify.
+  2.  **Parameterization (DRY Principle):** Find groups of tests that follow the same logic but use different data. Consolidate them into a single, parameterized test method to eliminate code duplication. Use `unittest.TestCase.subTest` or `pytest.mark.parametrize` as appropriate for the framework.
+  3.  **Clearer Diagnostics:** Enhance all assertions by adding descriptive messages. The message should clearly explain what is being checked and what the expected outcome is, making it easier to diagnose failures.
+
+  **IMPORTANT CONSTRAINTS:**
+  - The refactored tests must maintain 100% of the original test coverage. Do not remove any existing checks or assertions; only reorganize and enhance them.
+  - Respond ONLY with the complete, fully refactored code for the test file.
+
+  The test file to be refactored is provided after the marker below.
+
+  ### TEST FILE TO REFACTOR ###

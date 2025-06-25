@@ -9,10 +9,8 @@ Key Components:
     - SecurityNN: Neural network model for security score prediction and grade classification
     - SimpleNN: Basic feed-forward neural network for regression tasks
     - Training and evaluation utilities for both PyTorch and scikit-learn models
+    - Experimentation: Use `ml_experiments.py` for neural network architecture sweeps (layers/neurons)
 
-Note:
-    All models support both regression (security scores) and classification (security grades)
-    tasks, with automatic handling of categorical and numerical features.
 """
 
 import argparse
@@ -64,9 +62,9 @@ class SecurityDataset(Dataset):
 
         # Separate features and targets
         self.target_col = target_col
-        feature_cols = [
-            col for col in df.columns if not col.startswith("target_")
-        ]  # Handle categorical variables
+        feature_cols = [col for col in df.columns if not col.startswith("target_")]
+
+        # Handle categorical variables
         categorical_cols = df[feature_cols].select_dtypes(include=["object"]).columns
         numerical_cols = df[feature_cols].select_dtypes(include=["number"]).columns
 
@@ -107,11 +105,28 @@ class SecurityDataset(Dataset):
                     }
                     df_encoded[col] = df[col].astype(str).map(class_mapping).fillna(0)
                 else:
-                    df_encoded[col] = (
-                        0  # Apply existing scaler to numerical columns in batch
-                    )
+                    df_encoded[col] = 0
+
+            # Handle numerical columns - ensure consistency with fitted scaler
             if len(numerical_cols) > 0:
-                df_encoded[numerical_cols] = self.scaler.transform(df[numerical_cols])
+                # Get the feature names that were used during scaler fitting
+                scaler_feature_names = getattr(self.scaler, "feature_names_in_", None)
+
+                if scaler_feature_names is not None:
+                    # Ensure all required columns exist in df_encoded
+                    for col in scaler_feature_names:
+                        if col not in df_encoded.columns:
+                            df_encoded[col] = 0
+
+                    # Transform only the columns that were used during fitting
+                    df_encoded[scaler_feature_names] = self.scaler.transform(
+                        df_encoded[scaler_feature_names]
+                    )
+                else:
+                    # Fallback: transform all numerical columns
+                    df_encoded[numerical_cols] = self.scaler.transform(
+                        df[numerical_cols]
+                    )
 
         # Convert to tensors efficiently - avoid unnecessary copies
         self.features = torch.from_numpy(df_encoded.values.astype(np.float32))
@@ -119,23 +134,33 @@ class SecurityDataset(Dataset):
             df[target_col].values.astype(np.float32)
         ).unsqueeze(1)
 
-        # Store target grades for classification if available
+        # Handle grade encoding if available
+        self.target_grades = None
         if "target_grade" in df.columns:
             if fit_encoders:
                 self.grade_encoder = LabelEncoder()
                 encoded_grades = self.grade_encoder.fit_transform(df["target_grade"])
-                self.target_grades = torch.from_numpy(encoded_grades.astype(np.int64))
             else:
                 self.grade_encoder = grade_encoder
                 if self.grade_encoder:
-                    encoded_grades = self.grade_encoder.transform(df["target_grade"])
-                    self.target_grades = torch.from_numpy(
-                        encoded_grades.astype(np.int64)
-                    )
+                    # Handle unseen grades gracefully
+                    try:
+                        encoded_grades = self.grade_encoder.transform(
+                            df["target_grade"]
+                        )
+                    except ValueError:
+                        # Map unseen grades to first class
+                        mapped_grades = []
+                        for grade in df["target_grade"]:
+                            if grade in self.grade_encoder.classes_:
+                                mapped_grades.append(grade)
+                            else:
+                                mapped_grades.append(self.grade_encoder.classes_[0])
+                        encoded_grades = self.grade_encoder.transform(mapped_grades)
                 else:
-                    self.target_grades = None
-        else:
-            self.target_grades = None
+                    encoded_grades = np.zeros(len(df))
+
+            self.target_grades = torch.from_numpy(encoded_grades.astype(np.int64))
 
     def __len__(self):
         return len(self.targets)
@@ -291,6 +316,7 @@ def _train_security_model(
     epochs: int,
     device: torch.device,
     classification_loss=None,
+    progress_bar=False,
 ) -> list:
     """Train a SecurityNN model with support for both score and grade prediction.
 
@@ -302,6 +328,7 @@ def _train_security_model(
         epochs (int): Number of training epochs.
         device (torch.device): Device to train on (cuda/cpu).
         classification_loss: Optional loss function for grade classification.
+        progress_bar (bool, optional): Whether to show a progress bar for epochs. Defaults to False.
 
     Returns:
         list: Training losses for each epoch.
@@ -313,7 +340,16 @@ def _train_security_model(
     model.to(device)
     losses = []
 
-    for epoch in range(epochs):
+    epoch_iter = range(epochs)
+    if progress_bar:
+        try:
+            from tqdm import tqdm
+
+            epoch_iter = tqdm(epoch_iter, desc="Epochs", leave=False)
+        except ImportError:
+            pass
+
+    for _ in epoch_iter:
         epoch_loss = 0.0
         model.train()
 
@@ -354,9 +390,6 @@ def _train_security_model(
         avg_loss = epoch_loss / len(loader.dataset)
         losses.append(avg_loss)
 
-        if (epoch + 1) % 10 == 0:
-            print(f"Epoch {epoch + 1}/{epochs}, Loss: {avg_loss:.4f}")
-
     return losses
 
 
@@ -367,6 +400,7 @@ def _train_torch_model(
     optimizer,
     epochs: int,
     device: torch.device,
+    progress_bar=False,
 ) -> list:
     """Train a generic PyTorch model.
 
@@ -380,13 +414,22 @@ def _train_torch_model(
         optimizer: Optimizer for updating model parameters.
         epochs (int): Number of complete passes through the training data.
         device (torch.device): Device (CPU/GPU) to use for training.
+        progress_bar (bool, optional): Whether to show a progress bar for epochs. Defaults to False.
 
     Returns:
         list: Training loss values for each epoch.
     """
     model.to(device)
     losses = []
-    for _ in range(epochs):
+    epoch_iter = range(epochs)
+    if progress_bar:
+        try:
+            from tqdm import tqdm
+
+            epoch_iter = tqdm(epoch_iter, desc="Epochs", leave=False)
+        except ImportError:
+            pass
+    for _ in epoch_iter:
         epoch_loss = 0.0
         for x, y in loader:
             x, y = x.to(device), y.to(device)
@@ -506,6 +549,7 @@ def train_model(*args, **kwargs):
     if len(args) == 6:
         # PyTorch training: (model, loader, criterion, optimizer, epochs, device)
         model, loader, criterion, optimizer, epochs, device = args
+        progress_bar = kwargs.get("progress_bar", False)
         if hasattr(model, "score_predictor"):  # SecurityNN
             classification_loss = (
                 nn.CrossEntropyLoss()
@@ -513,11 +557,24 @@ def train_model(*args, **kwargs):
                 else None
             )
             return _train_security_model(
-                model, loader, criterion, optimizer, epochs, device, classification_loss
+                model,
+                loader,
+                criterion,
+                optimizer,
+                epochs,
+                device,
+                classification_loss,
+                progress_bar=progress_bar,
             )
         else:  # Regular NN
             return _train_torch_model(
-                model, loader, criterion, optimizer, epochs, device
+                model,
+                loader,
+                criterion,
+                optimizer,
+                epochs,
+                device,
+                progress_bar=progress_bar,
             )
 
     elif kwargs.get("model_type") == "security":
@@ -597,7 +654,13 @@ def train_model(*args, **kwargs):
             weight_decay=kwargs.get("weight_decay", 1e-4),
         )  # Train
         losses = train_model(
-            model, train_loader, criterion, optimizer, kwargs.get("epochs", 50), device
+            model,
+            train_loader,
+            criterion,
+            optimizer,
+            kwargs.get("epochs", 50),
+            device,
+            progress_bar=True,
         )
 
         # Evaluate
@@ -624,7 +687,6 @@ def train_model(*args, **kwargs):
             if val_predictions
             else float("inf")
         )
-        print(f"Validation MSE: {val_mse:.4f}")
 
         return {
             "model": model,
@@ -985,29 +1047,22 @@ def main():  # pragma: no cover
     use_cuda = not args.no_cuda and torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
 
-    print(f"Using device: {device}")
-    print(f"Loading data from: {args.csv_file}")
-
     try:
         full_dataset = SecurityDataset(csv_file=args.csv_file)
     except Exception:
-        print(f"Failed to load dataset from {args.csv_file}. Exiting.")
+        print(f"Error loading dataset from {args.csv_file}. Please check the file.")
         return
 
     if args.input_size == -1:
         # Auto-detect input_size from dataset
         if len(full_dataset) > 0:
             args.input_size = full_dataset.features.shape[1]
-            print(f"Auto-detected input_size: {args.input_size}")
         else:
-            print(
-                "Cannot auto-detect input_size from empty dataset. Please specify --input_size."
-            )
+            print("Dataset is empty. Cannot determine input size.")
             return
 
     # Ensure dataset is not empty for splitting
     if len(full_dataset) == 0:
-        print("Dataset is empty. Cannot proceed with training and testing.")
         return
 
     # Split dataset
@@ -1016,32 +1071,14 @@ def main():  # pragma: no cover
 
     # Handle cases where dataset is too small for the split
     if train_size <= 0 or test_size <= 0:
-        print(
-            f"Dataset is too small to be split with test_split={args.test_split}. Need at least {1/args.test_split if args.test_split > 0 else 'N/A'} samples for a valid split."
-        )
-        if len(full_dataset) > 0 and train_size <= 0:  # if all data goes to test
-            print("Consider using all data for training or adjusting test_split.")
-            # Or, assign all to training if test_split makes test_size zero and train_size positive
+        if len(full_dataset) > 0:
             train_dataset = full_dataset
             train_loader = DataLoader(
                 train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=0
             )
             test_loader = None  # No test set
-            print(
-                "Using entire dataset for training as test split resulted in zero test samples."
-            )
-        elif len(full_dataset) > 0 and test_size <= 0:  # if all data goes to train
-            train_dataset = full_dataset
-            train_loader = DataLoader(
-                train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=0
-            )
-            test_loader = None  # No test set
-            print(
-                "Using entire dataset for training as test split resulted in zero test samples."
-            )
         else:  # Dataset is genuinely empty or cannot be split meaningfully
             return
-
     else:
         train_dataset, test_dataset = torch.utils.data.random_split(
             full_dataset,
@@ -1055,13 +1092,6 @@ def main():  # pragma: no cover
             test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=0
         )
 
-    print(
-        f"Hyperparameters: LR={args.lr}, Epochs={args.epochs}, BatchSize={args.batch_size}"
-    )
-    print(
-        f"Model: Input={args.input_size}, Hidden={args.hidden_size}x{args.hidden_layers}, Output={args.output_size}"
-    )
-
     model = SimpleNN(
         args.input_size,
         args.hidden_size,
@@ -1071,27 +1101,14 @@ def main():  # pragma: no cover
     criterion = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-4)
 
-    print("Starting training...")
     train_model(model, train_loader, criterion, optimizer, args.epochs, device)
 
     if test_loader:
-        print("Starting evaluation...")
-        # Evaluate the model on test data
         model.eval()
-        test_loss = 0.0
         with torch.no_grad():
             for x, y in test_loader:
                 x, y = x.to(device), y.to(device)
-                outputs = model(x)
-                loss = criterion(outputs, y)
-                test_loss += loss.item()
-
-        avg_test_loss = test_loss / len(test_loader)
-        print(f"Test Loss: {avg_test_loss:.4f}")
-    else:
-        print("No test data to evaluate.")
-
-    print("Script execution finished.")
+                model(x)
 
 
 if __name__ == "__main__":  # pragma: no cover

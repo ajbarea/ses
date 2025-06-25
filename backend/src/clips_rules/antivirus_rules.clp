@@ -5,6 +5,20 @@
 
 ;;; Section: Antivirus Status Rules ;;;
 
+;; Rule: antivirus-not-detected
+;; Purpose: Identifies systems with no antivirus products detected.
+(defrule antivirus-not-detected
+    "Check if no antivirus products are detected"
+    (not (antivirus-product))
+    =>
+    (assert (finding
+        (rule-name "antivirus_not_detected")
+        (level "critical")
+        (description "No antivirus software detected.")
+        (recommendation "Install and configure antivirus software immediately.")
+    ))
+)
+
 ;; Rule: antivirus-disabled
 ;; Purpose: Identifies systems with completely disabled antivirus protection.
 (defrule antivirus-disabled
