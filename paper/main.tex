@@ -1,0 +1,104 @@
+\documentclass[conference, letterpaper]{IEEEtran}
+\usepackage{listings}
+\hyphenation{op-tical net-works semi-conduc-tor}
+\ifCLASSINFOpdf
+    \usepackage[pdftex]{graphicx}
+\else
+\fi
+
+\usepackage[cmex10]{amsmath}
+\usepackage{color}
+\usepackage{fancyhdr}
+\usepackage[caption=false,font=footnotesize]{subfig}
+
+\renewcommand{\thispagestyle}[2]{} 
+
+\fancypagestyle{plain}{
+    \fancyhead{}
+    \fancyhead[C]{first page center header}
+    \fancyfoot{}
+    \fancyfoot[C]{first page center footer}
+}
+\pagestyle{fancy}
+
+\headheight 31.99992pt
+\footskip 20pt
+
+\rhead{}
+
+\setcounter{page}{1}
+
+\fancyhead[R]{\textit{RIT Software Engineering ~\textbullet~ Security and Risk Evaluation}}
+\renewcommand{\headrulewidth}{0pt}
+
+\fancyfoot[C]{Rochester Institute of Technology}
+\renewcommand{\footrulewidth}{0.5pt}
+\fancyfoot[R]{\thepage \  $|$ P a g e }
+
+\begin{document}
+    \title{A PyCLIPS-Based Expert System for Windows Desktop Security Assessment}
+
+    \author{\IEEEauthorblockN{AJ Barea}
+    \IEEEauthorblockA{Department of Software Engineering\\
+    Golisano College of Computing and Information Sciences\\
+    Rochester Institute of Technology\\
+    ajb6289@rit.edu}}
+
+    \maketitle
+
+    \begin{abstract}
+        This paper looks at three studies that build a Windows security evaluation tool using Python scripts and a CLIPS rule engine. We show how each one collects data (settings, logs, event vectors) and turns it into a security score. By comparing them, we build a simple framework that takes raw host data and produces a final security rating with rules and machine learning.
+    \end{abstract}
+
+    \begin{IEEEkeywords}
+        Windows security evaluation, rule‐based expert system, hierarchical security metrics, security assessment, PyCLIPS
+    \end{IEEEkeywords}
+
+    \IEEEpeerreviewmaketitle
+
+    \section{Introduction}
+    Turning raw Windows details into meaningful security risk insights has been a long-standing challenge. Over the years, different researchers have proposed ways to automatically verify configuration settings, analyze audit logs, or mathematically embed event streams. In our own project, Python scripts will collect items such as patch status, open ports, running services, firewall configuration, antivirus state, password policy, and more. These facts will then be asserted into a CLIPS engine that uses rule files such as patch\_rules.clp, port\_rules.clp, and firewall\_rules.clp to compute an overall security score. To guide our design, we draw on three papers that have similar ideas: Stöckle et al. \cite{b1}, Berlin et al. \cite{b2}, and Verma \& Bridges \cite{b3}. We organize this report into four sections. The first section covers how each work approaches device-level security evaluation. The second section describes their hierarchical metric designs. The third section reviews their system implementation choices. The fourth section outlines our proposed expert system design and specification. Finally, we present conclusions that guide the development of a student-level Windows security evaluation tool.
+
+    \section{Endpoint Security Evaluation}
+    Stöckle et al. used spaCy to pull out security rules from SCAP XML and CIS guides \cite{b1}. They then wrote PowerShell scripts to check the registry and Group Policy settings on Windows 10/11 VMs. They found that 83\% of 2014 rules ran fully automatically, and 96\% ran with just a bit of manual help. Each configuration item yields a Boolean pass or fail fact, either compliant or noncompliant, which is sent as JSON to a FastAPI endpoint. The backend aggregates these results into guide-level compliance percentages, for example an “Account Security” category, and then produces an overall endpoint score by weighting each guide's category, such as assigning a weight of 0.4 to CIS rules and 0.6 to NIST STIG rules.
+
+    Berlin, Slater, and Saxe didn't install any new software on the endpoint. They just used the built-in Windows Audit Logs \cite{b2}. By configuring audit policies to record events such as EventID 4688 for process creation and EventID 4656 for file handle usage, they collect EVTX streams from Windows 10 virtual machines running both benign and malicious workloads. Python scripts using the winevt package parse the EVTX files into raw events. These atomic audit events, process starts, file opens, and registry writes, are then grouped into about 50 mid-level features. Each feature becomes a Boolean or numeric indicator, such as a count of file modifications beyond a threshold. These features feed into thematic composite scores, including a “Behavioral Anomaly Score” and a “Privilege Escalation Indicator,” which together form a final “Audit-Based Malicious Score.” The authors then train scikit-learn classifiers like logistic regression and random forests on the CSV outputs to refine detection. Using a controlled virtual machine dataset, they report an 83\% detection rate at a false-positive rate of 0.1\%.
+
+    Verma and Bridges take a math-centric approach: they turn every ETW event into a vector so similar events sit close together in space \cite{b3}. They parse each event from Windows 10 hosts in a security operations center environment into a tuple consisting of the EventID, Source, ProcessName, TargetName, UserID, and Timestamp. These events are embedded into a semantic space where related EventIDs, for example EventID 4624 for Logon and EventID 4625 for Logon Failure, are placed in nearby subspaces. They split the event stream into equal time blocks and treat each block as a bag of event vectors. Then they use Earth Mover's Distance (EMD) to compare each block against examples of good or bad behavior. Windows that lie far from benign baselines are flagged as anomalous, while those close to attack clusters are marked as potentially compromised. Because EMD is computation heavy, Verma and Bridges apply principal component analysis to reduce dimensionality. Instead of producing a single risk score, their output provides a set of distance measures that an analyst can compare against thresholds to flag suspicious activity.
+
+    Stöckle et al. automates compliance checks with high coverage but depends on curated rule mappings, whereas Berlin et al. can detect behavioral anomalies without installing agents but may produce more false positives, and Verma \& Bridges' embedding approach is mathematically elegant but computationally heavy.
+
+    \section{Hierarchical Metrics Design}
+    Stöckle et al. propose a four-level compliance hierarchy that moves from individual checks to a final endpoint score \cite{b1}. First, each atomic check verifies one registry value or Group Policy setting. Each of these atomic checks yields a Boolean result, indicating pass or fail. At the second level, related atomic checks are grouped into categories such as “Account Security” or “Network Security.” The third level computes a guide-level compliance percentage by dividing the number of passed checks by the total number of checks in that guide. For instance, passing 1875 out of 2014 checks results in a compliance percentage of 93.1\% for that CIS guide. At the fourth level, guide-level scores are aggregated into a single endpoint score by applying predetermined weights, for example assigning a weight of 0.4 to CIS categories and 0.6 to NIST STIG categories. This layered design allows security teams to see which categories are falling below acceptable thresholds; for example, if the “Network Security” category is at 85\% compliance while “Account Security” is at 98\%, they know where to prioritize remediation efforts. We adopt a similar four‐tier structure for SES, but replace SCAP/CIS checks with a broader set of Windows host metrics (patch status, open ports, etc.) as described in Section V.
+
+    Berlin et al. use a multi-tier feature hierarchy focused on audit logs \cite{b2}. In their first level, atomic audit events such as EventID 4688 for process creation and EventID 4656 for file handle opens are identified. At the second level, these atomic events are grouped into higher-level features. One example is grouping multiple instances of EventID 4688 into a single feature labeled “uncommon parent–child process combinations.” Each of those high-level features is represented as a Boolean or numeric indicator, for instance counting file modifications in system directories that exceed a certain threshold. At the third level, thematic composite scores are computed; for example, a “Behavioral Anomaly Score” sums the counts of rare features over a sliding time window, while a “Privilege Escalation Indicator” might combine indicators such as EventID 4672 for special privileges with subsequent registry modifications. In the fourth and final level, these thematic composite scores feed into an overall “Audit-Based Malicious Score.” This layered approach helps analysts understand which category of behavior triggered an elevated score.
+
+    Verma and Bridges define three levels within their hierarchy for log embeddings \cite{b3}. The first level consists of raw event tuples, capturing details like EventID, Source, ProcessName, TargetName, and UserID. The second level groups events with the same EventID or Source into a shared embedding subspace, clustering semantically related events. In the third level, the log stream is segmented into fixed-time windows and each window is represented as a multi-set of event embeddings. An EMD is computed between the embeddings of each window and those of reference clusters, such as known-good or known-malicious clusters. Verma and Bridges don't turn these distances into one final risk score. Instead, they show how raw ETW events become numerical anomaly values that an analyst can compare against thresholds to spot suspicious activity.
+
+    \section{Windows Endpoint Implementation}
+    All three works use Python for data collection and pre-processing. However, each one uses different supporting tools or languages. Stöckle et al. use spaCy in Python to parse SCAP XML and human-readable guides, generating a structured JSON repository of rules that map each rule identifier to registry paths and expected values \cite{b1}. They then produce PowerShell and C\# scripts to run the atomic checks on Windows 10 and 11 endpoints, returning Boolean pass/fail results as JSON to a FastAPI backend written in Python. FastAPI aggregates the pass/fail results, computes guide-level compliance percentages and finally calculates an overall endpoint score using predetermined category weights. Their compliance script took about four minutes to run all 2014 checks on a Windows 11 VM, returning JSON that shows which ones passed or failed.
+
+    Berlin et al. build a pipeline around Python scripts that parse EVTX audit logs using the winevt package \cite{b2}. Their feature-extraction pipeline reads raw EVT records and outputs CSV rows containing counts or Boolean flags for each high-level feature, such as the number of times EventID 4688 appeared or whether certain rare parent–child process flags were set. They then use scikit-learn to implement logistic regression and random forest classifiers on those CSV outputs. They also rely on Sysmon, configured on the endpoint to forward audit events to a central collector, and use the winevt package to retrieve and parse EVTX files. Rather than using an expert system, their workflow relies on simple threshold checks to flag anomalies and then leverages ML models to refine detection.
+
+    Verma and Bridges write their implementation in Python, using NumPy for vector operations and SciPy for computing EMD between embeddings \cite{b3}. They parse ETW log streams into structured CSV files, where each event is represented as a tuple of attributes. They convert unique EventIDs to one-hot vectors and consult a manually curated similarity matrix to inform their embeddings, ensuring that semantically related events are represented in nearby subspaces. They then segment the event stream into fixed-time windows and represent each window as a multi-set of event embeddings. Since EMD is computationally expensive, they apply principal component analysis to reduce the dimensionality of the embedding space before distance calculations. Their output consists of distance measures for each window, which analysts can threshold but do not feed into a rule engine.
+
+    None of the three papers actually plugs into a CLIPS rule engine, but you could take Stöckle's compliance percentages, Berlin's anomaly scores, and Verma \& Bridges' EMD values and turn them into CLIPS facts if you wanted. Those facts can then be processed by a rule engine to generate semantic alerts. All three approaches rely primarily on Python for data collection and processing, with Stöckle et al. supplementing Python with PowerShell and C\# for configuration checks.
+
+    \section{Expert System Architecture and Specification}
+    We will develop a modular Python scanner that can collect a flexible set of Windows host metrics. To start, it will cover patch status, open TCP ports, running services, firewall profiles, installed antivirus products, and local password policy, but the design lets us add new metric collectors without touching the core code. Each collector will query its data source by calling the appropriate system interface. For example, the patch collector will use Windows Management Instrumentation (WMI) Win32 QuickFixEngineering class to retrieve hotfix identifiers; if the list is empty, the system is flagged as out of date. The port collector will use the psutil library or parse the output of netstat to record every listening TCP port. The service collector will use psutil.win\_service\_iter or WMI's Win32 Service class to list running services with their names and states. The firewall collector will execute the command netsh advfirewall show allprofiles state and parse each line to determine whether the Domain, Private, and Public profiles are on or off. The antivirus collector will query WMI's root SecurityCenter2 namespace to gather each AntiVirusProduct’s display name and state value. The password policy collector will run net accounts and parse lines that specify minimum password length and maximum password age. Every collector will return a dictionary that maps its metric name to a value or data structure, and we will merge all these collector dictionaries into a single metrics dictionary for downstream use.
+    
+    Once we have the metrics, we feed them into a rule based evaluator. If CLIPS is available on the host, we will start a CLIPS environment and define templates that match the keys in the metrics dictionary. For each metric category, we will assert one or more facts into CLIPS using the values we collected. For instance, for patch status we will assert facts that include the status and any hotfix identifiers. For each listening port we will assert a fact that records the port number. We will assert a single firewall fact that contains the on or off values for the three profiles. For antivirus products we will assert a fact for each product that records its name and state. For password policy we will assert a fact that records the minimum password length and the maximum password age. We will then load a set of CLIPS rule files, one file per category or logical grouping of metrics, so that when we add new metric types we can create new rule files without touching existing ones. As an example, the patch rules file will check whether any patch status fact indicates that the system is out of date and, if so, assert a finding fact with severity critical and a penalty of 30 points. The port rules file will look for high risk ports such as FTP (port 21), Telnet (port 23), SMTP (port 25), or RDP (port 3389) by checking for open port facts with those numbers and, if any are found, assert a finding fact with severity warning and a penalty of 15 points. The firewall rules file will detect when all profiles are off and, if so, assert a finding fact with severity critical and a penalty of 30 points.
+    
+    Every rule that fires will assert a finding fact containing fields for rule name, description, severity, and recommendation, and will also assert a score fact that indicates how many points to add or subtract. After CLIPS finishes running, we gather all the finding and score facts, sum the score values, limit the total to the range from 0 to 100, and then choose a grade based on predefined thresholds. For example, any finding with severity critical forces the grade Critical Risk. Otherwise a score of 90 or above yields Excellent, 80 or above yields Good, 60 or above yields Fair, 40 or above yields Poor, and below 40 yields Critical Risk. If CLIPS cannot be imported or fails at runtime, we run a Python fallback evaluator that follows the same rule logic and scoring approach in pure Python. In both cases, the final output is a JSON report that includes the numeric score, the qualitative grade, a summary sentence, and a list of individual findings each with its rule identifier, severity level, description, optional details, and recommendation. This design makes it easy to add new collectors and new rule modules over time whenever we want to include additional metrics.
+
+    \section{Conclusion}
+    Stöckle et al. show how to parse SCAP XML using NLP, run PowerShell checks on the registry and GPO, and compute guide-level and endpoint scores in a FastAPI backend \cite{b1}. Berlin et al. show how to transform Windows Audit Logs into mid-level features and train scikit-learn classifiers to detect malicious behavior without installing endpoint agents \cite{b2}. Verma \& Bridges provide a rigorous method for embedding ETW logs into a semantic space, computing Earth Mover's Distance-based measures that analysts can threshold to flag anomalies \cite{b3}. Although none of these methods uses a forward-chaining rule engine directly, their hierarchical feature frameworks align perfectly with a design in which Python scripts gather configuration and behavioral facts and assert them into CLIPS rule files to derive a final security risk score. By using simple Python scripts, basic rule checks, and some machine learning, a Windows security tool can produce an easy-to-understand security score with plain-language explanations.
+
+    \begin{thebibliography}{00}
+        \bibitem{b1} Stöckle, Patrick, Bernd Grobauer and Alexander Pretschner. "Automated implementation of windows-related security-configuration guides." Proceedings of the 35th IEEE/ACM International Conference on Automated Software Engineering. 2020.
+
+        \bibitem{b2} Berlin, Konstantin, David Slater, and Joshua Saxe. "Malicious behavior detection using windows audit logs." Proceedings of the 8th ACM Workshop on Artificial Intelligence and Security. 2015.
+
+        \bibitem{b3} Verma, Miki E., and Robert A. Bridges. "Defining a metric space of host logs and operational use cases." 2018 IEEE International Conference on Big Data (Big Data). IEEE, 2018.
+    \end{thebibliography}
+\end{document}
